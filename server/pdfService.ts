@@ -212,7 +212,7 @@ export class PDFService {
         {
           table: {
             headerRows: 1,
-            widths: ['*', '*', 'auto', 'auto', '*'],
+            widths: ['*', '*', 'auto', 'auto', 'auto', '*'],
             body: tableBody
           },
           layout: 'lightHorizontalLines'
