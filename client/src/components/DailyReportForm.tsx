@@ -46,7 +46,7 @@ const mockWorkOrders = {
   ],
 };
 
-const workTypes: WorkType[] = ["Taglio", "Saldatura", "Montaggio"];
+const workTypes: WorkType[] = ["Taglio", "Saldatura", "Montaggio", "Verniciatura", "Stuccatura", "Manutenzione", "Generico"];
 
 export default function DailyReportForm({ employeeName, date, onSubmit }: DailyReportFormProps) {
   const [operations, setOperations] = useState<Operation[]>([{
