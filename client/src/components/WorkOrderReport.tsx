@@ -176,7 +176,11 @@ export default function WorkOrderReport({
                   </TableCell>
                   <TableCell>
                     <div className="text-sm">
-                      {formatEmployeeHours(row.employees, row.hours)}
+                      {row.employees.map((emp, empIndex) => (
+                        <div key={empIndex}>
+                          {emp} ({(row.hours as any)[emp] || 0}h)
+                        </div>
+                      ))}
                       <div className="font-medium mt-1">
                         Tot: {row.totalHours}h
                       </div>

@@ -19,10 +19,12 @@ import {
   Plus,
   Edit,
   Calendar,
-  Wrench
+  Wrench,
+  Eye
 } from "lucide-react";
 import StatusBadge from "./StatusBadge";
 import AttendanceCalendar from "./AttendanceCalendar";
+import WorkOrderReport from "./WorkOrderReport";
 
 // Mock data for demonstration
 const mockReports = [
@@ -119,6 +121,11 @@ export default function AdminDashboard() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedTab, setSelectedTab] = useState("reports");
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [selectedWorkOrder, setSelectedWorkOrder] = useState<{
+    number: string;
+    description: string;
+    clientName: string;
+  } | null>(null);
 
   const filteredReports = mockReports.filter(report => {
     const matchesSearch = report.employee.toLowerCase().includes(searchTerm.toLowerCase());
@@ -195,6 +202,19 @@ export default function AdminDashboard() {
 
   const totalPendingReports = mockReports.filter(r => r.status === "In attesa").length;
   const totalApprovedReports = mockReports.filter(r => r.status === "Approvato").length;
+
+  const handleViewWorkOrderReport = (operation: any) => {
+    setSelectedWorkOrder({
+      number: operation.workOrderNumber,
+      description: operation.workOrderDescription,
+      clientName: operation.clientName
+    });
+    setSelectedTab("work-orders");
+  };
+
+  const handleBackToWorkOrders = () => {
+    setSelectedWorkOrder(null);
+  };
 
   return (
     <div className="p-6 space-y-6">
@@ -429,7 +449,15 @@ export default function AdminDashboard() {
 
         {/* Work Orders Tab */}
         <TabsContent value="work-orders" className="space-y-4">
-          <Card>
+          {selectedWorkOrder ? (
+            <WorkOrderReport
+              workOrderNumber={selectedWorkOrder.number}
+              workOrderDescription={selectedWorkOrder.description}
+              clientName={selectedWorkOrder.clientName}
+              onBack={handleBackToWorkOrders}
+            />
+          ) : (
+            <Card>
             <CardHeader>
               <CardTitle>Lavorazioni per Commessa</CardTitle>
               <p className="text-sm text-muted-foreground">
@@ -447,6 +475,7 @@ export default function AdminDashboard() {
                     <TableHead>Data</TableHead>
                     <TableHead>Ore</TableHead>
                     <TableHead>Note</TableHead>
+                    <TableHead>Azioni</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -485,12 +514,24 @@ export default function AdminDashboard() {
                           {operation.notes}
                         </div>
                       </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleViewWorkOrderReport(operation)}
+                          data-testid={`button-view-report-${operation.id}`}
+                        >
+                          <Eye className="h-4 w-4 mr-1" />
+                          Report
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
             </CardContent>
-          </Card>
+            </Card>
+          )}
         </TabsContent>
 
         {/* Attendance Tab */}
