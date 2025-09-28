@@ -159,6 +159,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get operations for a specific work order (for final report)
+  app.get("/api/work-orders/:workOrderId/operations", async (req, res) => {
+    try {
+      const { workOrderId } = req.params;
+      const operations = await storage.getOperationsByWorkOrderId(workOrderId);
+      
+      // Get additional data for each operation (employee names, etc.)
+      const enrichedOperations = await Promise.all(
+        operations.map(async (op) => {
+          const dailyReport = await storage.getAllDailyReports().then(reports => 
+            reports.find(r => r.id === op.dailyReportId)
+          );
+          const employee = dailyReport ? await storage.getUser(dailyReport.employeeId) : null;
+          const client = await storage.getAllClients().then(clients => 
+            clients.find(c => c.id === op.clientId)
+          );
+          const workOrder = await storage.getWorkOrdersByClient(op.clientId).then(orders => 
+            orders.find(wo => wo.id === op.workOrderId)
+          );
+          
+          return {
+            ...op,
+            employeeName: employee?.fullName || "Unknown",
+            employeeId: dailyReport?.employeeId,
+            date: dailyReport?.date,
+            clientName: client?.name || "Unknown",
+            workOrderName: workOrder?.name || "Unknown",
+            reportStatus: dailyReport?.status || "Unknown"
+          };
+        })
+      );
+      
+      res.json(enrichedOperations);
+    } catch (error) {
+      console.error("Error fetching work order operations:", error);
+      res.status(500).json({ error: "Failed to fetch work order operations" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
