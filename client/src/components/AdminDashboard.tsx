@@ -18,7 +18,8 @@ import {
   Clock,
   Plus,
   Edit,
-  Calendar
+  Calendar,
+  Wrench
 } from "lucide-react";
 import StatusBadge from "./StatusBadge";
 import AttendanceCalendar from "./AttendanceCalendar";
@@ -55,6 +56,62 @@ const mockClients = [
   { id: "1", name: "Acme Corporation", workOrders: 5 },
   { id: "2", name: "TechFlow Solutions", workOrders: 3 },
   { id: "3", name: "Industrial Works", workOrders: 7 },
+];
+
+// Mock data for work orders with multiple work types
+const mockOperations = [
+  {
+    id: "1",
+    clientName: "Acme Corporation",
+    workOrderNumber: "ACM-2024-001", 
+    workOrderDescription: "Realizzazione cancello automatico",
+    workTypes: ["Taglio", "Saldatura", "Montaggio"],
+    employee: "Marco Rossi",
+    date: "2024-03-15",
+    hours: 6.5,
+    startTime: "08:00",
+    endTime: "14:30",
+    notes: "Completato taglio lamiere e inizio saldatura"
+  },
+  {
+    id: "2",
+    clientName: "TechFlow Solutions",
+    workOrderNumber: "TFS-2024-012",
+    workOrderDescription: "Manutenzione ordinaria impianto", 
+    workTypes: ["Manutenzione", "Verniciatura"],
+    employee: "Laura Bianchi",
+    date: "2024-03-15",
+    hours: 4.0,
+    startTime: "09:00", 
+    endTime: "13:00",
+    notes: "Controllo generale e ritocchi verniciatura"
+  },
+  {
+    id: "3",
+    clientName: "Industrial Works",
+    workOrderNumber: "IW-2024-045",
+    workOrderDescription: "Prototipo struttura metallica",
+    workTypes: ["Taglio", "Foratura", "Montaggio", "Stuccatura"],
+    employee: "Giuseppe Verde",
+    date: "2024-03-14", 
+    hours: 8.0,
+    startTime: "08:00",
+    endTime: "16:00",
+    notes: "Prima fase prototipo completata"
+  },
+  {
+    id: "4",
+    clientName: "Acme Corporation",
+    workOrderNumber: "ACM-2024-002",
+    workOrderDescription: "Riparazione ringhiera balcone",
+    workTypes: ["Saldatura", "Verniciatura"],
+    employee: "Anna Neri",
+    date: "2024-03-14",
+    hours: 3.5,
+    startTime: "14:00",
+    endTime: "17:30",
+    notes: "Saldatura completata, verniciatura in corso"
+  }
 ];
 
 export default function AdminDashboard() {
@@ -232,6 +289,10 @@ export default function AdminDashboard() {
             <Building className="h-4 w-4 mr-2" />
             Clienti
           </TabsTrigger>
+          <TabsTrigger value="work-orders" data-testid="tab-work-orders">
+            <Wrench className="h-4 w-4 mr-2" />
+            Commesse
+          </TabsTrigger>
           <TabsTrigger value="attendance" data-testid="tab-attendance">
             <Calendar className="h-4 w-4 mr-2" />
             Presenze
@@ -357,6 +418,72 @@ export default function AdminDashboard() {
                         <Button variant="ghost" size="sm" data-testid={`button-edit-client-${client.id}`}>
                           <Edit className="h-4 w-4" />
                         </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Work Orders Tab */}
+        <TabsContent value="work-orders" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Lavorazioni per Commessa</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Visualizza nel dettaglio le lavorazioni eseguite per ogni commessa
+              </p>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Cliente</TableHead>
+                    <TableHead>Commessa</TableHead>
+                    <TableHead>Lavorazioni</TableHead>
+                    <TableHead>Dipendente</TableHead>
+                    <TableHead>Data</TableHead>
+                    <TableHead>Ore</TableHead>
+                    <TableHead>Note</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {mockOperations.map((operation) => (
+                    <TableRow key={operation.id}>
+                      <TableCell className="font-medium">{operation.clientName}</TableCell>
+                      <TableCell>
+                        <div>
+                          <div className="font-medium">{operation.workOrderNumber}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {operation.workOrderDescription}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {operation.workTypes.map((type, index) => (
+                            <Badge key={index} variant="secondary" className="text-xs">
+                              {type}
+                            </Badge>
+                          ))}
+                        </div>
+                      </TableCell>
+                      <TableCell>{operation.employee}</TableCell>
+                      <TableCell>{operation.date}</TableCell>
+                      <TableCell>
+                        <div>
+                          <div className="font-medium">{operation.hours}h</div>
+                          <div className="text-xs text-muted-foreground">
+                            {operation.startTime} - {operation.endTime}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="max-w-xs truncate" title={operation.notes}>
+                          {operation.notes}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
