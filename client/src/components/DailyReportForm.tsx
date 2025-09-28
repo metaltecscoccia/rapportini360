@@ -48,7 +48,7 @@ const mockWorkOrders = {
   ],
 };
 
-const workTypes: WorkType[] = ["Taglio", "Saldatura", "Montaggio", "Verniciatura", "Stuccatura", "Manutenzione", "Generico"];
+const workTypes: WorkType[] = ["Taglio", "Saldatura", "Montaggio", "Foratura", "Verniciatura", "Stuccatura", "Manutenzione", "Generico"];
 
 export default function DailyReportForm({ employeeName, date, onSubmit }: DailyReportFormProps) {
   const [operations, setOperations] = useState<Operation[]>([{
@@ -173,7 +173,9 @@ export default function DailyReportForm({ employeeName, date, onSubmit }: DailyR
   };
 
   const getWorkOrdersForClient = (clientId: string) => {
-    return mockWorkOrders[clientId as keyof typeof mockWorkOrders] || [];
+    const workOrders = mockWorkOrders[clientId as keyof typeof mockWorkOrders] || [];
+    console.log(`Getting work orders for client ${clientId}:`, workOrders);
+    return workOrders;
   };
 
   return (

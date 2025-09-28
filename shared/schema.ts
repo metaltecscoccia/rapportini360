@@ -90,7 +90,7 @@ export type InsertOperation = z.infer<typeof insertOperationSchema>;
 export type Operation = typeof operations.$inferSelect;
 
 // Work type enum
-export const WorkTypeEnum = z.enum(["Taglio", "Saldatura", "Montaggio", "Verniciatura", "Stuccatura", "Manutenzione", "Generico"]);
+export const WorkTypeEnum = z.enum(["Taglio", "Saldatura", "Montaggio", "Foratura", "Verniciatura", "Stuccatura", "Manutenzione", "Generico"]);
 export type WorkType = z.infer<typeof WorkTypeEnum>;
 
 // Status enum
