@@ -7,7 +7,11 @@ import fs from 'fs';
 import path from 'path';
 
 // Set fonts for pdfMake
-(PdfMake as any).vfs = pdfFonts.pdfMake.vfs;
+if (pdfFonts.pdfMake && pdfFonts.pdfMake.vfs) {
+  (PdfMake as any).vfs = pdfFonts.pdfMake.vfs;
+} else {
+  console.warn('PDFMake fonts not loaded correctly');
+}
 
 export class PDFService {
   

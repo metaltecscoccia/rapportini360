@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Plus, Trash2, Send } from "lucide-react";
 import { WorkType } from "@shared/schema";
 import StatusBadge from "./StatusBadge";
@@ -58,6 +59,9 @@ export default function DailyReportForm({ employeeName, date, onSubmit }: DailyR
     notes: "",
   }]);
 
+  const [showHoursDialog, setShowHoursDialog] = useState(false);
+  const [dialogMessage, setDialogMessage] = useState("");
+
   const addOperation = () => {
     const newOperation: Operation = {
       id: Date.now().toString(),
@@ -83,10 +87,59 @@ export default function DailyReportForm({ employeeName, date, onSubmit }: DailyR
     console.log("Updated operation", id, field, value);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  // Funzione per validare tutti i campi obbligatori
+  const validateRequiredFields = (): { isValid: boolean; missingFields: string[] } => {
+    const missingFields: string[] = [];
+    
+    operations.forEach((operation, index) => {
+      if (!operation.clientId) missingFields.push(`Operazione ${index + 1}: Cliente`);
+      if (!operation.workOrderId) missingFields.push(`Operazione ${index + 1}: Commessa`);
+      if (!operation.workType) missingFields.push(`Operazione ${index + 1}: Tipo Lavorazione`);
+      if (!operation.hours || operation.hours <= 0) missingFields.push(`Operazione ${index + 1}: Ore`);
+    });
+
+    return {
+      isValid: missingFields.length === 0,
+      missingFields
+    };
+  };
+
+  // Funzione per calcolare ore totali
+  const getTotalHours = (): number => {
+    return operations.reduce((total, operation) => total + operation.hours, 0);
+  };
+
+  // Funzione per inviare il rapportino (chiamata finale)
+  const submitReport = () => {
     console.log("Submitting daily report with operations:", operations);
     onSubmit(operations);
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // 1. Validazione campi obbligatori
+    const validation = validateRequiredFields();
+    if (!validation.isValid) {
+      alert(`Compila tutti i campi obbligatori:\n\n${validation.missingFields.join('\n')}`);
+      return;
+    }
+
+    // 2. Controllo ore totali (deve essere 8)
+    const totalHours = getTotalHours();
+    
+    if (totalHours === 8) {
+      // Ore corrette, invia subito
+      submitReport();
+    } else {
+      // Ore diverse da 8, mostra dialog
+      if (totalHours < 8) {
+        setDialogMessage(`Le ore totali sono ${totalHours}, inferiori alle 8 ore standard.`);
+      } else {
+        setDialogMessage(`Le ore totali sono ${totalHours}, superiori alle 8 ore standard.`);
+      }
+      setShowHoursDialog(true);
+    }
   };
 
   const getWorkOrdersForClient = (clientId: string) => {
@@ -229,7 +282,13 @@ export default function DailyReportForm({ employeeName, date, onSubmit }: DailyR
               ))}
             </div>
             
-            <div className="flex justify-end">
+            <div className="flex justify-between items-center">
+              <div className="text-sm text-muted-foreground">
+                <strong>Ore totali: {getTotalHours()}h</strong>
+                <span className="ml-2 text-xs">
+                  {getTotalHours() === 8 ? "(✓ Standard)" : getTotalHours() < 8 ? "(⚠ Sotto standard)" : "(⚠ Sopra standard)"}
+                </span>
+              </div>
               <Button type="submit" data-testid="button-submit-report">
                 <Send className="h-4 w-4 mr-2" />
                 Invia Rapportino
@@ -238,6 +297,34 @@ export default function DailyReportForm({ employeeName, date, onSubmit }: DailyR
           </form>
         </CardContent>
       </Card>
+
+      {/* Dialog conferma ore diverse da 8 */}
+      <AlertDialog open={showHoursDialog} onOpenChange={setShowHoursDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Conferma Invio Rapportino</AlertDialogTitle>
+            <AlertDialogDescription>
+              {dialogMessage}
+              <br /><br />
+              Vuoi inviare comunque il rapportino o preferisci modificarlo?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-hours-dialog">
+              Modifica Rapportino
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => {
+                setShowHoursDialog(false);
+                submitReport();
+              }}
+              data-testid="button-confirm-hours-dialog"
+            >
+              Invia lo Stesso
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
