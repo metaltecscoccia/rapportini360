@@ -38,6 +38,7 @@ export interface IStorage {
   
   // Operations
   getOperationsByReportId(reportId: string): Promise<Operation[]>;
+  getOperationsByWorkOrderId(workOrderId: string): Promise<Operation[]>;
   createOperation(operation: InsertOperation): Promise<Operation>;
   
   // Attendance Records
@@ -69,10 +70,10 @@ export class MemStorage implements IStorage {
 
   private async initializeMockData() {
     // Mock employees  
-    const employee1: User = { id: "emp1", username: "A", fullName: "Marco Rossi", role: "employee" };
-    const employee2: User = { id: "emp2", username: "B", fullName: "Laura Bianchi", role: "employee" };
-    const employee3: User = { id: "emp3", username: "C", fullName: "Giuseppe Verde", role: "employee" };
-    const employee4: User = { id: "emp4", username: "D", fullName: "Anna Neri", role: "employee" };
+    const employee1: User = { id: "emp1", username: "A", password: "A", fullName: "Marco Rossi", role: "employee" };
+    const employee2: User = { id: "emp2", username: "B", password: "B", fullName: "Laura Bianchi", role: "employee" };
+    const employee3: User = { id: "emp3", username: "C", password: "C", fullName: "Giuseppe Verde", role: "employee" };
+    const employee4: User = { id: "emp4", username: "D", password: "D", fullName: "Anna Neri", role: "employee" };
     
     this.users.set("emp1", employee1);
     this.users.set("emp2", employee2);
@@ -134,7 +135,7 @@ export class MemStorage implements IStorage {
 
   async createClient(insertClient: InsertClient): Promise<Client> {
     const id = randomUUID();
-    const client: Client = { ...insertClient, id };
+    const client: Client = { ...insertClient, id, description: insertClient.description || null };
     this.clients.set(id, client);
     return client;
   }
@@ -146,7 +147,12 @@ export class MemStorage implements IStorage {
 
   async createWorkOrder(insertWorkOrder: InsertWorkOrder): Promise<WorkOrder> {
     const id = randomUUID();
-    const workOrder: WorkOrder = { ...insertWorkOrder, id };
+    const workOrder: WorkOrder = { 
+      ...insertWorkOrder, 
+      id, 
+      description: insertWorkOrder.description || null,
+      isActive: insertWorkOrder.isActive ?? true
+    };
     this.workOrders.set(id, workOrder);
     return workOrder;
   }
@@ -165,6 +171,7 @@ export class MemStorage implements IStorage {
     const report: DailyReport = { 
       ...insertReport, 
       id,
+      status: insertReport.status || "In attesa",
       createdAt: new Date(),
       updatedAt: new Date()
     };
@@ -187,9 +194,17 @@ export class MemStorage implements IStorage {
     return Array.from(this.operations.values()).filter(op => op.dailyReportId === reportId);
   }
 
+  async getOperationsByWorkOrderId(workOrderId: string): Promise<Operation[]> {
+    return Array.from(this.operations.values()).filter(op => op.workOrderId === workOrderId);
+  }
+
   async createOperation(insertOperation: InsertOperation): Promise<Operation> {
     const id = randomUUID();
-    const operation: Operation = { ...insertOperation, id };
+    const operation: Operation = { 
+      ...insertOperation, 
+      id,
+      notes: insertOperation.notes || null
+    };
     this.operations.set(id, operation);
     return operation;
   }
@@ -217,6 +232,7 @@ export class MemStorage implements IStorage {
     const record: AttendanceRecord = {
       id: existing?.id || randomUUID(),
       ...insertRecord,
+      notes: insertRecord.notes || null,
       createdAt: existing?.createdAt || new Date(),
       updatedAt: new Date()
     };

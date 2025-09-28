@@ -1,68 +1,106 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, FileText, Download } from "lucide-react";
+import { ArrowLeft, FileText, Download, Loader2 } from "lucide-react";
 
 interface WorkOrderReportProps {
+  workOrderId: string;
   workOrderNumber: string;
   workOrderDescription: string;
   clientName: string;
   onBack: () => void;
 }
 
-// Mock data aggregato per giornata per una specifica commessa
-const mockWorkOrderData = [
-  {
-    date: "2024-03-15",
-    employees: ["Marco Rossi", "Laura Bianchi"],
-    workTypes: ["Taglio", "Saldatura", "Montaggio"],
-    hours: {
-      "Marco Rossi": 6.5,
-      "Laura Bianchi": 4.0
-    },
-    totalHours: 10.5,
-    adminNotes: ""
-  },
-  {
-    date: "2024-03-16", 
-    employees: ["Marco Rossi"],
-    workTypes: ["Saldatura", "Verniciatura"],
-    hours: {
-      "Marco Rossi": 8.0
-    },
-    totalHours: 8.0,
-    adminNotes: "Completata fase di saldatura"
-  },
-  {
-    date: "2024-03-17",
-    employees: ["Giuseppe Verde", "Anna Neri"],
-    workTypes: ["Montaggio", "Verniciatura", "Stuccatura"],
-    hours: {
-      "Giuseppe Verde": 7.0,
-      "Anna Neri": 5.5
-    },
-    totalHours: 12.5,
-    adminNotes: ""
-  }
-];
+// Interface for enriched operation data from API
+interface EnrichedOperation {
+  id: string;
+  workTypes: string[];
+  startTime: string;
+  endTime: string;
+  notes: string | null;
+  employeeName: string;
+  employeeId: string;
+  date: string;
+  clientName: string;
+  workOrderName: string;
+  reportStatus: string;
+}
+
+// Interface for aggregated data by date
+interface DailyAggregatedData {
+  date: string;
+  employees: string[];
+  workTypes: string[];
+  hours: Record<string, number>;
+  totalHours: number;
+  adminNotes: string;
+}
+
+// Function to aggregate operations by date
+function aggregateOperationsByDate(operations: EnrichedOperation[]): DailyAggregatedData[] {
+  const groupedByDate = operations.reduce((acc, op) => {
+    if (!acc[op.date]) {
+      acc[op.date] = [];
+    }
+    acc[op.date].push(op);
+    return acc;
+  }, {} as Record<string, EnrichedOperation[]>);
+
+  return Object.entries(groupedByDate).map(([date, ops]) => {
+      const employees = Array.from(new Set(ops.map(op => op.employeeName)));
+    const workTypes = Array.from(new Set(ops.flatMap(op => op.workTypes)));
+    
+    const hours: Record<string, number> = {};
+    ops.forEach(op => {
+      const startTime = new Date(`1970-01-01T${op.startTime}:00`);
+      const endTime = new Date(`1970-01-01T${op.endTime}:00`);
+      const hoursWorked = (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60);
+      
+      if (!hours[op.employeeName]) {
+        hours[op.employeeName] = 0;
+      }
+      hours[op.employeeName] += hoursWorked;
+    });
+    
+    const totalHours = Object.values(hours).reduce((sum, h) => sum + h, 0);
+    
+    return {
+      date,
+      employees,
+      workTypes,
+      hours,
+      totalHours,
+      adminNotes: ""
+    };
+  }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+}
 
 export default function WorkOrderReport({ 
+  workOrderId,
   workOrderNumber, 
   workOrderDescription, 
   clientName, 
   onBack 
 }: WorkOrderReportProps) {
-  const [reportData, setReportData] = useState(mockWorkOrderData);
+  // Fetch operations for this work order
+  const { data: operations = [], isLoading, error } = useQuery<EnrichedOperation[]>({
+    queryKey: ['/api/work-orders', workOrderId, 'operations'],
+    enabled: !!workOrderId
+  });
+
+  // Aggregate operations by date
+  const reportData = aggregateOperationsByDate(operations);
+  const [adminNotes, setAdminNotes] = useState<Record<string, string>>({});
 
   const updateAdminNotes = (date: string, notes: string) => {
-    setReportData(prev => 
-      prev.map(row => 
-        row.date === date ? { ...row, adminNotes: notes } : row
-      )
-    );
+    setAdminNotes(prev => ({
+      ...prev,
+      [date]: notes
+    }));
   };
 
   const formatEmployeeHours = (employees: string[], hours: Record<string, number>) => {

@@ -64,6 +64,7 @@ const mockClients = [
 const mockOperations = [
   {
     id: "1",
+    workOrderId: "ACM-2024-001",
     clientName: "Acme Corporation",
     workOrderNumber: "ACM-2024-001", 
     workOrderDescription: "Realizzazione cancello automatico",
@@ -77,6 +78,7 @@ const mockOperations = [
   },
   {
     id: "2",
+    workOrderId: "TFS-2024-012",
     clientName: "TechFlow Solutions",
     workOrderNumber: "TFS-2024-012",
     workOrderDescription: "Manutenzione ordinaria impianto", 
@@ -90,6 +92,7 @@ const mockOperations = [
   },
   {
     id: "3",
+    workOrderId: "IW-2024-045",
     clientName: "Industrial Works",
     workOrderNumber: "IW-2024-045",
     workOrderDescription: "Prototipo struttura metallica",
@@ -103,6 +106,7 @@ const mockOperations = [
   },
   {
     id: "4",
+    workOrderId: "ACM-2024-002",
     clientName: "Acme Corporation",
     workOrderNumber: "ACM-2024-002",
     workOrderDescription: "Riparazione ringhiera balcone",
@@ -122,6 +126,7 @@ export default function AdminDashboard() {
   const [selectedTab, setSelectedTab] = useState("reports");
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedWorkOrder, setSelectedWorkOrder] = useState<{
+    id: string;
     number: string;
     description: string;
     clientName: string;
@@ -205,6 +210,7 @@ export default function AdminDashboard() {
 
   const handleViewWorkOrderReport = (operation: any) => {
     setSelectedWorkOrder({
+      id: operation.workOrderId,
       number: operation.workOrderNumber,
       description: operation.workOrderDescription,
       clientName: operation.clientName
@@ -451,6 +457,7 @@ export default function AdminDashboard() {
         <TabsContent value="work-orders" className="space-y-4">
           {selectedWorkOrder ? (
             <WorkOrderReport
+              workOrderId={selectedWorkOrder.id}
               workOrderNumber={selectedWorkOrder.number}
               workOrderDescription={selectedWorkOrder.description}
               clientName={selectedWorkOrder.clientName}
