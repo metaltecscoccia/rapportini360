@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Trash2, Send } from "lucide-react";
 import { WorkType } from "@shared/schema";
 import StatusBadge from "./StatusBadge";
@@ -14,7 +15,7 @@ interface Operation {
   id: string;
   clientId: string;
   workOrderId: string;
-  workType: WorkType;
+  workTypes: WorkType[];
   startTime: string; // formato "HH:MM"
   endTime: string;   // formato "HH:MM"
   notes: string;
@@ -55,7 +56,7 @@ export default function DailyReportForm({ employeeName, date, onSubmit }: DailyR
     id: "1",
     clientId: "",
     workOrderId: "",
-    workType: "Taglio",
+    workTypes: ["Taglio"],
     startTime: "",
     endTime: "",
     notes: "",
@@ -69,7 +70,7 @@ export default function DailyReportForm({ employeeName, date, onSubmit }: DailyR
       id: Date.now().toString(),
       clientId: "",
       workOrderId: "",
-      workType: "Taglio",
+      workTypes: [],
       startTime: "",
       endTime: "",
       notes: "",
@@ -88,6 +89,21 @@ export default function DailyReportForm({ employeeName, date, onSubmit }: DailyR
       op.id === id ? { ...op, [field]: value } : op
     ));
     console.log("Updated operation", id, field, value);
+  };
+
+  const toggleWorkType = (operationId: string, workType: WorkType) => {
+    setOperations(operations.map(op => {
+      if (op.id === operationId) {
+        const currentTypes = op.workTypes || [];
+        const isSelected = currentTypes.includes(workType);
+        const newTypes = isSelected
+          ? currentTypes.filter(type => type !== workType)
+          : [...currentTypes, workType];
+        return { ...op, workTypes: newTypes };
+      }
+      return op;
+    }));
+    console.log("Toggled work type", operationId, workType);
   };
 
   // Funzione per calcolare ore da startTime e endTime
@@ -113,7 +129,7 @@ export default function DailyReportForm({ employeeName, date, onSubmit }: DailyR
     operations.forEach((operation, index) => {
       if (!operation.clientId) missingFields.push(`Operazione ${index + 1}: Cliente`);
       if (!operation.workOrderId) missingFields.push(`Operazione ${index + 1}: Commessa`);
-      if (!operation.workType) missingFields.push(`Operazione ${index + 1}: Tipo Lavorazione`);
+      if (!operation.workTypes || operation.workTypes.length === 0) missingFields.push(`Operazione ${index + 1}: Seleziona almeno una Lavorazione`);
       if (!operation.startTime) missingFields.push(`Operazione ${index + 1}: Ora inizio`);
       if (!operation.endTime) missingFields.push(`Operazione ${index + 1}: Ora fine`);
       
@@ -269,22 +285,30 @@ export default function DailyReportForm({ employeeName, date, onSubmit }: DailyR
                     </div>
                     
                     <div className="space-y-2">
-                      <Label>Lavorazione</Label>
-                      <Select
-                        value={operation.workType}
-                        onValueChange={(value: WorkType) => updateOperation(operation.id, "workType", value)}
-                      >
-                        <SelectTrigger data-testid={`select-worktype-${operation.id}`}>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {workTypes.map(type => (
-                            <SelectItem key={type} value={type}>
+                      <Label>Lavorazioni</Label>
+                      <div className="grid grid-cols-2 gap-2 p-3 border rounded-md">
+                        {workTypes.map(type => (
+                          <div key={type} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`worktype-${operation.id}-${type}`}
+                              checked={operation.workTypes?.includes(type) || false}
+                              onCheckedChange={() => toggleWorkType(operation.id, type)}
+                              data-testid={`checkbox-worktype-${operation.id}-${type}`}
+                            />
+                            <Label 
+                              htmlFor={`worktype-${operation.id}-${type}`}
+                              className="text-sm font-normal cursor-pointer"
+                            >
                               {type}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                            </Label>
+                          </div>
+                        ))}
+                      </div>
+                      {operation.workTypes && operation.workTypes.length > 0 && (
+                        <div className="text-xs text-muted-foreground">
+                          Selezionate: <strong>{operation.workTypes.join(", ")}</strong>
+                        </div>
+                      )}
                     </div>
                     
                     <div className="space-y-2">
