@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LogIn, User, Shield } from "lucide-react";
+import logoPath from "@assets/3F8AF681-7737-41D8-A852-3AEB802C183F_1759092829478.png";
 
 interface LoginFormProps {
   onLogin: (username: string, password: string, role: string) => void;
@@ -24,9 +25,13 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
-        <CardHeader className="text-center space-y-2">
-          <div className="text-lg font-bold text-primary">
-            METALTEC Scoccia Srl
+        <CardHeader className="text-center space-y-4">
+          <div className="flex justify-center">
+            <img 
+              src={logoPath} 
+              alt="METALTEC Scoccia S.R.L." 
+              className="h-20 w-auto object-contain"
+            />
           </div>
           <CardTitle className="flex items-center justify-center gap-2 text-xl">
             <LogIn className="h-5 w-5" />
