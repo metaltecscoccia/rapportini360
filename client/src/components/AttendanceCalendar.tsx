@@ -15,14 +15,14 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { User, AttendanceRecord, AttendanceStatus, DailyReport } from "@shared/schema";
+import type { User, AttendanceRecord, AttendanceStatus as AttendanceStatusType, DailyReport } from "@shared/schema";
 
 interface AttendanceCalendarProps {
   currentMonth: Date;
   onMonthChange: (date: Date) => void;
 }
 
-interface AttendanceStatus extends AttendanceRecord {
+interface AttendanceDisplayStatus extends AttendanceRecord {
   employeeName: string;
   hasReport: boolean;
   displayStatus: "Presente" | "Ferie" | "Assente" | "Permesso" | "Non registrato";
@@ -31,7 +31,7 @@ interface AttendanceStatus extends AttendanceRecord {
 interface AttendanceDay {
   date: Date;
   dateStr: string;
-  statuses: AttendanceStatus[];
+  statuses: AttendanceDisplayStatus[];
 }
 
 interface EditAttendanceDialogProps {
@@ -42,20 +42,21 @@ interface EditAttendanceDialogProps {
 }
 
 function EditAttendanceDialog({ employee, date, currentStatus, onClose }: EditAttendanceDialogProps) {
-  const [status, setStatus] = useState<AttendanceStatus | "">(currentStatus?.status || "");
+  const [status, setStatus] = useState<string>(currentStatus?.status || "");
   const [notes, setNotes] = useState(currentStatus?.notes || "");
   const { toast } = useToast();
 
   const mutation = useMutation({
     mutationFn: async (data: { employeeId: string; date: string; status: string; notes?: string }) => {
-      return apiRequest(`/api/attendance`, {
-        method: "PUT",
-        body: JSON.stringify(data),
-      });
+      return apiRequest(`/api/attendance`, "PUT", data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/attendance"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/daily-reports"] });
+      queryClient.invalidateQueries({ 
+        predicate: (query) => query.queryKey[0] === "/api/attendance" 
+      });
+      queryClient.invalidateQueries({ 
+        predicate: (query) => query.queryKey[0] === "/api/daily-reports" 
+      });
       toast({
         title: "Presenza aggiornata",
         description: `Stato presenza per ${employee.fullName} aggiornato con successo.`
@@ -73,13 +74,15 @@ function EditAttendanceDialog({ employee, date, currentStatus, onClose }: EditAt
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest(`/api/attendance/${employee.id}/${date}`, {
-        method: "DELETE",
-      });
+      return apiRequest(`/api/attendance/${employee.id}/${date}`, "DELETE");
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/attendance"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/daily-reports"] });
+      queryClient.invalidateQueries({ 
+        predicate: (query) => query.queryKey[0] === "/api/attendance" 
+      });
+      queryClient.invalidateQueries({ 
+        predicate: (query) => query.queryKey[0] === "/api/daily-reports" 
+      });
       toast({
         title: "Presenza rimossa",
         description: `Stato presenza per ${employee.fullName} rimosso.`
@@ -108,7 +111,7 @@ function EditAttendanceDialog({ employee, date, currentStatus, onClose }: EditAt
     mutation.mutate({
       employeeId: employee.id,
       date,
-      status: status as string,
+      status,
       notes: notes || undefined
     });
   };
@@ -134,9 +137,10 @@ function EditAttendanceDialog({ employee, date, currentStatus, onClose }: EditAt
               <SelectValue placeholder="Seleziona stato" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="Ferie">🏖️ Ferie</SelectItem>
-              <SelectItem value="Assente">❌ Assente</SelectItem>
-              <SelectItem value="Permesso">🕐 Permesso</SelectItem>
+              <SelectItem value="Presente">Presente</SelectItem>
+              <SelectItem value="Ferie">Ferie</SelectItem>
+              <SelectItem value="Assente">Assente</SelectItem>
+              <SelectItem value="Permesso">Permesso</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -183,18 +187,43 @@ function EditAttendanceDialog({ employee, date, currentStatus, onClose }: EditAt
   );
 }
 
-function getStatusBadge(displayStatus: AttendanceStatus["displayStatus"]) {
+function getStatusBadge(displayStatus: AttendanceDisplayStatus["displayStatus"]) {
   switch (displayStatus) {
     case "Presente":
-      return <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100">✅ Presente</Badge>;
+      return (
+        <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100">
+          <CheckCircle className="w-3 h-3 mr-1" />
+          Presente
+        </Badge>
+      );
     case "Ferie":
-      return <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100">🏖️ Ferie</Badge>;
+      return (
+        <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100">
+          <Calendar className="w-3 h-3 mr-1" />
+          Ferie
+        </Badge>
+      );
     case "Assente":
-      return <Badge variant="secondary" className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100">❌ Assente</Badge>;
+      return (
+        <Badge variant="secondary" className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100">
+          <XCircle className="w-3 h-3 mr-1" />
+          Assente
+        </Badge>
+      );
     case "Permesso":
-      return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100">🕐 Permesso</Badge>;
+      return (
+        <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100">
+          <Clock className="w-3 h-3 mr-1" />
+          Permesso
+        </Badge>
+      );
     case "Non registrato":
-      return <Badge variant="destructive">⚠️ Non registrato</Badge>;
+      return (
+        <Badge variant="destructive">
+          <XCircle className="w-3 h-3 mr-1" />
+          Non registrato
+        </Badge>
+      );
     default:
       return <Badge variant="outline">Sconosciuto</Badge>;
   }
@@ -214,7 +243,12 @@ export default function AttendanceCalendar({ currentMonth, onMonthChange }: Atte
   // Fetch employees
   const { data: employees = [], isLoading: employeesLoading } = useQuery({
     queryKey: ["/api/users"],
-    select: (data: User[]) => data.filter(user => user.role === "employee")
+    select: (data: User[]) => {
+      console.log("All users fetched:", data);
+      const employeesOnly = data.filter(user => user.role === "employee");
+      console.log("Employees filtered:", employeesOnly);
+      return employeesOnly;
+    }
   });
 
   // Fetch attendance records for current month
@@ -223,13 +257,16 @@ export default function AttendanceCalendar({ currentMonth, onMonthChange }: Atte
     queryFn: () => apiRequest(`/api/attendance?startDate=${format(startDate, "yyyy-MM-dd")}&endDate=${format(endDate, "yyyy-MM-dd")}`),
   });
 
-  // Fetch daily reports for current month
+  // Fetch daily reports for current month  
   const { data: dailyReports = [], isLoading: reportsLoading } = useQuery({
-    queryKey: ["/api/daily-reports", format(startDate, "yyyy-MM-dd"), format(endDate, "yyyy-MM-dd")],
-    select: (data: DailyReport[]) => data.filter(report => {
-      const reportDate = new Date(report.date);
-      return reportDate >= startDate && reportDate <= endDate;
-    })
+    queryKey: ["/api/daily-reports"],
+    select: (data: any) => {
+      if (!Array.isArray(data)) return [];
+      return data.filter((report: DailyReport) => {
+        const reportDate = new Date(report.date);
+        return reportDate >= startDate && reportDate <= endDate;
+      });
+    }
   });
 
   // Build attendance data structure
@@ -238,15 +275,15 @@ export default function AttendanceCalendar({ currentMonth, onMonthChange }: Atte
     const dayReports = dailyReports.filter(report => report.date === dateStr);
     const dayAttendance = attendanceRecords.filter((record: AttendanceRecord) => record.date === dateStr);
     
-    const statuses: AttendanceStatus[] = employees.map(employee => {
+    const statuses: AttendanceDisplayStatus[] = employees.map(employee => {
       const hasReport = dayReports.some(report => report.employeeId === employee.id);
       const attendanceRecord = dayAttendance.find((record: AttendanceRecord) => record.employeeId === employee.id);
       
-      let displayStatus: AttendanceStatus["displayStatus"];
+      let displayStatus: AttendanceDisplayStatus["displayStatus"];
       if (hasReport) {
         displayStatus = "Presente";
       } else if (attendanceRecord) {
-        displayStatus = attendanceRecord.status as AttendanceStatus["displayStatus"];
+        displayStatus = attendanceRecord.status as AttendanceDisplayStatus["displayStatus"];
       } else {
         displayStatus = "Non registrato";
       }
@@ -274,14 +311,17 @@ export default function AttendanceCalendar({ currentMonth, onMonthChange }: Atte
   });
 
   const handleEditAttendance = (employee: User, date: string) => {
+    console.log("handleEditAttendance called:", { employee: employee.fullName, date });
     const attendance = attendanceRecords.find((record: AttendanceRecord) => 
       record.employeeId === employee.id && record.date === date
     );
     
+    console.log("Found attendance record:", attendance);
     setSelectedEmployee(employee);
     setSelectedDate(date);
-    setSelectedAttendance(attendance || null);
+    setSelectedAttendance(attendance || undefined);
     setIsDialogOpen(true);
+    console.log("Dialog state set to true");
   };
 
   if (employeesLoading || attendanceLoading || reportsLoading) {

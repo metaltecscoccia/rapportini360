@@ -73,12 +73,6 @@ export const insertOperationSchema = createInsertSchema(operations).omit({
   id: true,
 });
 
-export const insertAttendanceRecordSchema = createInsertSchema(attendanceRecords).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -106,8 +100,8 @@ export type WorkType = z.infer<typeof WorkTypeEnum>;
 export const StatusEnum = z.enum(["In attesa", "Approvato"]);
 export type Status = z.infer<typeof StatusEnum>;
 
-// Attendance status enum
-export const AttendanceStatusEnum = z.enum(["Ferie", "Assente", "Permesso"]);
+// Attendance status enum  
+export const AttendanceStatusEnum = z.enum(["Presente", "Ferie", "Assente", "Permesso"]);
 export type AttendanceStatus = z.infer<typeof AttendanceStatusEnum>;
 
 // Attendance records table
@@ -123,3 +117,9 @@ export const attendanceRecords = pgTable("attendance_records", {
 
 // Unique constraint for employee + date
 // Note: In actual DB, this would be a unique constraint
+
+export const insertAttendanceRecordSchema = createInsertSchema(attendanceRecords).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});

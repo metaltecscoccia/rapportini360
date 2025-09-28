@@ -17,6 +17,7 @@ import { randomUUID } from "crypto";
 
 export interface IStorage {
   // Users
+  getAllUsers(): Promise<User[]>;
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
@@ -67,6 +68,17 @@ export class MemStorage implements IStorage {
   }
 
   private async initializeMockData() {
+    // Mock employees  
+    const employee1: User = { id: "emp1", username: "A", fullName: "Marco Rossi", role: "employee" };
+    const employee2: User = { id: "emp2", username: "B", fullName: "Laura Bianchi", role: "employee" };
+    const employee3: User = { id: "emp3", username: "C", fullName: "Giuseppe Verde", role: "employee" };
+    const employee4: User = { id: "emp4", username: "D", fullName: "Anna Neri", role: "employee" };
+    
+    this.users.set("emp1", employee1);
+    this.users.set("emp2", employee2);
+    this.users.set("emp3", employee3);
+    this.users.set("emp4", employee4);
+
     // Mock clients
     const client1: Client = { id: "1", name: "Acme Corporation", description: null };
     const client2: Client = { id: "2", name: "TechFlow Solutions", description: null };
@@ -90,6 +102,10 @@ export class MemStorage implements IStorage {
   }
 
   // Users
+  async getAllUsers(): Promise<User[]> {
+    return Array.from(this.users.values());
+  }
+
   async getUser(id: string): Promise<User | undefined> {
     return this.users.get(id);
   }

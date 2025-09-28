@@ -17,9 +17,11 @@ import {
   CheckCircle,
   Clock,
   Plus,
-  Edit
+  Edit,
+  Calendar
 } from "lucide-react";
 import StatusBadge from "./StatusBadge";
+import AttendanceCalendar from "./AttendanceCalendar";
 
 // Mock data for demonstration
 const mockReports = [
@@ -59,6 +61,7 @@ export default function AdminDashboard() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedTab, setSelectedTab] = useState("reports");
+  const [currentMonth, setCurrentMonth] = useState(new Date());
 
   const filteredReports = mockReports.filter(report => {
     const matchesSearch = report.employee.toLowerCase().includes(searchTerm.toLowerCase());
@@ -229,6 +232,10 @@ export default function AdminDashboard() {
             <Building className="h-4 w-4 mr-2" />
             Clienti
           </TabsTrigger>
+          <TabsTrigger value="attendance" data-testid="tab-attendance">
+            <Calendar className="h-4 w-4 mr-2" />
+            Presenze
+          </TabsTrigger>
           <TabsTrigger value="employees" data-testid="tab-employees">
             <Users className="h-4 w-4 mr-2" />
             Dipendenti
@@ -357,6 +364,14 @@ export default function AdminDashboard() {
               </Table>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Attendance Tab */}
+        <TabsContent value="attendance" className="space-y-4">
+          <AttendanceCalendar 
+            currentMonth={currentMonth}
+            onMonthChange={setCurrentMonth}
+          />
         </TabsContent>
 
         {/* Employees Tab */}
