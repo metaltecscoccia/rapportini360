@@ -73,6 +73,12 @@ export const insertOperationSchema = createInsertSchema(operations).omit({
   id: true,
 });
 
+export const insertAttendanceRecordSchema = createInsertSchema(attendanceRecords).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -89,6 +95,9 @@ export type DailyReport = typeof dailyReports.$inferSelect;
 export type InsertOperation = z.infer<typeof insertOperationSchema>;
 export type Operation = typeof operations.$inferSelect;
 
+export type InsertAttendanceRecord = z.infer<typeof insertAttendanceRecordSchema>;
+export type AttendanceRecord = typeof attendanceRecords.$inferSelect;
+
 // Work type enum
 export const WorkTypeEnum = z.enum(["Taglio", "Saldatura", "Montaggio", "Foratura", "Verniciatura", "Stuccatura", "Manutenzione", "Generico"]);
 export type WorkType = z.infer<typeof WorkTypeEnum>;
@@ -96,3 +105,21 @@ export type WorkType = z.infer<typeof WorkTypeEnum>;
 // Status enum
 export const StatusEnum = z.enum(["In attesa", "Approvato"]);
 export type Status = z.infer<typeof StatusEnum>;
+
+// Attendance status enum
+export const AttendanceStatusEnum = z.enum(["Ferie", "Assente", "Permesso"]);
+export type AttendanceStatus = z.infer<typeof AttendanceStatusEnum>;
+
+// Attendance records table
+export const attendanceRecords = pgTable("attendance_records", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  employeeId: varchar("employee_id").notNull().references(() => users.id),
+  date: text("date").notNull(), // YYYY-MM-DD format
+  status: text("status").notNull(), // "Ferie", "Assente", "Permesso"
+  notes: text("notes"), // Optional notes
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
+// Unique constraint for employee + date
+// Note: In actual DB, this would be a unique constraint
