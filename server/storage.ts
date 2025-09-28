@@ -8,7 +8,10 @@ import {
   type DailyReport,
   type InsertDailyReport,
   type Operation,
-  type InsertOperation
+  type InsertOperation,
+  type AttendanceRecord,
+  type InsertAttendanceRecord,
+  type AttendanceStatus
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 
@@ -35,6 +38,12 @@ export interface IStorage {
   // Operations
   getOperationsByReportId(reportId: string): Promise<Operation[]>;
   createOperation(operation: InsertOperation): Promise<Operation>;
+  
+  // Attendance Records
+  getAttendanceRecordsByDateRange(startDate: string, endDate: string): Promise<AttendanceRecord[]>;
+  getAttendanceRecord(employeeId: string, date: string): Promise<AttendanceRecord | undefined>;
+  upsertAttendanceRecord(record: InsertAttendanceRecord): Promise<AttendanceRecord>;
+  deleteAttendanceRecord(employeeId: string, date: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -43,6 +52,7 @@ export class MemStorage implements IStorage {
   private workOrders: Map<string, WorkOrder>;
   private dailyReports: Map<string, DailyReport>;
   private operations: Map<string, Operation>;
+  private attendanceRecords: Map<string, AttendanceRecord>; // key: employeeId-date
 
   constructor() {
     this.users = new Map();
@@ -50,6 +60,7 @@ export class MemStorage implements IStorage {
     this.workOrders = new Map();
     this.dailyReports = new Map();
     this.operations = new Map();
+    this.attendanceRecords = new Map();
     
     // Initialize with mock data
     this.initializeMockData();
@@ -165,6 +176,42 @@ export class MemStorage implements IStorage {
     const operation: Operation = { ...insertOperation, id };
     this.operations.set(id, operation);
     return operation;
+  }
+
+  // Attendance Records
+  async getAttendanceRecordsByDateRange(startDate: string, endDate: string): Promise<AttendanceRecord[]> {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    return Array.from(this.attendanceRecords.values()).filter(record => {
+      const recordDate = new Date(record.date);
+      return recordDate >= start && recordDate <= end;
+    });
+  }
+
+  async getAttendanceRecord(employeeId: string, date: string): Promise<AttendanceRecord | undefined> {
+    const key = `${employeeId}-${date}`;
+    return this.attendanceRecords.get(key);
+  }
+
+  async upsertAttendanceRecord(insertRecord: InsertAttendanceRecord): Promise<AttendanceRecord> {
+    const key = `${insertRecord.employeeId}-${insertRecord.date}`;
+    const existing = this.attendanceRecords.get(key);
+    
+    const record: AttendanceRecord = {
+      id: existing?.id || randomUUID(),
+      ...insertRecord,
+      createdAt: existing?.createdAt || new Date(),
+      updatedAt: new Date()
+    };
+    
+    this.attendanceRecords.set(key, record);
+    return record;
+  }
+
+  async deleteAttendanceRecord(employeeId: string, date: string): Promise<boolean> {
+    const key = `${employeeId}-${date}`;
+    return this.attendanceRecords.delete(key);
   }
 }
 
