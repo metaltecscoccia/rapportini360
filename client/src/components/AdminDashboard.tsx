@@ -91,17 +91,17 @@ export default function AdminDashboard() {
     alert("Modifica rapportino - funzionalità in sviluppo");
   };
 
-  const handleExportReports = async () => {
+  const handleExportReports = async (selectedDate?: string) => {
     try {
-      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
-      const response = await fetch(`/api/export/daily-reports/${today}`);
+      const exportDate = selectedDate || new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+      const response = await fetch(`/api/export/daily-reports/${exportDate}`);
       
       if (response.ok) {
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `Rapportini_${today}.pdf`;
+        a.download = `Rapportini_${exportDate}.pdf`;
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);
@@ -118,6 +118,18 @@ export default function AdminDashboard() {
       } else {
         alert("Errore nell'esportazione del PDF");
       }
+    }
+  };
+
+  const handleExportWithDateSelection = () => {
+    const selectedDate = prompt("Inserisci la data per l'export (YYYY-MM-DD):", new Date().toISOString().split('T')[0]);
+    if (selectedDate) {
+      // Validate date format
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(selectedDate)) {
+        alert("Formato data non valido. Usa YYYY-MM-DD");
+        return;
+      }
+      handleExportReports(selectedDate);
     }
   };
 
@@ -138,11 +150,19 @@ export default function AdminDashboard() {
         <div className="flex gap-2">
           <Button 
             variant="outline" 
-            onClick={handleExportReports}
+            onClick={() => handleExportReports()}
             data-testid="button-export-reports"
           >
             <FileText className="h-4 w-4 mr-2" />
             Esporta PDF Oggi
+          </Button>
+          <Button 
+            variant="outline" 
+            onClick={handleExportWithDateSelection}
+            data-testid="button-export-reports-date"
+          >
+            <FileText className="h-4 w-4 mr-2" />
+            Esporta PDF Data Specifica
           </Button>
         </div>
       </div>

@@ -45,7 +45,8 @@ export const operations = pgTable("operations", {
   clientId: varchar("client_id").notNull().references(() => clients.id),
   workOrderId: varchar("work_order_id").notNull().references(() => workOrders.id),
   workType: text("work_type").notNull(), // "Taglio", "Saldatura", "Montaggio"
-  hours: integer("hours").notNull(),
+  startTime: text("start_time").notNull(), // formato "HH:MM"
+  endTime: text("end_time").notNull(), // formato "HH:MM"
   notes: text("notes"),
 });
 

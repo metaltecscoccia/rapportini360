@@ -128,6 +128,22 @@ export class PDFService {
     });
   }
 
+  // Funzione per calcolare ore da startTime e endTime
+  private calculateHours(startTime: string, endTime: string): number {
+    if (!startTime || !endTime) return 0;
+    
+    const start = new Date(`2000-01-01 ${startTime}`);
+    const end = new Date(`2000-01-01 ${endTime}`);
+    
+    // Gestione passaggio mezzanotte
+    if (end < start) {
+      end.setDate(end.getDate() + 1);
+    }
+    
+    const diffMs = end.getTime() - start.getTime();
+    return Math.round((diffMs / (1000 * 60 * 60)) * 100) / 100; // Arrotonda a 2 decimali
+  }
+
   private async createEmployeeSection(
     user: User,
     report: DailyReport,
@@ -136,7 +152,7 @@ export class PDFService {
     workOrdersMap: Map<string, WorkOrder>
   ): Promise<Content> {
     
-    const totalHours = operations.reduce((sum, op) => sum + op.hours, 0);
+    const totalHours = operations.reduce((sum, op) => sum + this.calculateHours(op.startTime, op.endTime), 0);
     
     // Operations table
     const tableBody = [
@@ -145,6 +161,7 @@ export class PDFService {
         { text: 'Cliente', style: 'tableHeader' },
         { text: 'Commessa', style: 'tableHeader' },
         { text: 'Lavorazione', style: 'tableHeader' },
+        { text: 'Orario', style: 'tableHeader' },
         { text: 'Ore', style: 'tableHeader' },
         { text: 'Note', style: 'tableHeader' }
       ]
@@ -154,12 +171,14 @@ export class PDFService {
     operations.forEach(op => {
       const client = clientsMap.get(op.clientId);
       const workOrder = workOrdersMap.get(op.workOrderId);
+      const hours = this.calculateHours(op.startTime, op.endTime);
       
       tableBody.push([
         { text: client?.name || 'N/A', style: 'tableCell' },
         { text: workOrder?.name || 'N/A', style: 'tableCell' },
         { text: op.workType, style: 'tableCell' },
-        { text: op.hours.toString(), style: 'tableCell', alignment: 'center' },
+        { text: `${op.startTime} - ${op.endTime}`, style: 'tableCell', alignment: 'center' },
+        { text: hours.toString() + 'h', style: 'tableCell', alignment: 'center' },
         { text: op.notes || '-', style: 'tableCell' }
       ]);
     });
@@ -168,8 +187,9 @@ export class PDFService {
     tableBody.push([
       { text: '', border: [false, true, false, false] },
       { text: '', border: [false, true, false, false] },
+      { text: '', border: [false, true, false, false] },
       { text: 'TOTALE:', style: 'tableHeader', border: [false, true, false, false] },
-      { text: totalHours.toString(), style: 'tableHeader', alignment: 'center', border: [false, true, false, false] },
+      { text: totalHours.toString() + 'h', style: 'tableHeader', alignment: 'center', border: [false, true, false, false] },
       { text: '', border: [false, true, false, false] }
     ]);
 

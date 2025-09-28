@@ -15,7 +15,8 @@ interface Operation {
   clientId: string;
   workOrderId: string;
   workType: WorkType;
-  hours: number;
+  startTime: string; // formato "HH:MM"
+  endTime: string;   // formato "HH:MM"
   notes: string;
 }
 
@@ -55,7 +56,8 @@ export default function DailyReportForm({ employeeName, date, onSubmit }: DailyR
     clientId: "",
     workOrderId: "",
     workType: "Taglio",
-    hours: 0,
+    startTime: "",
+    endTime: "",
     notes: "",
   }]);
 
@@ -68,7 +70,8 @@ export default function DailyReportForm({ employeeName, date, onSubmit }: DailyR
       clientId: "",
       workOrderId: "",
       workType: "Taglio",
-      hours: 0,
+      startTime: "",
+      endTime: "",
       notes: "",
     };
     setOperations([...operations, newOperation]);
@@ -87,6 +90,22 @@ export default function DailyReportForm({ employeeName, date, onSubmit }: DailyR
     console.log("Updated operation", id, field, value);
   };
 
+  // Funzione per calcolare ore da startTime e endTime
+  const calculateHours = (startTime: string, endTime: string): number => {
+    if (!startTime || !endTime) return 0;
+    
+    const start = new Date(`2000-01-01 ${startTime}`);
+    const end = new Date(`2000-01-01 ${endTime}`);
+    
+    // Gestione passaggio mezzanotte
+    if (end < start) {
+      end.setDate(end.getDate() + 1);
+    }
+    
+    const diffMs = end.getTime() - start.getTime();
+    return Math.round((diffMs / (1000 * 60 * 60)) * 100) / 100; // Arrotonda a 2 decimali
+  };
+
   // Funzione per validare tutti i campi obbligatori
   const validateRequiredFields = (): { isValid: boolean; missingFields: string[] } => {
     const missingFields: string[] = [];
@@ -95,7 +114,16 @@ export default function DailyReportForm({ employeeName, date, onSubmit }: DailyR
       if (!operation.clientId) missingFields.push(`Operazione ${index + 1}: Cliente`);
       if (!operation.workOrderId) missingFields.push(`Operazione ${index + 1}: Commessa`);
       if (!operation.workType) missingFields.push(`Operazione ${index + 1}: Tipo Lavorazione`);
-      if (!operation.hours || operation.hours <= 0) missingFields.push(`Operazione ${index + 1}: Ore`);
+      if (!operation.startTime) missingFields.push(`Operazione ${index + 1}: Ora inizio`);
+      if (!operation.endTime) missingFields.push(`Operazione ${index + 1}: Ora fine`);
+      
+      // Validazione orari
+      if (operation.startTime && operation.endTime) {
+        const hours = calculateHours(operation.startTime, operation.endTime);
+        if (hours <= 0) {
+          missingFields.push(`Operazione ${index + 1}: Ora fine deve essere successiva all'ora inizio`);
+        }
+      }
     });
 
     return {
@@ -106,7 +134,9 @@ export default function DailyReportForm({ employeeName, date, onSubmit }: DailyR
 
   // Funzione per calcolare ore totali
   const getTotalHours = (): number => {
-    return operations.reduce((total, operation) => total + operation.hours, 0);
+    return operations.reduce((total, operation) => {
+      return total + calculateHours(operation.startTime, operation.endTime);
+    }, 0);
   };
 
   // Funzione per inviare il rapportino (chiamata finale)
@@ -193,7 +223,7 @@ export default function DailyReportForm({ employeeName, date, onSubmit }: DailyR
                     )}
                   </div>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div className="space-y-2">
                       <Label>Cliente</Label>
                       <Select
@@ -256,15 +286,28 @@ export default function DailyReportForm({ employeeName, date, onSubmit }: DailyR
                     </div>
                     
                     <div className="space-y-2">
-                      <Label>Ore</Label>
+                      <Label>Ora Inizio</Label>
                       <Input
-                        type="number"
-                        min="0"
-                        step="0.5"
-                        value={operation.hours || ""}
-                        onChange={(e) => updateOperation(operation.id, "hours", parseFloat(e.target.value) || 0)}
-                        data-testid={`input-hours-${operation.id}`}
+                        type="time"
+                        value={operation.startTime}
+                        onChange={(e) => updateOperation(operation.id, "startTime", e.target.value)}
+                        data-testid={`input-start-time-${operation.id}`}
                       />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label>Ora Fine</Label>
+                      <Input
+                        type="time"
+                        value={operation.endTime}
+                        onChange={(e) => updateOperation(operation.id, "endTime", e.target.value)}
+                        data-testid={`input-end-time-${operation.id}`}
+                      />
+                      {operation.startTime && operation.endTime && (
+                        <div className="text-xs text-muted-foreground mt-1">
+                          <strong>Ore: {calculateHours(operation.startTime, operation.endTime)}h</strong>
+                        </div>
+                      )}
                     </div>
                   </div>
                   
