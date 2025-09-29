@@ -56,33 +56,7 @@ type AddEmployeeForm = z.infer<typeof addEmployeeSchema>;
 type EditEmployeeForm = z.infer<typeof editEmployeeSchema>;
 
 
-// Mock data for demonstration
-const mockReports = [
-  {
-    id: "1",
-    employee: "Marco Rossi",
-    date: "2024-03-15",
-    status: "In attesa" as const,
-    operations: 3,
-    totalHours: 8,
-  },
-  {
-    id: "2", 
-    employee: "Laura Bianchi",
-    date: "2024-03-15",
-    status: "Approvato" as const,
-    operations: 2,
-    totalHours: 7.5,
-  },
-  {
-    id: "3",
-    employee: "Giuseppe Verde",
-    date: "2024-03-14",
-    status: "In attesa" as const,
-    operations: 4,
-    totalHours: 8.5,
-  },
-];
+// Mock data removed - now using real data from API
 
 const mockClients = [
   { id: "1", name: "Acme Corporation", workOrders: 5 },
@@ -249,6 +223,11 @@ export default function AdminDashboard() {
     queryKey: ['/api/users'],
   });
 
+  // Query per recuperare tutti i rapportini
+  const { data: reports = [], isLoading: isLoadingReports } = useQuery({
+    queryKey: ['/api/daily-reports'],
+  });
+
   // Mutation per creare nuovo dipendente
   const createEmployeeMutation = useMutation({
     mutationFn: async (data: AddEmployeeForm) => {
@@ -404,8 +383,9 @@ export default function AdminDashboard() {
     }
   };
 
-  const filteredReports = mockReports.filter(report => {
-    const matchesSearch = report.employee.toLowerCase().includes(searchTerm.toLowerCase());
+  const filteredReports = reports.filter((report: any) => {
+    const employeeName = report.employeeName || report.employee || "";
+    const matchesSearch = employeeName.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "all" || report.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -537,8 +517,8 @@ export default function AdminDashboard() {
     }
   };
 
-  const totalPendingReports = mockReports.filter(r => r.status === "In attesa").length;
-  const totalApprovedReports = mockReports.filter(r => r.status === "Approvato").length;
+  const totalPendingReports = reports.filter((r: any) => r.status === "In attesa").length;
+  const totalApprovedReports = reports.filter((r: any) => r.status === "Approvato").length;
 
   const handleViewWorkOrderReport = (operation: any) => {
     setSelectedWorkOrder({
@@ -716,53 +696,78 @@ export default function AdminDashboard() {
             </CardHeader>
             
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Dipendente</TableHead>
-                    <TableHead>Data</TableHead>
-                    <TableHead>Stato</TableHead>
-                    <TableHead>Operazioni</TableHead>
-                    <TableHead>Ore Totali</TableHead>
-                    <TableHead>Azioni</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredReports.map((report) => (
-                    <TableRow key={report.id}>
-                      <TableCell className="font-medium">{report.employee}</TableCell>
-                      <TableCell>{report.date}</TableCell>
-                      <TableCell>
-                        <StatusBadge status={report.status} />
-                      </TableCell>
-                      <TableCell>{report.operations}</TableCell>
-                      <TableCell>{report.totalHours}h</TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEditReport(report.id)}
-                            data-testid={`button-edit-report-${report.id}`}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          {report.status === "In attesa" && (
-                            <Button
-                              variant="default"
-                              size="sm"
-                              onClick={() => handleApproveReport(report.id)}
-                              data-testid={`button-approve-report-${report.id}`}
-                            >
-                              <CheckCircle className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
+              {isLoadingReports ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+                    <p className="text-muted-foreground">Caricamento rapportini...</p>
+                  </div>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Dipendente</TableHead>
+                      <TableHead>Data</TableHead>
+                      <TableHead>Stato</TableHead>
+                      <TableHead>Operazioni</TableHead>
+                      <TableHead>Ore Totali</TableHead>
+                      <TableHead>Azioni</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredReports.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-8">
+                          <div className="text-muted-foreground">
+                            {searchTerm || statusFilter !== "all" 
+                              ? "Nessun rapportino trovato con i filtri applicati" 
+                              : "Nessun rapportino disponibile"}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      filteredReports.map((report: any) => (
+                        <TableRow key={report.id}>
+                          <TableCell className="font-medium">
+                            {report.employeeName || report.employee || "Sconosciuto"}
+                          </TableCell>
+                          <TableCell>
+                            {new Date(report.date).toLocaleDateString("it-IT")}
+                          </TableCell>
+                          <TableCell>
+                            <StatusBadge status={report.status} />
+                          </TableCell>
+                          <TableCell>{report.operations || 0}</TableCell>
+                          <TableCell>{report.totalHours || 0}h</TableCell>
+                          <TableCell>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleEditReport(report.id)}
+                                data-testid={`button-edit-report-${report.id}`}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              {report.status === "In attesa" && (
+                                <Button
+                                  variant="default"
+                                  size="sm"
+                                  onClick={() => handleApproveReport(report.id)}
+                                  data-testid={`button-approve-report-${report.id}`}
+                                >
+                                  <CheckCircle className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
