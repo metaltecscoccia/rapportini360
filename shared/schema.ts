@@ -84,6 +84,15 @@ export const insertOperationSchema = createInsertSchema(operations).omit({
   id: true,
 });
 
+// Update schemas for editing
+export const updateDailyReportSchema = insertDailyReportSchema.partial().extend({
+  id: z.string().optional()
+});
+
+export const updateOperationSchema = insertOperationSchema.partial().extend({
+  id: z.string().optional()
+});
+
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type UpdateUser = z.infer<typeof updateUserSchema>;
@@ -100,6 +109,9 @@ export type DailyReport = typeof dailyReports.$inferSelect;
 
 export type InsertOperation = z.infer<typeof insertOperationSchema>;
 export type Operation = typeof operations.$inferSelect;
+
+export type UpdateDailyReport = z.infer<typeof updateDailyReportSchema>;
+export type UpdateOperation = z.infer<typeof updateOperationSchema>;
 
 export type InsertAttendanceRecord = z.infer<typeof insertAttendanceRecordSchema>;
 export type AttendanceRecord = typeof attendanceRecords.$inferSelect;
