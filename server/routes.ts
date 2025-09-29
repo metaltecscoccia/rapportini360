@@ -68,7 +68,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/users", requireAdmin, async (req, res) => {
     try {
       console.log("POST /api/users - Request body:", JSON.stringify(req.body, null, 2));
-      console.log("Session info:", { userId: req.session.userId, userRole: req.session.userRole });
+      console.log("Session info:", { userId: (req as any).session.userId, userRole: (req as any).session.userRole });
       
       const result = insertUserSchema.safeParse(req.body);
       
@@ -91,9 +91,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("User created successfully:", user.id);
       
       res.json(user);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating user:", error);
-      console.error("Error stack:", error.stack);
+      console.error("Error stack:", error?.stack);
       res.status(500).json({ error: "Failed to create user" });
     }
   });
