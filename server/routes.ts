@@ -20,12 +20,24 @@ const requireAuth = (req: any, res: any, next: any) => {
 
 // Admin authorization middleware  
 const requireAdmin = (req: any, res: any, next: any) => {
+  console.log("🔐 RequireAdmin check:", {
+    sessionExists: !!req.session,
+    userId: req.session?.userId,
+    userRole: req.session?.userRole,
+    sessionId: req.session?.id,
+    path: req.path,
+    method: req.method
+  });
+  
   if (!req.session.userId) {
+    console.log("❌ Auth failed: No userId in session");
     return res.status(401).json({ error: "Autenticazione richiesta" });
   }
   if (req.session.userRole !== "admin") {
+    console.log("❌ Auth failed: User role is not admin:", req.session.userRole);
     return res.status(403).json({ error: "Accesso riservato agli amministratori" });
   }
+  console.log("✅ Admin auth successful");
   next();
 };
 
