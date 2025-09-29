@@ -1,4 +1,3 @@
-import * as pdfFonts from 'pdfmake/build/vfs_fonts';
 import { TDocumentDefinitions, Content } from 'pdfmake/interfaces';
 import { storage } from './storage';
 import { DailyReport, Operation, User, Client, WorkOrder } from '@shared/schema';
@@ -114,17 +113,25 @@ export class PDFService {
 
     return new Promise(async (resolve, reject) => {
       try {
-        // Use dynamic import to avoid ES module restrictions
-        const PdfMake = await import('pdfmake/build/pdfmake');
+        // Use dynamic imports to avoid ES module restrictions
+        const [PdfMake, pdfFonts] = await Promise.all([
+          import('pdfmake/build/pdfmake'),
+          import('pdfmake/build/vfs_fonts').catch(() => null)
+        ]);
         
-        // Create PDF with vfs configuration
-        const pdfDoc = PdfMake.default.createPdf(docDefinition, undefined, undefined, (pdfFonts as any).vfs);
+        // Configure fonts if available
+        if (pdfFonts && (pdfFonts as any).pdfMake?.vfs) {
+          (PdfMake.default as any).vfs = (pdfFonts as any).pdfMake.vfs;
+        }
+        
+        // Create PDF document
+        const pdfDoc = PdfMake.default.createPdf(docDefinition);
         
         pdfDoc.getBuffer((buffer: Buffer) => {
           resolve(buffer);
         });
       } catch (error) {
-        console.warn('PDFMake fonts not loaded correctly', error);
+        console.warn('PDFMake initialization error:', error);
         reject(error);
       }
     });
