@@ -119,13 +119,11 @@ export class PDFService {
           import('pdfmake/build/vfs_fonts').catch(() => null)
         ]);
         
-        // Configure fonts if available
-        if (pdfFonts && (pdfFonts as any).pdfMake?.vfs) {
-          (PdfMake.default as any).vfs = (pdfFonts as any).pdfMake.vfs;
-        }
+        // Get VFS fonts if available
+        const vfs = pdfFonts && (pdfFonts as any).pdfMake?.vfs ? (pdfFonts as any).pdfMake.vfs : undefined;
         
-        // Create PDF document
-        const pdfDoc = PdfMake.default.createPdf(docDefinition);
+        // Create PDF document with vfs parameter instead of mutating the import
+        const pdfDoc = PdfMake.default.createPdf(docDefinition, undefined, undefined, vfs);
         
         pdfDoc.getBuffer((buffer: Buffer) => {
           resolve(buffer);
