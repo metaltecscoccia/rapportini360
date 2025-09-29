@@ -34,16 +34,16 @@ const sessionStore = process.env.NODE_ENV === 'production' && process.env.DATABA
     })
   : undefined; // Use default memory store in development
 
-// Session configuration
+// Session configuration - optimized for iOS Safari compatibility
 app.use(session({
   store: sessionStore,
   secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: process.env.NODE_ENV === 'production', // HTTPS only in production
+    secure: false, // False for development/HTTP, iOS Safari works better this way
     httpOnly: true,
-    sameSite: 'lax', // Less restrictive for desktop compatibility
+    // Remove sameSite entirely for maximum iOS Safari compatibility
     maxAge: 24 * 60 * 60 * 1000 // 24 hours
   }
 }));
