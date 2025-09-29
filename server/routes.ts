@@ -67,24 +67,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create new user (admin only)
   app.post("/api/users", requireAdmin, async (req, res) => {
     try {
+      console.log("POST /api/users - Request body:", JSON.stringify(req.body, null, 2));
+      console.log("Session info:", { userId: req.session.userId, userRole: req.session.userRole });
+      
       const result = insertUserSchema.safeParse(req.body);
       
       if (!result.success) {
+        console.error("User validation failed:", result.error.issues);
         return res.status(400).json({ error: "Invalid user data", issues: result.error.issues });
       }
       
-      // No additional password validation - admin can set any password
+      console.log("User validation passed, checking for existing username...");
       
       // Check if username already exists
       const existingUser = await storage.getUserByUsername(result.data.username);
       if (existingUser) {
+        console.log("Username already exists:", result.data.username);
         return res.status(400).json({ error: "Username già esistente" });
       }
       
+      console.log("Creating user...");
       const user = await storage.createUser(result.data);
+      console.log("User created successfully:", user.id);
+      
       res.json(user);
     } catch (error) {
       console.error("Error creating user:", error);
+      console.error("Error stack:", error.stack);
       res.status(500).json({ error: "Failed to create user" });
     }
   });
