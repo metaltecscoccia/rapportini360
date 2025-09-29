@@ -29,9 +29,114 @@ function Router() {
   );
 }
 
+// Component for authenticated users that uses React Query
+function AuthenticatedApp({ currentUser, onLogout }: { currentUser: User; onLogout: () => void }) {
+  const { toast } = useToast();
+
+  const handleLogout = async () => {
+    try {
+      // Call logout API to destroy session
+      await fetch('/api/logout', {
+        method: 'POST',
+        credentials: 'include'
+      });
+    } catch (error) {
+      console.error("Error during logout:", error);
+    } finally {
+      // Always clear frontend state regardless of API call result
+      onLogout();
+      console.log("User logged out");
+    }
+  };
+
+  // Mutation per creare nuovo rapportino
+  const createReportMutation = useMutation({
+    mutationFn: async (operations: any[]) => {
+      if (!currentUser) throw new Error("User not logged in");
+      
+      // Ottieni i dati dell'utente corrente
+      const userResponse = await apiRequest('GET', '/api/me');
+      const userData = await userResponse.json();
+      
+      const response = await apiRequest('POST', '/api/daily-reports', {
+        employeeId: userData.id,
+        date: new Date().toISOString().split('T')[0], // YYYY-MM-DD format
+        operations
+      });
+      
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Rapportino creato",
+        description: "Il rapportino è stato inviato con successo e è in attesa di approvazione.",
+      });
+      console.log("Report created successfully:", data);
+    },
+    onError: (error: any) => {
+      console.error("Error creating report:", error);
+      toast({
+        title: "Errore",
+        description: "Impossibile creare il rapportino. Riprova più tardi.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleReportSubmit = (operations: any[]) => {
+    createReportMutation.mutate(operations);
+  };
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="border-b bg-card">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-xl font-semibold">
+                {currentUser.role === "admin" ? "Dashboard Amministratore" : "Rapportini Giornalieri"}
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                Benvenuto, {currentUser.fullName}
+              </p>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
+              <Button
+                variant="outline"
+                onClick={handleLogout}
+                data-testid="button-logout"
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                Esci
+              </Button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="container mx-auto">
+        {currentUser.role === "admin" ? (
+          <AdminDashboard />
+        ) : (
+          <div className="py-6">
+            <DailyReportForm
+              employeeName={currentUser.fullName}
+              date={new Date().toLocaleDateString("it-IT")}
+              onSubmit={handleReportSubmit}
+            />
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
+
 function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const { toast } = useToast();
 
   const handleLogin = async (username: string, password: string): Promise<{ success: boolean; error?: string }> => {
     try {
@@ -62,61 +167,8 @@ function App() {
     }
   };
 
-  const handleLogout = async () => {
-    try {
-      // Call logout API to destroy session
-      await fetch('/api/logout', {
-        method: 'POST',
-        credentials: 'include'
-      });
-    } catch (error) {
-      console.error("Error during logout:", error);
-    } finally {
-      // Always clear frontend state regardless of API call result
-      setCurrentUser(null);
-      console.log("User logged out");
-    }
-  };
-
-  // Mutation per creare nuovo rapportino
-  const createReportMutation = useMutation({
-    mutationFn: async (operations: any[]) => {
-      if (!currentUser) throw new Error("User not logged in");
-      
-      // Trova l'ID dell'utente corrente
-      const usersResponse = await apiRequest('GET', '/api/users');
-      const usersData = await usersResponse.json();
-      const currentEmployee = usersData.find((user: any) => user.username === currentUser.username);
-      
-      if (!currentEmployee) throw new Error("Employee not found");
-      
-      const response = await apiRequest('POST', '/api/daily-reports', {
-        employeeId: currentEmployee.id,
-        date: new Date().toISOString().split('T')[0], // YYYY-MM-DD format
-        operations
-      });
-      
-      return response.json();
-    },
-    onSuccess: (data) => {
-      toast({
-        title: "Rapportino creato",
-        description: "Il rapportino è stato inviato con successo e è in attesa di approvazione.",
-      });
-      console.log("Report created successfully:", data);
-    },
-    onError: (error: any) => {
-      console.error("Error creating report:", error);
-      toast({
-        title: "Errore",
-        description: "Impossibile creare il rapportino. Riprova più tardi.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const handleReportSubmit = (operations: any[]) => {
-    createReportMutation.mutate(operations);
+  const handleLogout = () => {
+    setCurrentUser(null);
   };
 
   if (!currentUser) {
@@ -136,50 +188,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <ThemeProvider>
-          <div className="min-h-screen bg-background">
-            {/* Header */}
-            <header className="border-b bg-card">
-              <div className="container mx-auto px-4 py-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h1 className="text-xl font-semibold">
-                      {currentUser.role === "admin" ? "Dashboard Amministratore" : "Rapportini Giornalieri"}
-                    </h1>
-                    <p className="text-sm text-muted-foreground">
-                      Benvenuto, {currentUser.fullName}
-                    </p>
-                  </div>
-                  
-                  <div className="flex items-center gap-2">
-                    <ThemeToggle />
-                    <Button
-                      variant="outline"
-                      onClick={handleLogout}
-                      data-testid="button-logout"
-                    >
-                      <LogOut className="h-4 w-4 mr-2" />
-                      Esci
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </header>
-
-            {/* Main Content */}
-            <main className="container mx-auto">
-              {currentUser.role === "admin" ? (
-                <AdminDashboard />
-              ) : (
-                <div className="py-6">
-                  <DailyReportForm
-                    employeeName={currentUser.fullName}
-                    date={new Date().toLocaleDateString("it-IT")}
-                    onSubmit={handleReportSubmit}
-                  />
-                </div>
-              )}
-            </main>
-          </div>
+          <AuthenticatedApp currentUser={currentUser} onLogout={handleLogout} />
           <Toaster />
         </ThemeProvider>
       </TooltipProvider>
