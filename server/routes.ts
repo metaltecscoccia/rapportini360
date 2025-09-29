@@ -10,7 +10,9 @@ import {
   insertDailyReportSchema,
   updateDailyReportSchema,
   insertOperationSchema,
-  updateOperationSchema
+  updateOperationSchema,
+  insertClientSchema,
+  insertWorkOrderSchema
 } from "@shared/schema";
 import { validatePassword, verifyPassword, hashPassword } from "./auth";
 
@@ -260,6 +262,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Create new client (admin only)
+  app.post("/api/clients", requireAdmin, async (req, res) => {
+    try {
+      const result = insertClientSchema.safeParse(req.body);
+      
+      if (!result.success) {
+        return res.status(400).json({ error: "Dati cliente non validi", issues: result.error.issues });
+      }
+      
+      const client = await storage.createClient(result.data);
+      res.status(201).json(client);
+    } catch (error: any) {
+      console.error("Error creating client:", error);
+      res.status(500).json({ error: "Failed to create client" });
+    }
+  });
+
   // Get work orders by client
   app.get("/api/clients/:clientId/work-orders", requireAuth, async (req, res) => {
     try {
@@ -268,6 +287,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching work orders:", error);
       res.status(500).json({ error: "Failed to fetch work orders" });
+    }
+  });
+
+  // Create new work order (admin only)
+  app.post("/api/clients/:clientId/work-orders", requireAdmin, async (req, res) => {
+    try {
+      const { clientId } = req.params;
+      const result = insertWorkOrderSchema.safeParse({
+        ...req.body,
+        clientId
+      });
+      
+      if (!result.success) {
+        return res.status(400).json({ error: "Dati commessa non validi", issues: result.error.issues });
+      }
+      
+      const workOrder = await storage.createWorkOrder(result.data);
+      res.status(201).json(workOrder);
+    } catch (error: any) {
+      console.error("Error creating work order:", error);
+      res.status(500).json({ error: "Failed to create work order" });
     }
   });
 
