@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, integer, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, integer, boolean, numeric } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -46,8 +46,7 @@ export const operations = pgTable("operations", {
   clientId: varchar("client_id").notNull().references(() => clients.id),
   workOrderId: varchar("work_order_id").notNull().references(() => workOrders.id),
   workTypes: text("work_types").array().notNull(), // Multiple work types: ["Taglio", "Saldatura", "Montaggio"]
-  startTime: text("start_time").notNull(), // formato "HH:MM"
-  endTime: text("end_time").notNull(), // formato "HH:MM"
+  hours: numeric("hours").notNull(), // Ore lavorate per questa operazione (es. 2.5)
   notes: text("notes"),
 });
 

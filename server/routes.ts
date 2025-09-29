@@ -274,10 +274,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Calculate total hours
         const totalHours = operations.reduce((total, op) => {
-          const start = new Date(`2024-01-01 ${op.startTime}`);
-          const end = new Date(`2024-01-01 ${op.endTime}`);
-          const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
-          return total + hours;
+          return total + (Number(op.hours) || 0);
         }, 0);
         
         return {
@@ -298,50 +295,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create new daily report
   app.post("/api/daily-reports", requireAuth, async (req, res) => {
     try {
-      console.log("POST /api/daily-reports - Request body:", JSON.stringify(req.body, null, 2));
-      
       const { operations, ...reportData } = req.body;
-      
-      console.log("Report data:", reportData);
-      console.log("Operations:", operations);
       
       // Validate report data
       const reportResult = insertDailyReportSchema.safeParse(reportData);
       if (!reportResult.success) {
-        console.error("Report validation failed:", reportResult.error.issues);
         return res.status(400).json({ error: "Dati rapportino non validi", issues: reportResult.error.issues });
       }
       
-      console.log("Report validation passed, creating report...");
-      
       // Create the report
       const newReport = await storage.createDailyReport(reportResult.data);
-      console.log("Report created:", newReport);
       
       // Create operations if provided
       if (operations && Array.isArray(operations)) {
-        console.log("Creating operations...");
         for (const operation of operations) {
           const operationData = {
             ...operation,
             dailyReportId: newReport.id
           };
-          console.log("Operation data before validation:", operationData);
           
           const operationResult = insertOperationSchema.safeParse(operationData);
           
           if (operationResult.success) {
-            console.log("Operation validation passed, creating operation...");
             await storage.createOperation(operationResult.data);
-          } else {
-            console.error("Operation validation failed:", operationResult.error.issues);
           }
         }
       }
       
       // Return created report with operations
       const finalOperations = await storage.getOperationsByReportId(newReport.id);
-      console.log("Final operations:", finalOperations);
       
       res.status(201).json({
         ...newReport,

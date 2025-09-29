@@ -17,8 +17,7 @@ interface Operation {
   clientId: string;
   workOrderId: string;
   workTypes: WorkType[];
-  startTime: string; // formato "HH:MM"
-  endTime: string;   // formato "HH:MM"
+  hours: number; // Ore lavorate per questa operazione (es. 2.5)
   notes: string;
 }
 
@@ -98,15 +97,15 @@ export default function DailyReportForm({
     initialOperations && initialOperations.length > 0 
       ? initialOperations.map((op, index) => ({
           ...op,
-          id: `${index + 1}` // Ensure unique IDs for form state
+          id: `${index + 1}`, // Ensure unique IDs for form state
+          hours: typeof op.hours === 'string' ? parseFloat(op.hours) || 0 : op.hours // Ensure numeric
         }))
       : [{
           id: "1",
           clientId: "",
           workOrderId: "",
           workTypes: ["Taglio"],
-          startTime: "",
-          endTime: "",
+          hours: 0,
           notes: "",
         }]
   );
@@ -123,8 +122,7 @@ export default function DailyReportForm({
       clientId: "",
       workOrderId: "",
       workTypes: [],
-      startTime: "",
-      endTime: "",
+      hours: 0,
       notes: "",
     };
     setOperations([...operations, newOperation]);
@@ -137,8 +135,10 @@ export default function DailyReportForm({
   };
 
   const updateOperation = (id: string, field: keyof Operation, value: any) => {
+    // Convert hours to number to ensure proper calculation
+    const processedValue = field === 'hours' ? (typeof value === 'string' ? parseFloat(value) || 0 : value) : value;
     setOperations(operations.map(op => 
-      op.id === id ? { ...op, [field]: value } : op
+      op.id === id ? { ...op, [field]: processedValue } : op
     ));
   };
 
@@ -157,21 +157,6 @@ export default function DailyReportForm({
     console.log("Toggled work type", operationId, workType);
   };
 
-  // Funzione per calcolare ore da startTime e endTime
-  const calculateHours = (startTime: string, endTime: string): number => {
-    if (!startTime || !endTime) return 0;
-    
-    const start = new Date(`2000-01-01 ${startTime}`);
-    const end = new Date(`2000-01-01 ${endTime}`);
-    
-    // Gestione passaggio mezzanotte
-    if (end < start) {
-      end.setDate(end.getDate() + 1);
-    }
-    
-    const diffMs = end.getTime() - start.getTime();
-    return Math.round((diffMs / (1000 * 60 * 60)) * 100) / 100; // Arrotonda a 2 decimali
-  };
 
   // Funzione per validare tutti i campi obbligatori
   const validateRequiredFields = (): { isValid: boolean; missingFields: string[] } => {
@@ -181,16 +166,7 @@ export default function DailyReportForm({
       if (!operation.clientId) missingFields.push(`Operazione ${index + 1}: Cliente`);
       if (!operation.workOrderId) missingFields.push(`Operazione ${index + 1}: Commessa`);
       if (!operation.workTypes || operation.workTypes.length === 0) missingFields.push(`Operazione ${index + 1}: Seleziona almeno una Lavorazione`);
-      if (!operation.startTime) missingFields.push(`Operazione ${index + 1}: Ora inizio`);
-      if (!operation.endTime) missingFields.push(`Operazione ${index + 1}: Ora fine`);
-      
-      // Validazione orari
-      if (operation.startTime && operation.endTime) {
-        const hours = calculateHours(operation.startTime, operation.endTime);
-        if (hours <= 0) {
-          missingFields.push(`Operazione ${index + 1}: Ora fine deve essere successiva all'ora inizio`);
-        }
-      }
+      if (!operation.hours || operation.hours <= 0) missingFields.push(`Operazione ${index + 1}: Inserire ore valide (maggiori di 0)`);
     });
 
     return {
@@ -202,7 +178,8 @@ export default function DailyReportForm({
   // Funzione per calcolare ore totali
   const getTotalHours = (): number => {
     return operations.reduce((total, operation) => {
-      return total + calculateHours(operation.startTime, operation.endTime);
+      const hours = typeof operation.hours === 'string' ? parseFloat(operation.hours) || 0 : operation.hours || 0;
+      return total + hours;
     }, 0);
   };
 
@@ -353,28 +330,22 @@ export default function DailyReportForm({
                     </div>
                     
                     <div className="space-y-2">
-                      <Label>Ora Inizio</Label>
+                      <Label>Ore lavorate</Label>
                       <Input
-                        type="time"
-                        value={operation.startTime}
-                        onChange={(e) => updateOperation(operation.id, "startTime", e.target.value)}
-                        data-testid={`input-start-time-${operation.id}`}
+                        type="number"
+                        step="0.25"
+                        min="0"
+                        max="24"
+                        value={operation.hours || ''}
+                        onChange={(e) => {
+                          updateOperation(operation.id, "hours", e.target.value);
+                        }}
+                        placeholder="Es. 2.5"
+                        data-testid={`input-hours-${operation.id}`}
                       />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label>Ora Fine</Label>
-                      <Input
-                        type="time"
-                        value={operation.endTime}
-                        onChange={(e) => updateOperation(operation.id, "endTime", e.target.value)}
-                        data-testid={`input-end-time-${operation.id}`}
-                      />
-                      {operation.startTime && operation.endTime && (
-                        <div className="text-xs text-muted-foreground mt-1">
-                          <strong>Ore: {calculateHours(operation.startTime, operation.endTime)}h</strong>
-                        </div>
-                      )}
+                      <div className="text-xs text-muted-foreground">
+                        Inserire le ore in formato decimale (es. 2,5 per 2 ore e 30 minuti)
+                      </div>
                     </div>
                   </div>
                   
