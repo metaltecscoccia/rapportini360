@@ -1,17 +1,9 @@
-import * as PdfMake from 'pdfmake/build/pdfmake';
 import * as pdfFonts from 'pdfmake/build/vfs_fonts';
 import { TDocumentDefinitions, Content } from 'pdfmake/interfaces';
 import { storage } from './storage';
 import { DailyReport, Operation, User, Client, WorkOrder } from '@shared/schema';
 import fs from 'fs';
 import path from 'path';
-
-// Set fonts for pdfMake
-if (pdfFonts.pdfMake && pdfFonts.pdfMake.vfs) {
-  (PdfMake as any).vfs = pdfFonts.pdfMake.vfs;
-} else {
-  console.warn('PDFMake fonts not loaded correctly');
-}
 
 export class PDFService {
   
@@ -120,11 +112,21 @@ export class PDFService {
       }
     };
 
-    return new Promise((resolve, reject) => {
-      const pdfDoc = PdfMake.createPdf(docDefinition);
-      pdfDoc.getBuffer((buffer: Buffer) => {
-        resolve(buffer);
-      });
+    return new Promise(async (resolve, reject) => {
+      try {
+        // Use dynamic import to avoid ES module restrictions
+        const PdfMake = await import('pdfmake/build/pdfmake');
+        
+        // Create PDF with vfs configuration
+        const pdfDoc = PdfMake.default.createPdf(docDefinition, undefined, undefined, (pdfFonts as any).vfs);
+        
+        pdfDoc.getBuffer((buffer: Buffer) => {
+          resolve(buffer);
+        });
+      } catch (error) {
+        console.warn('PDFMake fonts not loaded correctly', error);
+        reject(error);
+      }
     });
   }
 
@@ -176,21 +178,21 @@ export class PDFService {
       tableBody.push([
         { text: client?.name || 'N/A', style: 'tableCell' },
         { text: workOrder?.name || 'N/A', style: 'tableCell' },
-        { text: op.workType, style: 'tableCell' },
-        { text: `${op.startTime} - ${op.endTime}`, style: 'tableCell', alignment: 'center' },
-        { text: hours.toString() + 'h', style: 'tableCell', alignment: 'center' },
+        { text: op.workTypes.join(', '), style: 'tableCell' },
+        { text: `${op.startTime} - ${op.endTime}`, style: 'tableCell' },
+        { text: hours.toString() + 'h', style: 'tableCell' },
         { text: op.notes || '-', style: 'tableCell' }
       ]);
     });
 
     // Add total row
     tableBody.push([
-      { text: '', border: [false, true, false, false] },
-      { text: '', border: [false, true, false, false] },
-      { text: '', border: [false, true, false, false] },
-      { text: 'TOTALE:', style: 'tableHeader', border: [false, true, false, false] },
-      { text: totalHours.toString() + 'h', style: 'tableHeader', alignment: 'center', border: [false, true, false, false] },
-      { text: '', border: [false, true, false, false] }
+      { text: '', style: 'tableCell' },
+      { text: '', style: 'tableCell' },
+      { text: '', style: 'tableCell' },
+      { text: 'TOTALE:', style: 'tableHeader' },
+      { text: totalHours.toString() + 'h', style: 'tableHeader' },
+      { text: '', style: 'tableCell' }
     ]);
 
     return {
