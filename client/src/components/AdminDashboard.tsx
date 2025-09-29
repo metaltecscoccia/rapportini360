@@ -7,6 +7,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import { 
   Users, 
   FileText, 
@@ -25,6 +33,15 @@ import {
 import StatusBadge from "./StatusBadge";
 import AttendanceCalendar from "./AttendanceCalendar";
 import WorkOrderReport from "./WorkOrderReport";
+
+// Schema per form aggiunta dipendente
+const addEmployeeSchema = z.object({
+  fullName: z.string().min(2, "Il nome deve essere di almeno 2 caratteri"),
+  username: z.string().min(3, "L'username deve essere di almeno 3 caratteri"),
+  password: z.string().min(4, "La password deve essere di almeno 4 caratteri"),
+});
+
+type AddEmployeeForm = z.infer<typeof addEmployeeSchema>;
 
 // Mock data for demonstration
 const mockReports = [
@@ -181,6 +198,60 @@ export default function AdminDashboard() {
     description: string;
     clientName: string;
   } | null>(null);
+  const [addEmployeeDialogOpen, setAddEmployeeDialogOpen] = useState(false);
+
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  // Form per aggiunta dipendente
+  const form = useForm<AddEmployeeForm>({
+    resolver: zodResolver(addEmployeeSchema),
+    defaultValues: {
+      fullName: "",
+      username: "",
+      password: "",
+    },
+  });
+
+  // Query per recuperare tutti i dipendenti
+  const { data: employees = [], isLoading: isLoadingEmployees } = useQuery({
+    queryKey: ['/api/users'],
+  });
+
+  // Mutation per creare nuovo dipendente
+  const createEmployeeMutation = useMutation({
+    mutationFn: async (data: AddEmployeeForm) => {
+      return apiRequest(`/api/users`, {
+        method: 'POST',
+        body: JSON.stringify({
+          fullName: data.fullName,
+          username: data.username,
+          password: data.password,
+          role: 'employee'
+        }),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      toast({
+        title: "Dipendente aggiunto",
+        description: "Il nuovo dipendente è stato aggiunto con successo.",
+      });
+      form.reset();
+      setAddEmployeeDialogOpen(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Errore",
+        description: error.message || "Errore durante l'aggiunta del dipendente.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleAddEmployee = (data: AddEmployeeForm) => {
+    createEmployeeMutation.mutate(data);
+  };
 
   const filteredReports = mockReports.filter(report => {
     const matchesSearch = report.employee.toLowerCase().includes(searchTerm.toLowerCase());
@@ -660,15 +731,125 @@ export default function AdminDashboard() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Gestione Dipendenti</CardTitle>
-              <Button data-testid="button-add-employee">
-                <Plus className="h-4 w-4 mr-2" />
-                Nuovo Dipendente
-              </Button>
+              <Dialog open={addEmployeeDialogOpen} onOpenChange={setAddEmployeeDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button data-testid="button-add-employee">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Nuovo Dipendente
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[425px]">
+                  <DialogHeader>
+                    <DialogTitle>Aggiungi Nuovo Dipendente</DialogTitle>
+                    <DialogDescription>
+                      Inserisci i dati del nuovo dipendente.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <Form {...form}>
+                    <form onSubmit={form.handleSubmit(handleAddEmployee)} className="space-y-4">
+                      <FormField
+                        control={form.control}
+                        name="fullName"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Nome e Cognome</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="Es. Mario Rossi" 
+                                {...field} 
+                                data-testid="input-full-name"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="username"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Username</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="Username unico" 
+                                {...field} 
+                                data-testid="input-username"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="password"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Password</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="password" 
+                                placeholder="Password temporanea" 
+                                {...field} 
+                                data-testid="input-password"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <DialogFooter>
+                        <Button 
+                          type="submit" 
+                          disabled={createEmployeeMutation.isPending}
+                          data-testid="button-submit-employee"
+                        >
+                          {createEmployeeMutation.isPending ? "Aggiungendo..." : "Aggiungi Dipendente"}
+                        </Button>
+                      </DialogFooter>
+                    </form>
+                  </Form>
+                </DialogContent>
+              </Dialog>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-8 text-muted-foreground">
-                Gestione dipendenti in fase di sviluppo...
-              </div>
+              {isLoadingEmployees ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  Caricamento dipendenti...
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nome</TableHead>
+                      <TableHead>Username</TableHead>
+                      <TableHead>Ruolo</TableHead>
+                      <TableHead>Azioni</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {employees.filter((emp: any) => emp.role === 'employee').map((employee: any) => (
+                      <TableRow key={employee.id}>
+                        <TableCell className="font-medium">{employee.fullName}</TableCell>
+                        <TableCell>{employee.username}</TableCell>
+                        <TableCell>
+                          <Badge variant="secondary">Dipendente</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            data-testid={`button-edit-employee-${employee.id}`}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
