@@ -30,7 +30,8 @@ import {
   Trash,
   Calendar,
   Wrench,
-  Eye
+  Eye,
+  Key
 } from "lucide-react";
 import StatusBadge from "./StatusBadge";
 import AttendanceCalendar from "./AttendanceCalendar";
@@ -248,6 +249,8 @@ export default function AdminDashboard() {
   const [editEmployeeDialogOpen, setEditEmployeeDialogOpen] = useState(false);
   const [deleteEmployeeDialogOpen, setDeleteEmployeeDialogOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
+  const [resetPasswordDialogOpen, setResetPasswordDialogOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState<string>("");
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -362,6 +365,30 @@ export default function AdminDashboard() {
     },
   });
 
+  // Reset password mutation
+  const resetPasswordMutation = useMutation({
+    mutationFn: async ({ employeeId, newPassword }: { employeeId: string; newPassword: string }) => {
+      const response = await apiRequest('POST', `/api/users/${employeeId}/reset-password`, { newPassword });
+      return response.json(); // Parse JSON response
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/users'] }); // Refresh user list
+      setResetPasswordDialogOpen(false);
+      setSelectedEmployee(null);
+      toast({
+        title: "Password aggiornata",
+        description: "La password del dipendente è stata aggiornata con successo.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Errore",
+        description: error.message || "Errore durante l'aggiornamento della password.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleAddEmployee = (data: AddEmployeeForm) => {
     createEmployeeMutation.mutate(data);
   };
@@ -390,6 +417,21 @@ export default function AdminDashboard() {
   const confirmDeleteEmployee = () => {
     if (selectedEmployee) {
       deleteEmployeeMutation.mutate(selectedEmployee.id);
+    }
+  };
+
+  const handleResetPassword = (employee: any) => {
+    setSelectedEmployee(employee);
+    setNewPassword("");
+    setResetPasswordDialogOpen(true);
+  };
+  
+  const confirmResetPassword = () => {
+    if (selectedEmployee && newPassword.trim().length >= 6) {
+      resetPasswordMutation.mutate({
+        employeeId: selectedEmployee.id,
+        newPassword: newPassword.trim()
+      });
     }
   };
 
@@ -1076,6 +1118,7 @@ export default function AdminDashboard() {
                     <TableRow>
                       <TableHead>Nome</TableHead>
                       <TableHead>Username</TableHead>
+                      <TableHead>Password Attuale</TableHead>
                       <TableHead>Ruolo</TableHead>
                       <TableHead>Azioni</TableHead>
                     </TableRow>
@@ -1085,6 +1128,11 @@ export default function AdminDashboard() {
                       <TableRow key={employee.id}>
                         <TableCell className="font-medium">{employee.fullName}</TableCell>
                         <TableCell>{employee.username}</TableCell>
+                        <TableCell>
+                          <span className="font-mono text-sm bg-muted px-2 py-1 rounded">
+                            {employee.plainPassword || "Non disponibile"}
+                          </span>
+                        </TableCell>
                         <TableCell>
                           <Badge variant="secondary">Dipendente</Badge>
                         </TableCell>
@@ -1097,6 +1145,16 @@ export default function AdminDashboard() {
                               data-testid={`button-edit-employee-${employee.id}`}
                             >
                               <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => handleResetPassword(employee)}
+                              data-testid={`button-reset-password-${employee.id}`}
+                              className="text-blue-600 hover:text-blue-700"
+                              disabled={resetPasswordMutation.isPending}
+                            >
+                              <Key className="h-4 w-4" />
                             </Button>
                             <Button 
                               variant="ghost" 
@@ -1118,6 +1176,67 @@ export default function AdminDashboard() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Dialog per impostare nuova password */}
+      <Dialog open={resetPasswordDialogOpen} onOpenChange={setResetPasswordDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Imposta Nuova Password</DialogTitle>
+            <DialogDescription>
+              Inserisci la nuova password per il dipendente.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedEmployee && (
+            <div className="space-y-4">
+              <div className="bg-muted p-4 rounded-lg">
+                <div className="space-y-2">
+                  <div>
+                    <Label className="text-sm font-medium">Dipendente:</Label>
+                    <p className="text-sm">{selectedEmployee.fullName}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium">Username:</Label>
+                    <p className="text-sm font-mono">{selectedEmployee.username}</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="newPassword">Nuova Password</Label>
+                <Input
+                  id="newPassword"
+                  type="text"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Inserisci la nuova password (min. 6 caratteri)"
+                  data-testid="input-new-password"
+                />
+                {newPassword.length > 0 && newPassword.length < 6 && (
+                  <p className="text-sm text-destructive">Password deve essere di almeno 6 caratteri</p>
+                )}
+              </div>
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setResetPasswordDialogOpen(false)}
+              data-testid="button-cancel-password"
+            >
+              Annulla
+            </Button>
+            <Button 
+              onClick={confirmResetPassword}
+              disabled={resetPasswordMutation.isPending || newPassword.trim().length < 6}
+              data-testid="button-confirm-password"
+            >
+              {resetPasswordMutation.isPending ? "Aggiornando..." : "Aggiorna Password"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

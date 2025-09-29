@@ -91,7 +91,8 @@ export class MemStorage implements IStorage {
       const hashedPassword = await hashPassword(userData.password);
       const user: User = {
         ...userData,
-        password: hashedPassword
+        password: hashedPassword,
+        plainPassword: userData.role === 'employee' ? userData.password : null
       };
       this.users.set(userData.id, user);
     }
@@ -140,11 +141,13 @@ export class MemStorage implements IStorage {
     await this.ensureInitialized();
     const id = randomUUID();
     const hashedPassword = await hashPassword(insertUser.password);
+    const role = insertUser.role || "employee";
     const user: User = { 
       ...insertUser, 
       id,
       password: hashedPassword,
-      role: insertUser.role || "employee"
+      plainPassword: role === 'employee' ? insertUser.password : null,
+      role: role
     };
     this.users.set(id, user);
     return user;
@@ -161,6 +164,10 @@ export class MemStorage implements IStorage {
     const updatedData = { ...updates };
     if (updates.password) {
       updatedData.password = await hashPassword(updates.password);
+      // Se è un dipendente, salva anche la password in chiaro
+      if (existingUser.role === 'employee') {
+        updatedData.plainPassword = updates.password;
+      }
     }
     
     const updatedUser: User = {

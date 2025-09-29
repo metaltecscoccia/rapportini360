@@ -30,20 +30,49 @@ function Router() {
 function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
 
-  const handleLogin = (username: string, password: string, role: string) => {
-    // Mock login - in production this would validate against backend
-    const user: User = {
-      username,
-      role: role as "employee" | "admin",
-      fullName: role === "admin" ? "Amministratore" : `${username}`,
-    };
-    setCurrentUser(user);
-    console.log("User logged in:", user);
+  const handleLogin = async (username: string, password: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      console.log(`Login attempt: ${username}`);
+      
+      const response = await fetch('/api/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',  // Include session cookies
+        body: JSON.stringify({ username, password }),
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok && data.success) {
+        setCurrentUser(data.user);
+        console.log("User logged in:", data.user);
+        return { success: true };
+      } else {
+        console.log("Login failed:", data.error);
+        return { success: false, error: data.error || "Login fallito" };
+      }
+    } catch (error) {
+      console.error("Error during login:", error);
+      return { success: false, error: "Errore di connessione" };
+    }
   };
 
-  const handleLogout = () => {
-    setCurrentUser(null);
-    console.log("User logged out");
+  const handleLogout = async () => {
+    try {
+      // Call logout API to destroy session
+      await fetch('/api/logout', {
+        method: 'POST',
+        credentials: 'include'
+      });
+    } catch (error) {
+      console.error("Error during logout:", error);
+    } finally {
+      // Always clear frontend state regardless of API call result
+      setCurrentUser(null);
+      console.log("User logged out");
+    }
   };
 
   const handleReportSubmit = (operations: any[]) => {

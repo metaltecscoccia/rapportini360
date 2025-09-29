@@ -3,30 +3,30 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { LogIn, User, Shield } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { LogIn, Loader2, AlertCircle } from "lucide-react";
 import logoPath from "@assets/3F8AF681-7737-41D8-A852-3AEB802C183F_1759092829478.png";
 
 interface LoginFormProps {
-  onLogin: (username: string, password: string, role: string) => void;
+  onLogin: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 export default function LoginForm({ onLogin }: LoginFormProps) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<"employee" | "admin">("employee");
   const [rememberMe, setRememberMe] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   // Carica credenziali salvate al mount del componente
   useEffect(() => {
     const savedCredentials = localStorage.getItem('metaltec_login_credentials');
     if (savedCredentials) {
       try {
-        const { username: savedUsername, password: savedPassword, role: savedRole } = JSON.parse(savedCredentials);
+        const { username: savedUsername } = JSON.parse(savedCredentials);
         setUsername(savedUsername || "");
-        setPassword(savedPassword || "");
-        setRole(savedRole || "employee");
+        // Non carichiamo più password salvate per sicurezza
         setRememberMe(true);
       } catch (error) {
         console.warn("Error loading saved credentials:", error);
@@ -35,22 +35,31 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
     }
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log(`Login attempt: ${username} as ${role}`);
+    setIsLoading(true);
+    setErrorMessage("");
     
-    // Salva o rimuovi credenziali in base alla checkbox
-    if (rememberMe) {
-      localStorage.setItem('metaltec_login_credentials', JSON.stringify({
-        username,
-        password,
-        role
-      }));
-    } else {
-      localStorage.removeItem('metaltec_login_credentials');
+    try {
+      const result = await onLogin(username, password);
+      
+      if (result.success) {
+        // Salva solo username se login ha successo (MAI la password per sicurezza)
+        if (rememberMe) {
+          localStorage.setItem('metaltec_login_credentials', JSON.stringify({
+            username
+          }));
+        } else {
+          localStorage.removeItem('metaltec_login_credentials');
+        }
+      } else {
+        setErrorMessage(result.error || "Login fallito");
+      }
+    } catch (error) {
+      setErrorMessage("Errore di connessione");
+    } finally {
+      setIsLoading(false);
     }
-    
-    onLogin(username, password, role);
   };
 
   return (
@@ -71,29 +80,6 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="role">Ruolo</Label>
-              <Select value={role} onValueChange={(value: "employee" | "admin") => setRole(value)}>
-                <SelectTrigger data-testid="select-role">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="employee">
-                    <div className="flex items-center gap-2">
-                      <User className="h-4 w-4" />
-                      Dipendente
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="admin">
-                    <div className="flex items-center gap-2">
-                      <Shield className="h-4 w-4" />
-                      Amministratore
-                    </div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
             <div className="space-y-2">
               <Label htmlFor="username">Username</Label>
               <Input
@@ -130,9 +116,20 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
               </Label>
             </div>
             
-            <Button type="submit" className="w-full" data-testid="button-login">
-              <LogIn className="h-4 w-4 mr-2" />
-              Accedi
+            {errorMessage && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{errorMessage}</AlertDescription>
+              </Alert>
+            )}
+            
+            <Button type="submit" className="w-full" disabled={isLoading} data-testid="button-login">
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <LogIn className="h-4 w-4 mr-2" />
+              )}
+              {isLoading ? "Accesso in corso..." : "Accedi"}
             </Button>
           </form>
         </CardContent>

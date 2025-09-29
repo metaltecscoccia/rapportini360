@@ -1,10 +1,61 @@
 import express, { type Request, Response, NextFunction } from "express";
+import session from "express-session";
+import connectPgSimple from "connect-pg-simple";
+import rateLimit from "express-rate-limit";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
+
+// Rate limiting for login protection
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // limit each IP to 5 requests per windowMs
+  message: { error: "Troppi tentativi di login. Riprova tra 15 minuti." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+// Apply rate limiting to login route
+app.use('/api/login', loginLimiter);
+
+// Ensure SESSION_SECRET is configured
+if (!process.env.SESSION_SECRET) {
+  if (process.env.NODE_ENV === 'production') {
+    console.error("FATAL: SESSION_SECRET environment variable is required for security in production");
+    process.exit(1);
+  } else {
+    console.warn("WARNING: Using default SESSION_SECRET in development. Set SESSION_SECRET environment variable for production.");
+    process.env.SESSION_SECRET = 'dev-secret-key-not-for-production';
+  }
+}
+
+// Session store configuration
+const PgSession = connectPgSimple(session);
+const sessionStore = process.env.NODE_ENV === 'production' && process.env.DATABASE_URL
+  ? new PgSession({
+      conString: process.env.DATABASE_URL,
+      tableName: 'session',
+      createTableIfMissing: true
+    })
+  : undefined; // Use default memory store in development
+
+// Session configuration
+app.use(session({
+  store: sessionStore,
+  secret: process.env.SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production', // HTTPS only in production
+    httpOnly: true,
+    sameSite: 'strict', // CSRF protection
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+  }
+}));
 
 app.use((req, res, next) => {
   const start = Date.now();

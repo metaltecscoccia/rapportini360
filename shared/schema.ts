@@ -8,6 +8,7 @@ export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
+  plainPassword: text("plain_password"), // Only for employees, null for admin
   role: text("role").notNull().default("employee"), // employee or admin
   fullName: text("full_name").notNull(),
 });

@@ -8,13 +8,32 @@ import {
   insertUserSchema,
   updateUserSchema
 } from "@shared/schema";
-import { validatePassword } from "./auth";
+import { validatePassword, verifyPassword, hashPassword } from "./auth";
+
+// Authentication middleware
+const requireAuth = (req: any, res: any, next: any) => {
+  if (!req.session.userId) {
+    return res.status(401).json({ error: "Autenticazione richiesta" });
+  }
+  next();
+};
+
+// Admin authorization middleware  
+const requireAdmin = (req: any, res: any, next: any) => {
+  if (!req.session.userId) {
+    return res.status(401).json({ error: "Autenticazione richiesta" });
+  }
+  if (req.session.userRole !== "admin") {
+    return res.status(403).json({ error: "Accesso riservato agli amministratori" });
+  }
+  next();
+};
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const pdfService = new PDFService();
 
-  // Get all users
-  app.get("/api/users", async (req, res) => {
+  // Get all users (admin only)
+  app.get("/api/users", requireAdmin, async (req, res) => {
     try {
       const users = await storage.getAllUsers();
       res.json(users);
@@ -24,8 +43,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Create new user
-  app.post("/api/users", async (req, res) => {
+  // Create new user (admin only)
+  app.post("/api/users", requireAdmin, async (req, res) => {
     try {
       const result = insertUserSchema.safeParse(req.body);
       
@@ -53,8 +72,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update user
-  app.put("/api/users/:id", async (req, res) => {
+  // Update user (admin only)
+  app.put("/api/users/:id", requireAdmin, async (req, res) => {
     try {
       const { id } = req.params;
       const result = updateUserSchema.safeParse(req.body);
@@ -93,8 +112,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Delete user
-  app.delete("/api/users/:id", async (req, res) => {
+  // Delete user (admin only)
+  app.delete("/api/users/:id", requireAdmin, async (req, res) => {
     try {
       const { id } = req.params;
       
@@ -122,8 +141,96 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Login route
+  app.post("/api/login", async (req, res) => {
+    try {
+      const { username, password } = req.body;
+      
+      if (!username || !password) {
+        return res.status(400).json({ error: "Username e password sono richiesti" });
+      }
+      
+      // Get user by username
+      const user = await storage.getUserByUsername(username);
+      if (!user) {
+        return res.status(401).json({ error: "Credenziali non valide" });
+      }
+      
+      // Verify password
+      const isValidPassword = await verifyPassword(password, user.password);
+      if (!isValidPassword) {
+        return res.status(401).json({ error: "Credenziali non valide" });
+      }
+      
+      // Create session
+      (req as any).session.userId = user.id;
+      (req as any).session.userRole = user.role;
+      
+      // Return user data without password
+      const { password: _, ...userWithoutPassword } = user;
+      res.json({ 
+        success: true, 
+        user: userWithoutPassword 
+      });
+    } catch (error) {
+      console.error("Error during login:", error);
+      res.status(500).json({ error: "Errore interno del server" });
+    }
+  });
+
+  // Reset user password (admin only) - admin chooses the password
+  app.post("/api/users/:id/reset-password", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { newPassword } = req.body;
+      
+      // Validate new password
+      if (!newPassword || newPassword.trim().length < 6) {
+        return res.status(400).json({ error: "Password deve essere di almeno 6 caratteri" });
+      }
+      
+      // Check if user exists
+      const existingUser = await storage.getUser(id);
+      if (!existingUser) {
+        return res.status(404).json({ error: "Utente non trovato" });
+      }
+      
+      // Prevent reset of admin password (security measure)
+      if (existingUser.role === "admin") {
+        return res.status(403).json({ error: "Non è possibile resettare la password dell'amministratore" });
+      }
+      
+      // Update user password with admin-chosen password (storage will handle hashing)
+      const updatedUser = await storage.updateUser(id, { password: newPassword.trim() });
+      
+      // TODO: Invalidate all existing sessions for this user for security
+      // This would require a session store that supports selective session invalidation
+      
+      res.json({ 
+        success: true, 
+        message: "Password aggiornata con successo.",
+        username: existingUser.username,
+        fullName: existingUser.fullName
+      });
+    } catch (error) {
+      console.error("Error resetting password:", error);
+      res.status(500).json({ error: "Errore interno del server" });
+    }
+  });
+
+  // Logout route
+  app.post("/api/logout", (req: any, res: any) => {
+    req.session.destroy((err: any) => {
+      if (err) {
+        console.error("Error destroying session:", err);
+        return res.status(500).json({ error: "Errore durante il logout" });
+      }
+      res.json({ success: true, message: "Logout effettuato con successo" });
+    });
+  });
+
   // Get all clients
-  app.get("/api/clients", async (req, res) => {
+  app.get("/api/clients", requireAuth, async (req, res) => {
     try {
       const clients = await storage.getAllClients();
       res.json(clients);
@@ -134,7 +241,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get work orders by client
-  app.get("/api/clients/:clientId/work-orders", async (req, res) => {
+  app.get("/api/clients/:clientId/work-orders", requireAuth, async (req, res) => {
     try {
       const workOrders = await storage.getWorkOrdersByClient(req.params.clientId);
       res.json(workOrders);
@@ -144,8 +251,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get all daily reports
-  app.get("/api/daily-reports", async (req, res) => {
+  // Get all daily reports (auth required)
+  app.get("/api/daily-reports", requireAuth, async (req, res) => {
     try {
       const reports = await storage.getAllDailyReports();
       res.json(reports);
@@ -155,8 +262,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Export daily reports as PDF
-  app.get("/api/export/daily-reports/:date", async (req, res) => {
+  // Export daily reports as PDF (admin only)
+  app.get("/api/export/daily-reports/:date", requireAdmin, async (req, res) => {
     try {
       const { date } = req.params;
       
@@ -186,7 +293,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Approve daily report
-  app.patch("/api/daily-reports/:id/approve", async (req, res) => {
+  app.patch("/api/daily-reports/:id/approve", requireAdmin, async (req, res) => {
     try {
       const updatedReport = await storage.updateDailyReportStatus(req.params.id, "Approvato");
       res.json(updatedReport);
@@ -197,7 +304,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get attendance records by date range
-  app.get("/api/attendance", async (req, res) => {
+  app.get("/api/attendance", requireAdmin, async (req, res) => {
     try {
       const { startDate, endDate } = req.query;
       
@@ -214,7 +321,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Upsert attendance record
-  app.put("/api/attendance", async (req, res) => {
+  app.put("/api/attendance", requireAdmin, async (req, res) => {
     try {
       const result = insertAttendanceRecordSchema.safeParse(req.body);
       
@@ -237,7 +344,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete attendance record
-  app.delete("/api/attendance/:employeeId/:date", async (req, res) => {
+  app.delete("/api/attendance/:employeeId/:date", requireAdmin, async (req, res) => {
     try {
       const { employeeId, date } = req.params;
       
@@ -261,7 +368,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
   // Get operations for a specific work order (for final report)
-  app.get("/api/work-orders/:workOrderId/operations", async (req, res) => {
+  app.get("/api/work-orders/:workOrderId/operations", requireAuth, async (req, res) => {
     try {
       const { workOrderId } = req.params;
       const operations = await storage.getOperationsByWorkOrderId(workOrderId);
