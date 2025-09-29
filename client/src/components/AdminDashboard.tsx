@@ -222,7 +222,7 @@ export default function AdminDashboard() {
   });
 
   // Query per recuperare tutti i rapportini
-  const { data: reports = [], isLoading: isLoadingReports } = useQuery({
+  const { data: reports = [], isLoading: isLoadingReports } = useQuery<any[]>({
     queryKey: ['/api/daily-reports'],
   });
 
@@ -381,7 +381,7 @@ export default function AdminDashboard() {
     }
   };
 
-  const filteredReports = reports.filter((report: any) => {
+  const filteredReports = (reports as any[]).filter((report: any) => {
     const employeeName = report.employeeName || report.employee || "";
     const matchesSearch = employeeName.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "all" || report.status === statusFilter;
@@ -515,8 +515,8 @@ export default function AdminDashboard() {
     }
   };
 
-  const totalPendingReports = reports.filter((r: any) => r.status === "In attesa").length;
-  const totalApprovedReports = reports.filter((r: any) => r.status === "Approvato").length;
+  const totalPendingReports = (reports as any[]).filter((r: any) => r.status === "In attesa").length;
+  const totalApprovedReports = (reports as any[]).filter((r: any) => r.status === "Approvato").length;
 
   const handleViewWorkOrderReport = (operation: any) => {
     setSelectedWorkOrder({

@@ -6,6 +6,11 @@ import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
 
+// Trust proxy when in production (for secure cookies behind HTTPS proxy)
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
+
 // Rate limiting removed - unlimited login attempts allowed
 
 app.use(express.json());
@@ -41,7 +46,7 @@ app.use(session({
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: false, // False for development/HTTP, iOS Safari works better this way
+    secure: process.env.NODE_ENV === 'production', // True in production for HTTPS
     httpOnly: true,
     // Remove sameSite entirely for maximum iOS Safari compatibility
     maxAge: 24 * 60 * 60 * 1000 // 24 hours
