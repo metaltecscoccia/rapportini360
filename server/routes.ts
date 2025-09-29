@@ -4,11 +4,46 @@ import { storage } from "./storage";
 import { PDFService } from "./pdfService";
 import { 
   insertAttendanceRecordSchema,
-  AttendanceStatusEnum
+  AttendanceStatusEnum,
+  insertUserSchema
 } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const pdfService = new PDFService();
+
+  // Get all users
+  app.get("/api/users", async (req, res) => {
+    try {
+      const users = await storage.getAllUsers();
+      res.json(users);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({ error: "Failed to fetch users" });
+    }
+  });
+
+  // Create new user
+  app.post("/api/users", async (req, res) => {
+    try {
+      const result = insertUserSchema.safeParse(req.body);
+      
+      if (!result.success) {
+        return res.status(400).json({ error: "Invalid user data", issues: result.error.issues });
+      }
+      
+      // Check if username already exists
+      const existingUser = await storage.getUserByUsername(result.data.username);
+      if (existingUser) {
+        return res.status(400).json({ error: "Username già esistente" });
+      }
+      
+      const user = await storage.createUser(result.data);
+      res.json(user);
+    } catch (error) {
+      console.error("Error creating user:", error);
+      res.status(500).json({ error: "Failed to create user" });
+    }
+  });
 
   // Get all clients
   app.get("/api/clients", async (req, res) => {

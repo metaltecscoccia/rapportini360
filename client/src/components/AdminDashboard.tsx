@@ -221,14 +221,11 @@ export default function AdminDashboard() {
   // Mutation per creare nuovo dipendente
   const createEmployeeMutation = useMutation({
     mutationFn: async (data: AddEmployeeForm) => {
-      return apiRequest(`/api/users`, {
-        method: 'POST',
-        body: JSON.stringify({
-          fullName: data.fullName,
-          username: data.username,
-          password: data.password,
-          role: 'employee'
-        }),
+      return apiRequest('POST', '/api/users', {
+        fullName: data.fullName,
+        username: data.username,
+        password: data.password,
+        role: 'employee'
       });
     },
     onSuccess: () => {
@@ -636,7 +633,7 @@ export default function AdminDashboard() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {(mockWorkOrdersByClient[selectedClient.id] || []).map((workOrder) => (
+                    {(mockWorkOrdersByClient[selectedClient.id as keyof typeof mockWorkOrdersByClient] || []).map((workOrder) => (
                       <TableRow key={workOrder.id}>
                         <TableCell className="font-medium">{workOrder.number}</TableCell>
                         <TableCell>
@@ -829,7 +826,7 @@ export default function AdminDashboard() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {employees.filter((emp: any) => emp.role === 'employee').map((employee: any) => (
+                    {(employees as any[]).filter((emp: any) => emp.role === 'employee').map((employee: any) => (
                       <TableRow key={employee.id}>
                         <TableCell className="font-medium">{employee.fullName}</TableCell>
                         <TableCell>{employee.username}</TableCell>
