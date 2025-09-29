@@ -6,7 +6,10 @@ import {
   insertAttendanceRecordSchema,
   AttendanceStatusEnum,
   insertUserSchema,
-  updateUserSchema
+  updateUserSchema,
+  updateDailyReportSchema,
+  insertOperationSchema,
+  updateOperationSchema
 } from "@shared/schema";
 import { validatePassword, verifyPassword, hashPassword } from "./auth";
 
@@ -279,6 +282,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         res.status(500).json({ error: "Failed to generate PDF report" });
       }
+    }
+  });
+
+  // Get single daily report with operations
+  app.get("/api/daily-reports/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      const report = await storage.getDailyReport(id);
+      if (!report) {
+        return res.status(404).json({ error: "Rapportino non trovato" });
+      }
+      
+      const operations = await storage.getOperationsByReportId(id);
+      
+      res.json({
+        ...report,
+        operations
+      });
+    } catch (error) {
+      console.error("Error fetching daily report:", error);
+      res.status(500).json({ error: "Failed to fetch daily report" });
+    }
+  });
+
+  // Update daily report with operations
+  app.put("/api/daily-reports/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { operations, ...reportData } = req.body;
+      
+      // Check if report exists
+      const existingReport = await storage.getDailyReport(id);
+      if (!existingReport) {
+        return res.status(404).json({ error: "Rapportino non trovato" });
+      }
+      
+      // Check authorization - only admin or report owner can edit
+      if (req.session.userRole !== "admin" && req.session.userId !== existingReport.employeeId) {
+        return res.status(403).json({ error: "Non autorizzato a modificare questo rapportino" });
+      }
+      
+      // Validate report data
+      const reportResult = updateDailyReportSchema.safeParse(reportData);
+      if (!reportResult.success) {
+        return res.status(400).json({ error: "Dati rapportino non validi", issues: reportResult.error.issues });
+      }
+      
+      // Update the report
+      const updatedReport = await storage.updateDailyReport(id, reportResult.data);
+      
+      // Update operations if provided
+      if (operations && Array.isArray(operations)) {
+        // Delete existing operations
+        await storage.deleteOperationsByReportId(id);
+        
+        // Create new operations
+        for (const operation of operations) {
+          const operationResult = insertOperationSchema.safeParse({
+            ...operation,
+            dailyReportId: id
+          });
+          
+          if (operationResult.success) {
+            await storage.createOperation(operationResult.data);
+          }
+        }
+      }
+      
+      // Return updated report with operations
+      const finalOperations = await storage.getOperationsByReportId(id);
+      res.json({
+        ...updatedReport,
+        operations: finalOperations
+      });
+    } catch (error) {
+      console.error("Error updating daily report:", error);
+      res.status(500).json({ error: "Failed to update daily report" });
     }
   });
 

@@ -9,6 +9,8 @@ import {
   type InsertDailyReport,
   type Operation,
   type InsertOperation,
+  type UpdateDailyReport,
+  type UpdateOperation,
   type AttendanceRecord,
   type InsertAttendanceRecord,
   type AttendanceStatus
@@ -36,13 +38,20 @@ export interface IStorage {
   // Daily Reports
   getAllDailyReports(): Promise<DailyReport[]>;
   getDailyReportsByDate(date: string): Promise<DailyReport[]>;
+  getDailyReport(id: string): Promise<DailyReport | undefined>;
   createDailyReport(report: InsertDailyReport): Promise<DailyReport>;
+  updateDailyReport(id: string, updates: UpdateDailyReport): Promise<DailyReport>;
   updateDailyReportStatus(id: string, status: string): Promise<DailyReport>;
+  deleteDailyReport(id: string): Promise<boolean>;
   
   // Operations
   getOperationsByReportId(reportId: string): Promise<Operation[]>;
   getOperationsByWorkOrderId(workOrderId: string): Promise<Operation[]>;
+  getOperation(id: string): Promise<Operation | undefined>;
   createOperation(operation: InsertOperation): Promise<Operation>;
+  updateOperation(id: string, updates: UpdateOperation): Promise<Operation>;
+  deleteOperation(id: string): Promise<boolean>;
+  deleteOperationsByReportId(reportId: string): Promise<boolean>;
   
   // Attendance Records
   getAttendanceRecordsByDateRange(startDate: string, endDate: string): Promise<AttendanceRecord[]>;
@@ -228,6 +237,11 @@ export class MemStorage implements IStorage {
     return Array.from(this.dailyReports.values()).filter(report => report.date === date);
   }
 
+  async getDailyReport(id: string): Promise<DailyReport | undefined> {
+    await this.ensureInitialized();
+    return this.dailyReports.get(id);
+  }
+
   async createDailyReport(insertReport: InsertDailyReport): Promise<DailyReport> {
     await this.ensureInitialized();
     const id = randomUUID();
@@ -242,6 +256,22 @@ export class MemStorage implements IStorage {
     return report;
   }
 
+  async updateDailyReport(id: string, updates: UpdateDailyReport): Promise<DailyReport> {
+    await this.ensureInitialized();
+    const report = this.dailyReports.get(id);
+    if (!report) {
+      throw new Error("Report not found");
+    }
+    const updatedReport = { 
+      ...report, 
+      ...updates, 
+      id: report.id, // Keep original id
+      updatedAt: new Date() 
+    };
+    this.dailyReports.set(id, updatedReport);
+    return updatedReport;
+  }
+
   async updateDailyReportStatus(id: string, status: string): Promise<DailyReport> {
     await this.ensureInitialized();
     const report = this.dailyReports.get(id);
@@ -251,6 +281,11 @@ export class MemStorage implements IStorage {
     const updatedReport = { ...report, status, updatedAt: new Date() };
     this.dailyReports.set(id, updatedReport);
     return updatedReport;
+  }
+
+  async deleteDailyReport(id: string): Promise<boolean> {
+    await this.ensureInitialized();
+    return this.dailyReports.delete(id);
   }
 
   // Operations
@@ -264,6 +299,11 @@ export class MemStorage implements IStorage {
     return Array.from(this.operations.values()).filter(op => op.workOrderId === workOrderId);
   }
 
+  async getOperation(id: string): Promise<Operation | undefined> {
+    await this.ensureInitialized();
+    return this.operations.get(id);
+  }
+
   async createOperation(insertOperation: InsertOperation): Promise<Operation> {
     await this.ensureInitialized();
     const id = randomUUID();
@@ -274,6 +314,33 @@ export class MemStorage implements IStorage {
     };
     this.operations.set(id, operation);
     return operation;
+  }
+
+  async updateOperation(id: string, updates: UpdateOperation): Promise<Operation> {
+    await this.ensureInitialized();
+    const operation = this.operations.get(id);
+    if (!operation) {
+      throw new Error("Operation not found");
+    }
+    const updatedOperation = { 
+      ...operation, 
+      ...updates, 
+      id: operation.id // Keep original id
+    };
+    this.operations.set(id, updatedOperation);
+    return updatedOperation;
+  }
+
+  async deleteOperation(id: string): Promise<boolean> {
+    await this.ensureInitialized();
+    return this.operations.delete(id);
+  }
+
+  async deleteOperationsByReportId(reportId: string): Promise<boolean> {
+    await this.ensureInitialized();
+    const operations = Array.from(this.operations.values()).filter(op => op.dailyReportId === reportId);
+    operations.forEach(op => this.operations.delete(op.id));
+    return true;
   }
 
   // Attendance Records
