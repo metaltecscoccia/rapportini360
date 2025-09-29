@@ -462,14 +462,18 @@ export default function AdminDashboard() {
   };
 
   const handleExportWithDateSelection = () => {
-    const selectedDate = prompt("Inserisci la data per l'export (YYYY-MM-DD):", new Date().toISOString().split('T')[0]);
+    const selectedDate = prompt("Inserisci la data per l'export (DD/MM/YYYY):", new Date().toLocaleDateString("it-IT"));
     if (selectedDate) {
-      // Validate date format
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(selectedDate)) {
-        alert("Formato data non valido. Usa YYYY-MM-DD");
+      // Validate date format DD/MM/YYYY
+      if (!/^\d{2}\/\d{2}\/\d{4}$/.test(selectedDate)) {
+        alert("Formato data non valido. Usa DD/MM/YYYY");
         return;
       }
-      handleExportReports(selectedDate);
+      
+      // Convert DD/MM/YYYY to YYYY-MM-DD for API
+      const [day, month, year] = selectedDate.split('/');
+      const isoDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+      handleExportReports(isoDate);
     }
   };
 

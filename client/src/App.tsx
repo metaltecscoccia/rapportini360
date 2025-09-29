@@ -134,11 +134,7 @@ function App() {
                 <div className="py-6">
                   <DailyReportForm
                     employeeName={currentUser.fullName}
-                    date={new Date().toLocaleDateString("it-IT", {
-                      year: "numeric",
-                      month: "long", 
-                      day: "numeric"
-                    })}
+                    date={new Date().toLocaleDateString("it-IT")}
                     onSubmit={handleReportSubmit}
                   />
                 </div>
