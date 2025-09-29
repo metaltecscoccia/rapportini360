@@ -58,6 +58,7 @@ export class MemStorage implements IStorage {
   private dailyReports: Map<string, DailyReport>;
   private operations: Map<string, Operation>;
   private attendanceRecords: Map<string, AttendanceRecord>; // key: employeeId-date
+  private initialized: boolean = false;
 
   constructor() {
     this.users = new Map();
@@ -66,19 +67,23 @@ export class MemStorage implements IStorage {
     this.dailyReports = new Map();
     this.operations = new Map();
     this.attendanceRecords = new Map();
-    
-    // Initialize with mock data
-    this.initializeMockData();
+  }
+
+  private async ensureInitialized() {
+    if (!this.initialized) {
+      await this.initializeMockData();
+      this.initialized = true;
+    }
   }
 
   private async initializeMockData() {
-    // Mock employees - hash passwords for security
+    // Mock employees - hash passwords for security with strong passwords
     const mockUsers = [
-      { id: "emp1", username: "A", password: "A", fullName: "Marco Rossi", role: "employee" as const },
-      { id: "emp2", username: "B", password: "B", fullName: "Laura Bianchi", role: "employee" as const },
-      { id: "emp3", username: "C", password: "C", fullName: "Giuseppe Verde", role: "employee" as const },
-      { id: "emp4", username: "D", password: "D", fullName: "Anna Neri", role: "employee" as const },
-      { id: "admin1", username: "S", password: "S", fullName: "Amministratore", role: "admin" as const }
+      { id: "emp1", username: "marco.rossi", password: "SecurePass123", fullName: "Marco Rossi", role: "employee" as const },
+      { id: "emp2", username: "laura.bianchi", password: "SecurePass456", fullName: "Laura Bianchi", role: "employee" as const },
+      { id: "emp3", username: "giuseppe.verde", password: "SecurePass789", fullName: "Giuseppe Verde", role: "employee" as const },
+      { id: "emp4", username: "anna.neri", password: "SecurePass321", fullName: "Anna Neri", role: "employee" as const },
+      { id: "admin1", username: "admin", password: "AdminSecure2024!", fullName: "Amministratore", role: "admin" as const }
     ];
 
     // Hash passwords for all mock users
@@ -115,20 +120,24 @@ export class MemStorage implements IStorage {
 
   // Users
   async getAllUsers(): Promise<User[]> {
+    await this.ensureInitialized();
     return Array.from(this.users.values());
   }
 
   async getUser(id: string): Promise<User | undefined> {
+    await this.ensureInitialized();
     return this.users.get(id);
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
+    await this.ensureInitialized();
     return Array.from(this.users.values()).find(
       (user) => user.username === username,
     );
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
+    await this.ensureInitialized();
     const id = randomUUID();
     const hashedPassword = await hashPassword(insertUser.password);
     const user: User = { 
@@ -142,6 +151,7 @@ export class MemStorage implements IStorage {
   }
 
   async updateUser(id: string, updates: Partial<InsertUser>): Promise<User> {
+    await this.ensureInitialized();
     const existingUser = this.users.get(id);
     if (!existingUser) {
       throw new Error("Utente non trovato");
@@ -163,15 +173,18 @@ export class MemStorage implements IStorage {
   }
 
   async deleteUser(id: string): Promise<boolean> {
+    await this.ensureInitialized();
     return this.users.delete(id);
   }
 
   // Clients
   async getAllClients(): Promise<Client[]> {
+    await this.ensureInitialized();
     return Array.from(this.clients.values());
   }
 
   async createClient(insertClient: InsertClient): Promise<Client> {
+    await this.ensureInitialized();
     const id = randomUUID();
     const client: Client = { ...insertClient, id, description: insertClient.description || null };
     this.clients.set(id, client);
@@ -180,10 +193,12 @@ export class MemStorage implements IStorage {
 
   // Work Orders
   async getWorkOrdersByClient(clientId: string): Promise<WorkOrder[]> {
+    await this.ensureInitialized();
     return Array.from(this.workOrders.values()).filter(wo => wo.clientId === clientId);
   }
 
   async createWorkOrder(insertWorkOrder: InsertWorkOrder): Promise<WorkOrder> {
+    await this.ensureInitialized();
     const id = randomUUID();
     const workOrder: WorkOrder = { 
       ...insertWorkOrder, 
@@ -197,14 +212,17 @@ export class MemStorage implements IStorage {
 
   // Daily Reports
   async getAllDailyReports(): Promise<DailyReport[]> {
+    await this.ensureInitialized();
     return Array.from(this.dailyReports.values());
   }
 
   async getDailyReportsByDate(date: string): Promise<DailyReport[]> {
+    await this.ensureInitialized();
     return Array.from(this.dailyReports.values()).filter(report => report.date === date);
   }
 
   async createDailyReport(insertReport: InsertDailyReport): Promise<DailyReport> {
+    await this.ensureInitialized();
     const id = randomUUID();
     const report: DailyReport = { 
       ...insertReport, 
@@ -218,6 +236,7 @@ export class MemStorage implements IStorage {
   }
 
   async updateDailyReportStatus(id: string, status: string): Promise<DailyReport> {
+    await this.ensureInitialized();
     const report = this.dailyReports.get(id);
     if (!report) {
       throw new Error("Report not found");
@@ -229,14 +248,17 @@ export class MemStorage implements IStorage {
 
   // Operations
   async getOperationsByReportId(reportId: string): Promise<Operation[]> {
+    await this.ensureInitialized();
     return Array.from(this.operations.values()).filter(op => op.dailyReportId === reportId);
   }
 
   async getOperationsByWorkOrderId(workOrderId: string): Promise<Operation[]> {
+    await this.ensureInitialized();
     return Array.from(this.operations.values()).filter(op => op.workOrderId === workOrderId);
   }
 
   async createOperation(insertOperation: InsertOperation): Promise<Operation> {
+    await this.ensureInitialized();
     const id = randomUUID();
     const operation: Operation = { 
       ...insertOperation, 
@@ -249,6 +271,7 @@ export class MemStorage implements IStorage {
 
   // Attendance Records
   async getAttendanceRecordsByDateRange(startDate: string, endDate: string): Promise<AttendanceRecord[]> {
+    await this.ensureInitialized();
     const start = new Date(startDate);
     const end = new Date(endDate);
     
@@ -259,11 +282,13 @@ export class MemStorage implements IStorage {
   }
 
   async getAttendanceRecord(employeeId: string, date: string): Promise<AttendanceRecord | undefined> {
+    await this.ensureInitialized();
     const key = `${employeeId}-${date}`;
     return this.attendanceRecords.get(key);
   }
 
   async upsertAttendanceRecord(insertRecord: InsertAttendanceRecord): Promise<AttendanceRecord> {
+    await this.ensureInitialized();
     const key = `${insertRecord.employeeId}-${insertRecord.date}`;
     const existing = this.attendanceRecords.get(key);
     
@@ -280,6 +305,7 @@ export class MemStorage implements IStorage {
   }
 
   async deleteAttendanceRecord(employeeId: string, date: string): Promise<boolean> {
+    await this.ensureInitialized();
     const key = `${employeeId}-${date}`;
     return this.attendanceRecords.delete(key);
   }
