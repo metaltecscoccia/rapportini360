@@ -36,6 +36,7 @@ import {
 import StatusBadge from "./StatusBadge";
 import AttendanceCalendar from "./AttendanceCalendar";
 import WorkOrderReport from "./WorkOrderReport";
+import DailyReportForm from "./DailyReportForm";
 
 // Schema per form aggiunta dipendente
 const addEmployeeSchema = z.object({
@@ -216,6 +217,9 @@ export default function AdminDashboard() {
   const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
   const [resetPasswordDialogOpen, setResetPasswordDialogOpen] = useState(false);
   const [newPassword, setNewPassword] = useState<string>("");
+  const [editReportDialogOpen, setEditReportDialogOpen] = useState(false);
+  const [selectedReport, setSelectedReport] = useState<any>(null);
+  const [reportOperations, setReportOperations] = useState<any[]>([]);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -425,10 +429,66 @@ export default function AdminDashboard() {
     }
   };
 
+  // Mutation per recuperare singolo rapportino con operazioni
+  const fetchReportMutation = useMutation({
+    mutationFn: async (reportId: string) => {
+      const response = await apiRequest('GET', `/api/daily-reports/${reportId}`);
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setSelectedReport(data);
+      setReportOperations(data.operations || []);
+      setEditReportDialogOpen(true);
+    },
+    onError: (error: any) => {
+      console.error("Error fetching report:", error);
+      toast({
+        title: "Errore",
+        description: "Impossibile caricare il rapportino",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation per aggiornare rapportino
+  const updateReportMutation = useMutation({
+    mutationFn: async ({ reportId, operations }: { reportId: string; operations: any[] }) => {
+      const response = await apiRequest('PUT', `/api/daily-reports/${reportId}`, {
+        operations
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/daily-reports'] });
+      setEditReportDialogOpen(false);
+      setSelectedReport(null);
+      setReportOperations([]);
+      toast({
+        title: "Rapportino aggiornato",
+        description: "Il rapportino è stato aggiornato con successo.",
+      });
+    },
+    onError: (error: any) => {
+      console.error("Error updating report:", error);
+      toast({
+        title: "Errore",
+        description: "Impossibile aggiornare il rapportino",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleEditReport = (reportId: string) => {
-    console.log("Editing report", reportId);
-    // TODO: Implement report editing modal
-    alert("Modifica rapportino - funzionalità in sviluppo");
+    fetchReportMutation.mutate(reportId);
+  };
+
+  const handleUpdateReport = (operations: any[]) => {
+    if (selectedReport) {
+      updateReportMutation.mutate({
+        reportId: selectedReport.id,
+        operations
+      });
+    }
   };
 
   const handleExportReports = async (selectedDate?: string) => {
@@ -1200,6 +1260,40 @@ export default function AdminDashboard() {
               data-testid="button-confirm-password"
             >
               {resetPasswordMutation.isPending ? "Aggiornando..." : "Aggiorna Password"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog per modifica rapportino */}
+      <Dialog open={editReportDialogOpen} onOpenChange={setEditReportDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Modifica Rapportino</DialogTitle>
+            <DialogDescription>
+              Modifica le operazioni del rapportino giornaliero.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedReport && (
+            <div className="mt-4">
+              <DailyReportForm
+                employeeName={selectedReport.employeeName || "Dipendente"}
+                date={selectedReport.date}
+                onSubmit={handleUpdateReport}
+                initialOperations={reportOperations}
+                isEditing={true}
+              />
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setEditReportDialogOpen(false)}
+              data-testid="button-cancel-edit-report"
+            >
+              Annulla
             </Button>
           </DialogFooter>
         </DialogContent>
