@@ -248,10 +248,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/daily-reports", requireAuth, async (req, res) => {
     try {
       const reports = await storage.getAllDailyReports();
-      res.json(reports);
+      
+      // Enrich reports with employee names and operation counts
+      const enrichedReports = await Promise.all(reports.map(async (report) => {
+        const employee = await storage.getUser(report.employeeId);
+        const operations = await storage.getOperationsByReportId(report.id);
+        
+        // Calculate total hours
+        const totalHours = operations.reduce((total, op) => {
+          const start = new Date(`2024-01-01 ${op.startTime}`);
+          const end = new Date(`2024-01-01 ${op.endTime}`);
+          const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+          return total + hours;
+        }, 0);
+        
+        return {
+          ...report,
+          employeeName: employee?.fullName || "Unknown",
+          operations: operations.length,
+          totalHours: Math.round(totalHours * 10) / 10 // Round to 1 decimal
+        };
+      }));
+      
+      res.json(enrichedReports);
     } catch (error) {
       console.error("Error fetching daily reports:", error);
       res.status(500).json({ error: "Failed to fetch daily reports" });
+    }
+  });
+
+  // Create new daily report
+  app.post("/api/daily-reports", requireAuth, async (req, res) => {
+    try {
+      const { operations, ...reportData } = req.body;
+      
+      // Validate report data
+      const reportResult = insertDailyReportSchema.safeParse(reportData);
+      if (!reportResult.success) {
+        return res.status(400).json({ error: "Dati rapportino non validi", issues: reportResult.error.issues });
+      }
+      
+      // Create the report
+      const newReport = await storage.createDailyReport(reportResult.data);
+      
+      // Create operations if provided
+      if (operations && Array.isArray(operations)) {
+        for (const operation of operations) {
+          const operationResult = insertOperationSchema.safeParse({
+            ...operation,
+            dailyReportId: newReport.id
+          });
+          
+          if (operationResult.success) {
+            await storage.createOperation(operationResult.data);
+          }
+        }
+      }
+      
+      // Return created report with operations
+      const finalOperations = await storage.getOperationsByReportId(newReport.id);
+      res.status(201).json({
+        ...newReport,
+        operations: finalOperations
+      });
+    } catch (error) {
+      console.error("Error creating daily report:", error);
+      res.status(500).json({ error: "Failed to create daily report" });
     }
   });
 

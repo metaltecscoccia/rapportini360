@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider, useMutation } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/ThemeProvider";
@@ -12,6 +12,8 @@ import LoginForm from "@/components/LoginForm";
 import DailyReportForm from "@/components/DailyReportForm";
 import AdminDashboard from "@/components/AdminDashboard";
 import ThemeToggle from "@/components/ThemeToggle";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 type User = {
   username: string;
@@ -29,6 +31,7 @@ function Router() {
 
 function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const { toast } = useToast();
 
   const handleLogin = async (username: string, password: string): Promise<{ success: boolean; error?: string }> => {
     try {
@@ -75,9 +78,45 @@ function App() {
     }
   };
 
+  // Mutation per creare nuovo rapportino
+  const createReportMutation = useMutation({
+    mutationFn: async (operations: any[]) => {
+      if (!currentUser) throw new Error("User not logged in");
+      
+      // Trova l'ID dell'utente corrente
+      const usersResponse = await apiRequest('GET', '/api/users');
+      const usersData = await usersResponse.json();
+      const currentEmployee = usersData.find((user: any) => user.username === currentUser.username);
+      
+      if (!currentEmployee) throw new Error("Employee not found");
+      
+      const response = await apiRequest('POST', '/api/daily-reports', {
+        employeeId: currentEmployee.id,
+        date: new Date().toISOString().split('T')[0], // YYYY-MM-DD format
+        operations
+      });
+      
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Rapportino creato",
+        description: "Il rapportino è stato inviato con successo e è in attesa di approvazione.",
+      });
+      console.log("Report created successfully:", data);
+    },
+    onError: (error: any) => {
+      console.error("Error creating report:", error);
+      toast({
+        title: "Errore",
+        description: "Impossibile creare il rapportino. Riprova più tardi.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleReportSubmit = (operations: any[]) => {
-    console.log("Report submitted:", operations);
-    alert("Rapportino inviato con successo!");
+    createReportMutation.mutate(operations);
   };
 
   if (!currentUser) {
