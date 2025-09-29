@@ -45,7 +45,21 @@ const addEmployeeSchema = z.object({
     .regex(/[0-9]/, "Password deve contenere almeno un numero"),
 });
 
+// Schema per modifica dipendente (password opzionale)
+const editEmployeeSchema = z.object({
+  fullName: z.string().min(2, "Il nome deve essere di almeno 2 caratteri"),
+  username: z.string().min(3, "L'username deve essere di almeno 3 caratteri"),
+  password: z.string()
+    .min(8, "Password deve essere di almeno 8 caratteri")
+    .regex(/[A-Z]/, "Password deve contenere almeno una lettera maiuscola")
+    .regex(/[a-z]/, "Password deve contenere almeno una lettera minuscola")
+    .regex(/[0-9]/, "Password deve contenere almeno un numero")
+    .optional()
+    .or(z.literal("")),
+});
+
 type AddEmployeeForm = z.infer<typeof addEmployeeSchema>;
+type EditEmployeeForm = z.infer<typeof editEmployeeSchema>;
 
 // Componente helper per mostrare i requisiti password
 const PasswordRequirements = ({ password }: { password: string }) => {
@@ -229,6 +243,8 @@ export default function AdminDashboard() {
     clientName: string;
   } | null>(null);
   const [addEmployeeDialogOpen, setAddEmployeeDialogOpen] = useState(false);
+  const [editEmployeeDialogOpen, setEditEmployeeDialogOpen] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -236,6 +252,16 @@ export default function AdminDashboard() {
   // Form per aggiunta dipendente
   const form = useForm<AddEmployeeForm>({
     resolver: zodResolver(addEmployeeSchema),
+    defaultValues: {
+      fullName: "",
+      username: "",
+      password: "",
+    },
+  });
+
+  // Form per modifica dipendente
+  const editForm = useForm<EditEmployeeForm>({
+    resolver: zodResolver(editEmployeeSchema),
     defaultValues: {
       fullName: "",
       username: "",
@@ -276,8 +302,58 @@ export default function AdminDashboard() {
     },
   });
 
+  // Mutation per aggiornare dipendente
+  const updateEmployeeMutation = useMutation({
+    mutationFn: async (data: EditEmployeeForm & { id: string }) => {
+      const updateData: any = {
+        fullName: data.fullName,
+        username: data.username,
+      };
+      
+      // Include password only if provided
+      if (data.password && data.password.trim() !== "") {
+        updateData.password = data.password;
+      }
+      
+      return apiRequest('PUT', `/api/users/${data.id}`, updateData);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      toast({
+        title: "Dipendente aggiornato",
+        description: "Il dipendente è stato aggiornato con successo.",
+      });
+      editForm.reset();
+      setEditEmployeeDialogOpen(false);
+      setSelectedEmployee(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Errore",
+        description: error.message || "Errore durante l'aggiornamento del dipendente.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleAddEmployee = (data: AddEmployeeForm) => {
     createEmployeeMutation.mutate(data);
+  };
+
+  const handleEditEmployee = (employee: any) => {
+    setSelectedEmployee(employee);
+    editForm.reset({
+      fullName: employee.fullName,
+      username: employee.username,
+      password: "", // Password vuota per default
+    });
+    setEditEmployeeDialogOpen(true);
+  };
+
+  const handleUpdateEmployee = (data: EditEmployeeForm) => {
+    if (selectedEmployee) {
+      updateEmployeeMutation.mutate({ ...data, id: selectedEmployee.id });
+    }
   };
 
   const filteredReports = mockReports.filter(report => {
@@ -840,6 +916,93 @@ export default function AdminDashboard() {
                   </Form>
                 </DialogContent>
               </Dialog>
+
+              {/* Dialog modifica dipendente */}
+              <Dialog open={editEmployeeDialogOpen} onOpenChange={setEditEmployeeDialogOpen}>
+                <DialogContent className="sm:max-w-[425px]">
+                  <DialogHeader>
+                    <DialogTitle>Modifica Dipendente</DialogTitle>
+                    <DialogDescription>
+                      Modifica i dati del dipendente. Lascia la password vuota se non vuoi cambiarla.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <Form {...editForm}>
+                    <form onSubmit={editForm.handleSubmit(handleUpdateEmployee)} className="space-y-4">
+                      <FormField
+                        control={editForm.control}
+                        name="fullName"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Nome e Cognome</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="Es. Mario Rossi" 
+                                {...field} 
+                                data-testid="input-edit-full-name"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={editForm.control}
+                        name="username"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Username</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="Username unico" 
+                                {...field} 
+                                data-testid="input-edit-username"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={editForm.control}
+                        name="password"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Password (opzionale)</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="password" 
+                                placeholder="Lascia vuoto per non modificare" 
+                                {...field} 
+                                data-testid="input-edit-password"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                            {editForm.watch("password") && editForm.watch("password")!.length > 0 && (
+                              <PasswordRequirements password={editForm.watch("password") || ""} />
+                            )}
+                          </FormItem>
+                        )}
+                      />
+                      <DialogFooter>
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          onClick={() => setEditEmployeeDialogOpen(false)}
+                        >
+                          Annulla
+                        </Button>
+                        <Button 
+                          type="submit" 
+                          disabled={updateEmployeeMutation.isPending}
+                          data-testid="button-update-employee"
+                        >
+                          {updateEmployeeMutation.isPending ? "Aggiornando..." : "Aggiorna Dipendente"}
+                        </Button>
+                      </DialogFooter>
+                    </form>
+                  </Form>
+                </DialogContent>
+              </Dialog>
             </CardHeader>
             <CardContent>
               {isLoadingEmployees ? (
@@ -868,6 +1031,7 @@ export default function AdminDashboard() {
                           <Button 
                             variant="ghost" 
                             size="sm" 
+                            onClick={() => handleEditEmployee(employee)}
                             data-testid={`button-edit-employee-${employee.id}`}
                           >
                             <Edit className="h-4 w-4" />
