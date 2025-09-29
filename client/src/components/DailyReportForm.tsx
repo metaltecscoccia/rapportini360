@@ -8,8 +8,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Trash2, Send } from "lucide-react";
-import { WorkType } from "@shared/schema";
+import { WorkType, Client, WorkOrder } from "@shared/schema";
 import StatusBadge from "./StatusBadge";
+import { useQuery } from "@tanstack/react-query";
 
 interface Operation {
   id: string;
@@ -27,29 +28,61 @@ interface DailyReportFormProps {
   onSubmit: (operations: Operation[]) => void;
 }
 
-// Mock data for demonstration
-const mockClients = [
-  { id: "1", name: "Acme Corporation" },
-  { id: "2", name: "TechFlow Solutions" },
-  { id: "3", name: "Industrial Works" },
-];
+// Load data from backend
+const useClients = () => {
+  return useQuery<Client[]>({
+    queryKey: ['/api/clients'],
+    select: (data) => data || []
+  });
+};
 
-const mockWorkOrders = {
-  "1": [
-    { id: "1", name: "Progetto Alpha" },
-    { id: "2", name: "Manutenzione Impianti" },
-  ],
-  "2": [
-    { id: "3", name: "Sistema Automazione" },
-    { id: "4", name: "Controllo Qualità" },
-  ],
-  "3": [
-    { id: "5", name: "Linea Produzione A" },
-    { id: "6", name: "Retrofit Macchinari" },
-  ],
+const useWorkOrdersByClient = (clientId: string) => {
+  return useQuery<WorkOrder[]>({
+    queryKey: [`/api/clients/${clientId}/work-orders`],
+    enabled: !!clientId,
+    select: (data) => data || []
+  });
 };
 
 const workTypes: WorkType[] = ["Taglio", "Saldatura", "Montaggio", "Foratura", "Verniciatura", "Stuccatura", "Manutenzione", "Generico"];
+
+// WorkOrderSelect component to handle work order loading for each operation
+interface WorkOrderSelectProps {
+  clientId: string;
+  value: string;
+  onChange: (value: string) => void;
+  operationId: string;
+}
+
+function WorkOrderSelect({ clientId, value, onChange, operationId }: WorkOrderSelectProps) {
+  const { data: workOrders = [], isLoading } = useWorkOrdersByClient(clientId);
+  
+  return (
+    <div className="space-y-2">
+      <Label>Commessa</Label>
+      <Select
+        value={value}
+        onValueChange={onChange}
+        disabled={!clientId}
+      >
+        <SelectTrigger data-testid={`select-workorder-${operationId}`}>
+          <SelectValue placeholder="Seleziona commessa" />
+        </SelectTrigger>
+        <SelectContent>
+          {isLoading ? (
+            <SelectItem value="loading" disabled>Caricamento...</SelectItem>
+          ) : (
+            workOrders.map((workOrder) => (
+              <SelectItem key={workOrder.id} value={workOrder.id}>
+                {workOrder.name}
+              </SelectItem>
+            ))
+          )}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
 
 export default function DailyReportForm({ employeeName, date, onSubmit }: DailyReportFormProps) {
   const [operations, setOperations] = useState<Operation[]>([{
@@ -64,6 +97,9 @@ export default function DailyReportForm({ employeeName, date, onSubmit }: DailyR
 
   const [showHoursDialog, setShowHoursDialog] = useState(false);
   const [dialogMessage, setDialogMessage] = useState("");
+
+  // Load clients from backend
+  const { data: clients = [], isLoading: clientsLoading } = useClients();
 
   const addOperation = () => {
     const newOperation: Operation = {
@@ -88,7 +124,6 @@ export default function DailyReportForm({ employeeName, date, onSubmit }: DailyR
     setOperations(operations.map(op => 
       op.id === id ? { ...op, [field]: value } : op
     ));
-    console.log("Updated operation", id, field, value);
   };
 
   const toggleWorkType = (operationId: string, workType: WorkType) => {
@@ -188,11 +223,6 @@ export default function DailyReportForm({ employeeName, date, onSubmit }: DailyR
     }
   };
 
-  const getWorkOrdersForClient = (clientId: string) => {
-    const workOrders = mockWorkOrders[clientId as keyof typeof mockWorkOrders] || [];
-    console.log(`Getting work orders for client ${clientId}:`, workOrders);
-    return workOrders;
-  };
 
   return (
     <div className="max-w-4xl mx-auto p-4 space-y-6">
@@ -247,42 +277,37 @@ export default function DailyReportForm({ employeeName, date, onSubmit }: DailyR
                       <Select
                         value={operation.clientId}
                         onValueChange={(value) => {
-                          updateOperation(operation.id, "clientId", value);
-                          updateOperation(operation.id, "workOrderId", "");
+                          // Update both clientId and reset workOrderId in single operation
+                          setOperations(prevOps => prevOps.map(op => 
+                            op.id === operation.id 
+                              ? { ...op, clientId: value, workOrderId: "" }
+                              : op
+                          ));
                         }}
                       >
                         <SelectTrigger data-testid={`select-client-${operation.id}`}>
                           <SelectValue placeholder="Seleziona cliente" />
                         </SelectTrigger>
                         <SelectContent>
-                          {mockClients.map(client => (
-                            <SelectItem key={client.id} value={client.id}>
-                              {client.name}
-                            </SelectItem>
-                          ))}
+                          {clientsLoading ? (
+                            <SelectItem value="loading" disabled>Caricamento...</SelectItem>
+                          ) : (
+                            clients.map((client) => (
+                              <SelectItem key={client.id} value={client.id}>
+                                {client.name}
+                              </SelectItem>
+                            ))
+                          )}
                         </SelectContent>
                       </Select>
                     </div>
                     
-                    <div className="space-y-2">
-                      <Label>Commessa</Label>
-                      <Select
-                        value={operation.workOrderId}
-                        onValueChange={(value) => updateOperation(operation.id, "workOrderId", value)}
-                        disabled={!operation.clientId}
-                      >
-                        <SelectTrigger data-testid={`select-workorder-${operation.id}`}>
-                          <SelectValue placeholder="Seleziona commessa" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {getWorkOrdersForClient(operation.clientId).map(workOrder => (
-                            <SelectItem key={workOrder.id} value={workOrder.id}>
-                              {workOrder.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                    <WorkOrderSelect
+                      clientId={operation.clientId}
+                      value={operation.workOrderId}
+                      onChange={(value) => updateOperation(operation.id, "workOrderId", value)}
+                      operationId={operation.id}
+                    />
                     
                     <div className="space-y-2">
                       <Label>Lavorazioni</Label>
