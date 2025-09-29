@@ -52,11 +52,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid user data", issues: result.error.issues });
       }
       
-      // Additional password validation
-      const passwordValidation = validatePassword(result.data.password);
-      if (!passwordValidation.isValid) {
-        return res.status(400).json({ error: "Password non sicura", issues: passwordValidation.errors });
-      }
+      // No additional password validation - admin can set any password
       
       // Check if username already exists
       const existingUser = await storage.getUserByUsername(result.data.username);
@@ -88,13 +84,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Utente non trovato" });
       }
       
-      // If updating password, validate it
-      if (result.data.password) {
-        const passwordValidation = validatePassword(result.data.password);
-        if (!passwordValidation.isValid) {
-          return res.status(400).json({ error: "Password non sicura", issues: passwordValidation.errors });
-        }
-      }
+      // No password validation - admin can set any password
       
       // If updating username, check it doesn't exist
       if (result.data.username && result.data.username !== existingUser.username) {
@@ -184,9 +174,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const { newPassword } = req.body;
       
-      // Validate new password
-      if (!newPassword || newPassword.trim().length < 6) {
-        return res.status(400).json({ error: "Password deve essere di almeno 6 caratteri" });
+      // Validate new password - only check if not empty
+      if (!newPassword || newPassword.trim().length === 0) {
+        return res.status(400).json({ error: "Password non può essere vuota" });
       }
       
       // Check if user exists

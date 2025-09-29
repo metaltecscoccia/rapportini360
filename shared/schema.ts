@@ -55,12 +55,8 @@ export const operations = pgTable("operations", {
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
 }).extend({
-  // Password validation for secure passwords
-  password: z.string()
-    .min(8, "Password deve essere di almeno 8 caratteri")
-    .regex(/[A-Z]/, "Password deve contenere almeno una lettera maiuscola")
-    .regex(/[a-z]/, "Password deve contenere almeno una lettera minuscola")
-    .regex(/[0-9]/, "Password deve contenere almeno un numero"),
+  // Password validation - no requirements
+  password: z.string().min(1, "Password è richiesta"),
   username: z.string().min(3, "Username deve essere di almeno 3 caratteri"),
   fullName: z.string().min(2, "Nome e cognome devono essere di almeno 2 caratteri")
 });

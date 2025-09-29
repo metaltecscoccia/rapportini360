@@ -41,54 +41,19 @@ import WorkOrderReport from "./WorkOrderReport";
 const addEmployeeSchema = z.object({
   fullName: z.string().min(2, "Il nome deve essere di almeno 2 caratteri"),
   username: z.string().min(3, "L'username deve essere di almeno 3 caratteri"),
-  password: z.string()
-    .min(8, "Password deve essere di almeno 8 caratteri")
-    .regex(/[A-Z]/, "Password deve contenere almeno una lettera maiuscola")
-    .regex(/[a-z]/, "Password deve contenere almeno una lettera minuscola")
-    .regex(/[0-9]/, "Password deve contenere almeno un numero"),
+  password: z.string().min(1, "Password è richiesta"),
 });
 
 // Schema per modifica dipendente (password opzionale)
 const editEmployeeSchema = z.object({
   fullName: z.string().min(2, "Il nome deve essere di almeno 2 caratteri"),
   username: z.string().min(3, "L'username deve essere di almeno 3 caratteri"),
-  password: z.string()
-    .min(8, "Password deve essere di almeno 8 caratteri")
-    .regex(/[A-Z]/, "Password deve contenere almeno una lettera maiuscola")
-    .regex(/[a-z]/, "Password deve contenere almeno una lettera minuscola")
-    .regex(/[0-9]/, "Password deve contenere almeno un numero")
-    .optional()
-    .or(z.literal("")),
+  password: z.string().min(1, "Password è richiesta").optional().or(z.literal("")),
 });
 
 type AddEmployeeForm = z.infer<typeof addEmployeeSchema>;
 type EditEmployeeForm = z.infer<typeof editEmployeeSchema>;
 
-// Componente helper per mostrare i requisiti password
-const PasswordRequirements = ({ password }: { password: string }) => {
-  const requirements = [
-    { text: "Almeno 8 caratteri", check: password.length >= 8 },
-    { text: "Una lettera maiuscola", check: /[A-Z]/.test(password) },
-    { text: "Una lettera minuscola", check: /[a-z]/.test(password) },
-    { text: "Un numero", check: /[0-9]/.test(password) },
-  ];
-
-  return (
-    <div className="mt-2 space-y-1">
-      <p className="text-sm text-muted-foreground">Requisiti password:</p>
-      {requirements.map((req, index) => (
-        <div key={index} className="flex items-center gap-2">
-          <div className={`w-3 h-3 rounded-full border ${req.check ? 'bg-green-500 border-green-500' : 'border-gray-300'}`}>
-            {req.check && <div className="w-full h-full rounded-full bg-green-500"></div>}
-          </div>
-          <span className={`text-xs ${req.check ? 'text-green-600' : 'text-muted-foreground'}`}>
-            {req.text}
-          </span>
-        </div>
-      ))}
-    </div>
-  );
-};
 
 // Mock data for demonstration
 const mockReports = [
@@ -606,7 +571,9 @@ export default function AdminDashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Dipendenti Attivi</p>
-                <p className="text-2xl font-bold">12</p>
+                <p className="text-2xl font-bold">
+                  {employees ? (employees as any[]).filter((emp: any) => emp.role === 'employee').length : 0}
+                </p>
               </div>
               <Users className="h-8 w-8 text-primary" />
             </div>
@@ -978,7 +945,6 @@ export default function AdminDashboard() {
                               />
                             </FormControl>
                             <FormMessage />
-                            <PasswordRequirements password={form.watch("password") || ""} />
                           </FormItem>
                         )}
                       />
@@ -1056,9 +1022,6 @@ export default function AdminDashboard() {
                               />
                             </FormControl>
                             <FormMessage />
-                            {editForm.watch("password") && editForm.watch("password")!.length > 0 && (
-                              <PasswordRequirements password={editForm.watch("password") || ""} />
-                            )}
                           </FormItem>
                         )}
                       />
