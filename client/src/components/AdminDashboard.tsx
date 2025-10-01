@@ -57,57 +57,49 @@ type EditEmployeeForm = z.infer<typeof editEmployeeSchema>;
 
 // Mock data removed - now using real data from API
 
-const mockClients = [
-  { id: "1", name: "Acme Corporation", workOrders: 5 },
-  { id: "2", name: "TechFlow Solutions", workOrders: 3 },
-  { id: "3", name: "Industrial Works", workOrders: 7 },
+// Mock work orders with client name included
+const mockAllWorkOrders = [
+  {
+    id: "ACM-2024-001",
+    number: "ACM-2024-001",
+    clientName: "Acme Corporation",
+    description: "Realizzazione cancello automatico",
+    status: "In Corso",
+    totalOperations: 8,
+    totalHours: 45.5,
+    lastActivity: "2024-03-15"
+  },
+  {
+    id: "ACM-2024-002",
+    number: "ACM-2024-002",
+    clientName: "Acme Corporation",
+    description: "Riparazione ringhiera balcone",
+    status: "Completato",
+    totalOperations: 4,
+    totalHours: 12.0,
+    lastActivity: "2024-03-14"
+  },
+  {
+    id: "TFS-2024-012",
+    number: "TFS-2024-012",
+    clientName: "TechFlow Solutions",
+    description: "Manutenzione ordinaria impianto",
+    status: "In Corso",
+    totalOperations: 6,
+    totalHours: 28.0,
+    lastActivity: "2024-03-15"
+  },
+  {
+    id: "IW-2024-045",
+    number: "IW-2024-045",
+    clientName: "Industrial Works",
+    description: "Prototipo struttura metallica",
+    status: "In Corso",
+    totalOperations: 12,
+    totalHours: 76.0,
+    lastActivity: "2024-03-14"
+  }
 ];
-
-// Mock work orders organized by client
-const mockWorkOrdersByClient = {
-  "1": [ // Acme Corporation
-    {
-      id: "ACM-2024-001",
-      number: "ACM-2024-001",
-      description: "Realizzazione cancello automatico",
-      status: "In Corso",
-      totalOperations: 8,
-      totalHours: 45.5,
-      lastActivity: "2024-03-15"
-    },
-    {
-      id: "ACM-2024-002",
-      number: "ACM-2024-002",
-      description: "Riparazione ringhiera balcone",
-      status: "Completato",
-      totalOperations: 4,
-      totalHours: 12.0,
-      lastActivity: "2024-03-14"
-    }
-  ],
-  "2": [ // TechFlow Solutions
-    {
-      id: "TFS-2024-012",
-      number: "TFS-2024-012",
-      description: "Manutenzione ordinaria impianto",
-      status: "In Corso",
-      totalOperations: 6,
-      totalHours: 28.0,
-      lastActivity: "2024-03-15"
-    }
-  ],
-  "3": [ // Industrial Works
-    {
-      id: "IW-2024-045",
-      number: "IW-2024-045",
-      description: "Prototipo struttura metallica",
-      status: "In Corso",
-      totalOperations: 12,
-      totalHours: 76.0,
-      lastActivity: "2024-03-14"
-    }
-  ]
-};
 
 // Mock data for work orders with multiple work types
 const mockOperations = [
@@ -173,10 +165,6 @@ export default function AdminDashboard() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedTab, setSelectedTab] = useState("reports");
-  const [selectedClient, setSelectedClient] = useState<{
-    id: string;
-    name: string;
-  } | null>(null);
   const [selectedWorkOrder, setSelectedWorkOrder] = useState<{
     id: string;
     number: string;
@@ -532,22 +520,12 @@ export default function AdminDashboard() {
     setSelectedWorkOrder(null);
   };
 
-  const handleSelectClient = (client: { id: string; name: string }) => {
-    setSelectedClient(client);
-    setSelectedWorkOrder(null); // Reset work order when selecting new client
-  };
-
-  const handleBackToClients = () => {
-    setSelectedClient(null);
-    setSelectedWorkOrder(null);
-  };
-
-  const handleSelectWorkOrderFromClient = (workOrder: any) => {
+  const handleSelectWorkOrder = (workOrder: any) => {
     setSelectedWorkOrder({
       id: workOrder.id,
       number: workOrder.number,
       description: workOrder.description,
-      clientName: selectedClient?.name || ""
+      clientName: workOrder.clientName
     });
   };
 
@@ -558,7 +536,7 @@ export default function AdminDashboard() {
         <div>
           <h1 className="text-3xl font-semibold">Dashboard Amministratore</h1>
           <p className="text-muted-foreground">
-            Gestisci rapportini, clienti e commesse
+            Gestisci rapportini e commesse
           </p>
         </div>
         
@@ -622,17 +600,6 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
         
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Clienti Attivi</p>
-                <p className="text-2xl font-bold">{mockClients.length}</p>
-              </div>
-              <Building className="h-8 w-8 text-primary" />
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Main Content Tabs */}
@@ -641,10 +608,6 @@ export default function AdminDashboard() {
           <TabsTrigger value="reports" data-testid="tab-reports">
             <FileText className="h-4 w-4 mr-2" />
             Rapportini
-          </TabsTrigger>
-          <TabsTrigger value="clients" data-testid="tab-clients">
-            <Building className="h-4 w-4 mr-2" />
-            Clienti
           </TabsTrigger>
           <TabsTrigger value="work-orders" data-testid="tab-work-orders">
             <Wrench className="h-4 w-4 mr-2" />
@@ -766,49 +729,11 @@ export default function AdminDashboard() {
           </Card>
         </TabsContent>
 
-        {/* Clients Tab */}
-        <TabsContent value="clients" className="space-y-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Gestione Clienti</CardTitle>
-              <Button data-testid="button-add-client">
-                <Plus className="h-4 w-4 mr-2" />
-                Nuovo Cliente
-              </Button>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nome Cliente</TableHead>
-                    <TableHead>Commesse Attive</TableHead>
-                    <TableHead>Azioni</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {mockClients.map((client) => (
-                    <TableRow key={client.id}>
-                      <TableCell className="font-medium">{client.name}</TableCell>
-                      <TableCell>
-                        <Badge variant="secondary">{client.workOrders} commesse</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Button variant="ghost" size="sm" data-testid={`button-edit-client-${client.id}`}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
 
-        {/* Work Orders Tab - HIERARCHICAL NAVIGATION */}
+        {/* Work Orders Tab */}
         <TabsContent value="work-orders" className="space-y-4">
           {selectedWorkOrder ? (
-            // Level 3: Show work order report
+            // Show work order report
             <WorkOrderReport
               workOrderId={selectedWorkOrder.id}
               workOrderNumber={selectedWorkOrder.number}
@@ -816,29 +741,21 @@ export default function AdminDashboard() {
               clientName={selectedWorkOrder.clientName}
               onBack={handleBackToWorkOrders}
             />
-          ) : selectedClient ? (
-            // Level 2: Show work orders for selected client
+          ) : (
+            // Show all work orders
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle>Commesse - {selectedClient.name}</CardTitle>
-                  <p className="text-sm text-muted-foreground">
-                    Seleziona una commessa per visualizzare il report dettagliato
-                  </p>
-                </div>
-                <Button 
-                  variant="outline" 
-                  onClick={handleBackToClients}
-                  data-testid="button-back-to-clients"
-                >
-                  ← Torna ai Clienti
-                </Button>
+              <CardHeader>
+                <CardTitle>Gestione Commesse</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Seleziona una commessa per visualizzare il report dettagliato
+                </p>
               </CardHeader>
               <CardContent>
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Numero Commessa</TableHead>
+                      <TableHead>Cliente</TableHead>
                       <TableHead>Descrizione</TableHead>
                       <TableHead>Stato</TableHead>
                       <TableHead>Operazioni</TableHead>
@@ -848,9 +765,10 @@ export default function AdminDashboard() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {(mockWorkOrdersByClient[selectedClient.id as keyof typeof mockWorkOrdersByClient] || []).map((workOrder) => (
+                    {mockAllWorkOrders.map((workOrder) => (
                       <TableRow key={workOrder.id}>
                         <TableCell className="font-medium">{workOrder.number}</TableCell>
+                        <TableCell>{workOrder.clientName}</TableCell>
                         <TableCell>
                           <div className="max-w-xs">
                             {workOrder.description}
@@ -872,53 +790,11 @@ export default function AdminDashboard() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleSelectWorkOrderFromClient(workOrder)}
+                            onClick={() => handleSelectWorkOrder(workOrder)}
                             data-testid={`button-view-workorder-${workOrder.id}`}
                           >
                             <Eye className="h-4 w-4 mr-2" />
                             Visualizza Report
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          ) : (
-            // Level 1: Show client list
-            <Card>
-              <CardHeader>
-                <CardTitle>Commesse per Cliente</CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  Seleziona un cliente per visualizzare le sue commesse
-                </p>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Nome Cliente</TableHead>
-                      <TableHead>Commesse Attive</TableHead>
-                      <TableHead>Azioni</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {mockClients.map((client) => (
-                      <TableRow key={client.id}>
-                        <TableCell className="font-medium">{client.name}</TableCell>
-                        <TableCell>
-                          <Badge variant="secondary">{client.workOrders} commesse</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleSelectClient(client)}
-                            data-testid={`button-select-client-${client.id}`}
-                          >
-                            <Briefcase className="h-4 w-4 mr-2" />
-                            Visualizza Commesse
                           </Button>
                         </TableCell>
                       </TableRow>
