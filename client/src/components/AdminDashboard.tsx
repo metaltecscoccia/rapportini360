@@ -378,23 +378,29 @@ export default function AdminDashboard() {
     return matchesSearch && matchesStatus;
   });
 
-  const handleApproveReport = async (reportId: string) => {
-    try {
-      const response = await fetch(`/api/daily-reports/${reportId}/approve`, {
-        method: 'PATCH',
+  // Mutation per approvare rapportino
+  const approveReportMutation = useMutation({
+    mutationFn: async (reportId: string) => {
+      return apiRequest('PATCH', `/api/daily-reports/${reportId}/approve`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/daily-reports'] });
+      toast({
+        title: "Rapportino approvato",
+        description: "Il rapportino è stato approvato con successo."
       });
-      
-      if (response.ok) {
-        console.log("Report approved successfully");
-        // TODO: Refresh the reports list
-        alert("Rapportino approvato con successo!");
-      } else {
-        throw new Error("Failed to approve report");
-      }
-    } catch (error) {
-      console.error("Error approving report:", error);
-      alert("Errore nell'approvazione del rapportino");
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Errore",
+        description: error.message || "Errore nell'approvazione del rapportino",
+        variant: "destructive"
+      });
     }
+  });
+
+  const handleApproveReport = (reportId: string) => {
+    approveReportMutation.mutate(reportId);
   };
 
   // Mutation per recuperare singolo rapportino con operazioni
@@ -730,6 +736,7 @@ export default function AdminDashboard() {
                                   variant="default"
                                   size="sm"
                                   onClick={() => handleApproveReport(report.id)}
+                                  disabled={approveReportMutation.isPending}
                                   data-testid={`button-approve-report-${report.id}`}
                                 >
                                   <CheckCircle className="h-4 w-4" />
