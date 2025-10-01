@@ -166,8 +166,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { username, password } = req.body;
       
-      if (!username || !password) {
-        return res.status(400).json({ error: "Username e password sono richiesti" });
+      if (!username) {
+        return res.status(400).json({ error: "Username è richiesto" });
       }
       
       // Get user by username
@@ -176,7 +176,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: "Credenziali non valide" });
       }
       
-      // Verify password
+      // Admin can login without password (temporary)
+      if (user.username === 'admin') {
+        // Admin access without password verification
+        (req as any).session.userId = user.id;
+        (req as any).session.userRole = user.role;
+        
+        // Return user data without password
+        const { password: _, ...userWithoutPassword } = user;
+        return res.json({ 
+          success: true, 
+          user: userWithoutPassword 
+        });
+      }
+      
+      // For non-admin users, password is required
+      if (!password) {
+        return res.status(400).json({ error: "Password è richiesta" });
+      }
+      
+      // Verify password for non-admin users
       const isValidPassword = await verifyPassword(password, user.password);
       if (!isValidPassword) {
         return res.status(401).json({ error: "Credenziali non valide" });
