@@ -470,6 +470,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Create new operation
+  app.post("/api/operations", requireAuth, async (req, res) => {
+    try {
+      const operationData = req.body;
+      
+      // Validate operation data
+      const operationResult = insertOperationSchema.safeParse(operationData);
+      if (!operationResult.success) {
+        return res.status(400).json({ 
+          error: "Dati operazione non validi", 
+          issues: operationResult.error.issues 
+        });
+      }
+      
+      // Create the operation
+      const newOperation = await storage.createOperation(operationResult.data);
+      
+      res.status(201).json(newOperation);
+    } catch (error) {
+      console.error("Error creating operation:", error);
+      res.status(500).json({ error: "Failed to create operation" });
+    }
+  });
+
   // Export daily reports as Word document (admin only)
   app.get("/api/export/daily-reports/:date", requireAdmin, async (req, res) => {
     try {
@@ -621,10 +645,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/work-orders/:workOrderId/operations", requireAuth, async (req, res) => {
     try {
       const { workOrderId } = req.params;
-      console.log(`[WorkOrder Report] Fetching operations for workOrderId: ${workOrderId}`);
-      
       const operations = await storage.getOperationsByWorkOrderId(workOrderId);
-      console.log(`[WorkOrder Report] Found ${operations.length} operations`);
       
       // Get additional data for each operation (employee names, etc.)
       const enrichedOperations = await Promise.all(
@@ -652,15 +673,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
       );
       
-      console.log(`[WorkOrder Report] Report statuses:`, enrichedOperations.map(op => ({
-        opId: op.id,
-        status: op.reportStatus,
-        date: op.date
-      })));
-      
       // Filter only operations from approved daily reports
       const approvedOperations = enrichedOperations.filter(op => op.reportStatus === "Approvato");
-      console.log(`[WorkOrder Report] After filtering: ${approvedOperations.length} approved operations`);
       
       res.json(approvedOperations);
     } catch (error) {
