@@ -60,6 +60,14 @@ export interface IStorage {
   updateOperation(id: string, updates: UpdateOperation): Promise<Operation>;
   deleteOperation(id: string): Promise<boolean>;
   deleteOperationsByReportId(reportId: string): Promise<boolean>;
+  
+  // Statistics
+  getWorkOrdersStats(): Promise<Array<{
+    workOrderId: string;
+    totalOperations: number;
+    totalHours: number;
+    lastActivity: string | null;
+  }>>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -308,6 +316,62 @@ export class DatabaseStorage implements IStorage {
     await this.ensureInitialized();
     const result = await db.delete(operations).where(eq(operations.dailyReportId, reportId));
     return result.rowCount !== null && result.rowCount > 0;
+  }
+
+  async getWorkOrdersStats(): Promise<Array<{
+    workOrderId: string;
+    totalOperations: number;
+    totalHours: number;
+    lastActivity: string | null;
+  }>> {
+    await this.ensureInitialized();
+    
+    const allWorkOrders = await db.select().from(workOrders);
+    const allOperations = await db.select().from(operations);
+    const allReports = await db.select().from(dailyReports);
+    
+    const approvedReportIds = new Set(
+      allReports.filter(r => r.status === "Approvato").map(r => r.id)
+    );
+    
+    const approvedOperations = allOperations.filter(op => 
+      approvedReportIds.has(op.dailyReportId)
+    );
+    
+    const statsMap = new Map<string, {
+      totalOperations: number;
+      totalHours: number;
+      dates: string[];
+    }>();
+    
+    for (const op of approvedOperations) {
+      if (!op.workOrderId) continue;
+      
+      const existing = statsMap.get(op.workOrderId) || {
+        totalOperations: 0,
+        totalHours: 0,
+        dates: []
+      };
+      
+      const report = allReports.find(r => r.id === op.dailyReportId);
+      if (report) {
+        existing.totalOperations++;
+        existing.totalHours += Number(op.hours) || 0;
+        existing.dates.push(report.date);
+        statsMap.set(op.workOrderId, existing);
+      }
+    }
+    
+    return allWorkOrders.map(wo => {
+      const stats = statsMap.get(wo.id);
+      return {
+        workOrderId: wo.id,
+        totalOperations: stats?.totalOperations || 0,
+        totalHours: stats?.totalHours || 0,
+        lastActivity: stats?.dates.length ? 
+          stats.dates.sort().reverse()[0] : null
+      };
+    });
   }
 }
 

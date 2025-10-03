@@ -356,6 +356,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get work orders statistics (admin only)
+  app.get("/api/work-orders/stats", requireAdmin, async (req, res) => {
+    try {
+      const stats = await storage.getWorkOrdersStats();
+      res.json(stats);
+    } catch (error: any) {
+      console.error("Error fetching work order stats:", error);
+      res.status(500).json({ error: "Failed to fetch work order statistics" });
+    }
+  });
+
   // Delete work order (admin only)
   app.delete("/api/work-orders/:id", requireAdmin, async (req, res) => {
     try {

@@ -169,6 +169,11 @@ export default function AdminDashboard() {
     queryKey: ['/api/work-orders'],
   });
 
+  // Query per recuperare le statistiche delle commesse
+  const { data: workOrdersStats = [], isLoading: isLoadingWorkOrdersStats } = useQuery<any[]>({
+    queryKey: ['/api/work-orders/stats'],
+  });
+
   // Mutation per creare nuovo dipendente
   const createEmployeeMutation = useMutation({
     mutationFn: async (data: AddEmployeeForm) => {
