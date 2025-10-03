@@ -1,4 +1,9 @@
 import { 
+  users,
+  clients,
+  workOrders,
+  dailyReports,
+  operations,
   type User, 
   type InsertUser,
   type Client,
@@ -12,7 +17,8 @@ import {
   type UpdateDailyReport,
   type UpdateOperation
 } from "@shared/schema";
-import { randomUUID } from "crypto";
+import { db } from "./db";
+import { eq, and } from "drizzle-orm";
 import { hashPassword } from "./auth";
 
 export interface IStorage {
@@ -56,292 +62,253 @@ export interface IStorage {
   deleteOperationsByReportId(reportId: string): Promise<boolean>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<string, User>;
-  private clients: Map<string, Client>;
-  private workOrders: Map<string, WorkOrder>;
-  private dailyReports: Map<string, DailyReport>;
-  private operations: Map<string, Operation>;
+export class DatabaseStorage implements IStorage {
   private initialized: boolean = false;
-
-  constructor() {
-    this.users = new Map();
-    this.clients = new Map();
-    this.workOrders = new Map();
-    this.dailyReports = new Map();
-    this.operations = new Map();
-  }
 
   private async ensureInitialized() {
     if (!this.initialized) {
-      await this.initializeMockData();
+      await this.initializeAdmin();
       this.initialized = true;
     }
   }
 
-  private async initializeMockData() {
-    // Crea solo l'utente amministratore
-    const adminData = { 
-      id: "admin1", 
-      username: "admin", 
-      password: "Metaltec11", 
-      fullName: "Amministratore", 
-      role: "admin" as const 
-    };
-
-    const hashedPassword = await hashPassword(adminData.password);
-    const adminUser: User = {
-      ...adminData,
-      password: hashedPassword,
-      plainPassword: null
-    };
-    this.users.set(adminData.id, adminUser);
-
-    // Database pulito - nessun dipendente, cliente, commessa o rapportino
-    // L'amministratore potrà inserire i dati reali dell'azienda
+  private async initializeAdmin() {
+    const existingAdmin = await db.select().from(users).where(eq(users.username, "admin"));
+    
+    if (existingAdmin.length === 0) {
+      const hashedPassword = await hashPassword("Metaltec11");
+      await db.insert(users).values({
+        username: "admin",
+        password: hashedPassword,
+        plainPassword: null,
+        role: "admin",
+        fullName: "Amministratore"
+      });
+    }
   }
 
   // Users
   async getAllUsers(): Promise<User[]> {
     await this.ensureInitialized();
-    return Array.from(this.users.values());
+    return await db.select().from(users);
   }
 
   async getUser(id: string): Promise<User | undefined> {
     await this.ensureInitialized();
-    return this.users.get(id);
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
     await this.ensureInitialized();
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user || undefined;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
     await this.ensureInitialized();
-    const id = randomUUID();
     const hashedPassword = await hashPassword(insertUser.password);
     const role = insertUser.role || "employee";
-    const user: User = { 
-      ...insertUser, 
-      id,
+    
+    const [user] = await db.insert(users).values({
+      ...insertUser,
       password: hashedPassword,
       plainPassword: role === 'employee' ? insertUser.password : null,
       role: role
-    };
-    this.users.set(id, user);
+    }).returning();
+    
     return user;
   }
 
   async updateUser(id: string, updates: Partial<InsertUser>): Promise<User> {
     await this.ensureInitialized();
-    const existingUser = this.users.get(id);
+    const existingUser = await this.getUser(id);
     if (!existingUser) {
       throw new Error("Utente non trovato");
     }
     
-    // Hash della password se viene aggiornata
-    const updatedData = { ...updates };
+    const updatedData: any = { ...updates };
     if (updates.password) {
       updatedData.password = await hashPassword(updates.password);
-      // Se è un dipendente, salva anche la password in chiaro
       if (existingUser.role === 'employee') {
         updatedData.plainPassword = updates.password;
       }
     }
     
-    const updatedUser: User = {
-      ...existingUser,
-      ...updatedData
-    };
+    const [updatedUser] = await db.update(users)
+      .set(updatedData)
+      .where(eq(users.id, id))
+      .returning();
     
-    this.users.set(id, updatedUser);
     return updatedUser;
   }
 
   async deleteUser(id: string): Promise<boolean> {
     await this.ensureInitialized();
-    return this.users.delete(id);
+    const result = await db.delete(users).where(eq(users.id, id));
+    return result.rowCount !== null && result.rowCount > 0;
   }
 
   // Clients
   async getAllClients(): Promise<Client[]> {
     await this.ensureInitialized();
-    return Array.from(this.clients.values());
+    return await db.select().from(clients);
   }
 
   async createClient(insertClient: InsertClient): Promise<Client> {
     await this.ensureInitialized();
-    const id = randomUUID();
-    const client: Client = { ...insertClient, id, description: insertClient.description || null };
-    this.clients.set(id, client);
+    const [client] = await db.insert(clients).values(insertClient).returning();
     return client;
   }
 
   async deleteClient(id: string): Promise<boolean> {
     await this.ensureInitialized();
-    return this.clients.delete(id);
+    const result = await db.delete(clients).where(eq(clients.id, id));
+    return result.rowCount !== null && result.rowCount > 0;
   }
 
   // Work Orders
   async getAllWorkOrders(): Promise<WorkOrder[]> {
     await this.ensureInitialized();
-    return Array.from(this.workOrders.values());
+    return await db.select().from(workOrders);
   }
 
   async getWorkOrdersByClient(clientId: string): Promise<WorkOrder[]> {
     await this.ensureInitialized();
-    return Array.from(this.workOrders.values()).filter(wo => wo.clientId === clientId);
+    return await db.select().from(workOrders).where(eq(workOrders.clientId, clientId));
   }
 
   async getWorkOrder(id: string): Promise<WorkOrder | undefined> {
     await this.ensureInitialized();
-    return this.workOrders.get(id);
+    const [workOrder] = await db.select().from(workOrders).where(eq(workOrders.id, id));
+    return workOrder || undefined;
   }
 
   async createWorkOrder(insertWorkOrder: InsertWorkOrder): Promise<WorkOrder> {
     await this.ensureInitialized();
-    const id = randomUUID();
-    const workOrder: WorkOrder = { 
-      ...insertWorkOrder, 
-      id, 
-      description: insertWorkOrder.description || null,
-      isActive: insertWorkOrder.isActive ?? true
-    };
-    this.workOrders.set(id, workOrder);
+    const [workOrder] = await db.insert(workOrders).values(insertWorkOrder).returning();
     return workOrder;
   }
 
   async deleteWorkOrder(id: string): Promise<boolean> {
     await this.ensureInitialized();
-    return this.workOrders.delete(id);
+    const result = await db.delete(workOrders).where(eq(workOrders.id, id));
+    return result.rowCount !== null && result.rowCount > 0;
   }
 
   // Daily Reports
   async getAllDailyReports(): Promise<DailyReport[]> {
     await this.ensureInitialized();
-    return Array.from(this.dailyReports.values());
+    return await db.select().from(dailyReports);
   }
 
   async getDailyReportsByDate(date: string): Promise<DailyReport[]> {
     await this.ensureInitialized();
-    return Array.from(this.dailyReports.values()).filter(report => report.date === date);
+    return await db.select().from(dailyReports).where(eq(dailyReports.date, date));
   }
 
   async getDailyReport(id: string): Promise<DailyReport | undefined> {
     await this.ensureInitialized();
-    return this.dailyReports.get(id);
+    const [report] = await db.select().from(dailyReports).where(eq(dailyReports.id, id));
+    return report || undefined;
   }
 
   async getDailyReportByEmployeeAndDate(employeeId: string, date: string): Promise<DailyReport | undefined> {
     await this.ensureInitialized();
-    const reports = Array.from(this.dailyReports.values());
-    return reports.find(r => r.employeeId === employeeId && r.date === date);
+    const [report] = await db.select().from(dailyReports).where(
+      and(eq(dailyReports.employeeId, employeeId), eq(dailyReports.date, date))
+    );
+    return report || undefined;
   }
 
   async createDailyReport(insertReport: InsertDailyReport): Promise<DailyReport> {
     await this.ensureInitialized();
-    const id = randomUUID();
-    const report: DailyReport = { 
-      ...insertReport, 
-      id,
-      status: insertReport.status || "In attesa",
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-    this.dailyReports.set(id, report);
+    const [report] = await db.insert(dailyReports).values(insertReport).returning();
     return report;
   }
 
   async updateDailyReport(id: string, updates: UpdateDailyReport): Promise<DailyReport> {
     await this.ensureInitialized();
-    const report = this.dailyReports.get(id);
-    if (!report) {
+    const [updatedReport] = await db.update(dailyReports)
+      .set(updates)
+      .where(eq(dailyReports.id, id))
+      .returning();
+    
+    if (!updatedReport) {
       throw new Error("Report not found");
     }
-    const updatedReport = { 
-      ...report, 
-      ...updates, 
-      id: report.id, // Keep original id
-      updatedAt: new Date() 
-    };
-    this.dailyReports.set(id, updatedReport);
+    
     return updatedReport;
   }
 
   async updateDailyReportStatus(id: string, status: string): Promise<DailyReport> {
     await this.ensureInitialized();
-    const report = this.dailyReports.get(id);
-    if (!report) {
+    const [updatedReport] = await db.update(dailyReports)
+      .set({ status })
+      .where(eq(dailyReports.id, id))
+      .returning();
+    
+    if (!updatedReport) {
       throw new Error("Report not found");
     }
-    const updatedReport = { ...report, status, updatedAt: new Date() };
-    this.dailyReports.set(id, updatedReport);
+    
     return updatedReport;
   }
 
   async deleteDailyReport(id: string): Promise<boolean> {
     await this.ensureInitialized();
-    return this.dailyReports.delete(id);
+    const result = await db.delete(dailyReports).where(eq(dailyReports.id, id));
+    return result.rowCount !== null && result.rowCount > 0;
   }
 
   // Operations
   async getOperationsByReportId(reportId: string): Promise<Operation[]> {
     await this.ensureInitialized();
-    return Array.from(this.operations.values()).filter(op => op.dailyReportId === reportId);
+    return await db.select().from(operations).where(eq(operations.dailyReportId, reportId));
   }
 
   async getOperationsByWorkOrderId(workOrderId: string): Promise<Operation[]> {
     await this.ensureInitialized();
-    return Array.from(this.operations.values()).filter(op => op.workOrderId === workOrderId);
+    return await db.select().from(operations).where(eq(operations.workOrderId, workOrderId));
   }
 
   async getOperation(id: string): Promise<Operation | undefined> {
     await this.ensureInitialized();
-    return this.operations.get(id);
+    const [operation] = await db.select().from(operations).where(eq(operations.id, id));
+    return operation || undefined;
   }
 
   async createOperation(insertOperation: InsertOperation): Promise<Operation> {
     await this.ensureInitialized();
-    const id = randomUUID();
-    const operation: Operation = { 
-      ...insertOperation, 
-      id,
-      notes: insertOperation.notes || null
-    };
-    this.operations.set(id, operation);
+    const [operation] = await db.insert(operations).values(insertOperation).returning();
     return operation;
   }
 
   async updateOperation(id: string, updates: UpdateOperation): Promise<Operation> {
     await this.ensureInitialized();
-    const operation = this.operations.get(id);
-    if (!operation) {
+    const [updatedOperation] = await db.update(operations)
+      .set(updates)
+      .where(eq(operations.id, id))
+      .returning();
+    
+    if (!updatedOperation) {
       throw new Error("Operation not found");
     }
-    const updatedOperation = { 
-      ...operation, 
-      ...updates, 
-      id: operation.id // Keep original id
-    };
-    this.operations.set(id, updatedOperation);
+    
     return updatedOperation;
   }
 
   async deleteOperation(id: string): Promise<boolean> {
     await this.ensureInitialized();
-    return this.operations.delete(id);
+    const result = await db.delete(operations).where(eq(operations.id, id));
+    return result.rowCount !== null && result.rowCount > 0;
   }
 
   async deleteOperationsByReportId(reportId: string): Promise<boolean> {
     await this.ensureInitialized();
-    const operations = Array.from(this.operations.values()).filter(op => op.dailyReportId === reportId);
-    operations.forEach(op => this.operations.delete(op.id));
-    return true;
+    const result = await db.delete(operations).where(eq(operations.dailyReportId, reportId));
+    return result.rowCount !== null && result.rowCount > 0;
   }
-
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
