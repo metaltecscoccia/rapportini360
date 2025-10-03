@@ -524,6 +524,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Export work order report as Word document
+  app.get("/api/export/work-order/:workOrderId", requireAdmin, async (req, res) => {
+    try {
+      const { workOrderId } = req.params;
+      
+      console.log(`Generating Word report for work order: ${workOrderId}`);
+      const docBuffer = await wordService.generateWorkOrderReportWord(workOrderId);
+
+      const workOrder = await storage.getWorkOrder(workOrderId);
+      const filename = `Commessa_${workOrder?.name.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.docx`;
+      
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('Content-Length', docBuffer.length);
+      
+      res.send(docBuffer);
+    } catch (error) {
+      console.error("Error generating work order Word document:", error);
+      if (error instanceof Error) {
+        res.status(500).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: "Failed to generate work order report" });
+      }
+    }
+  });
+
   // Get single daily report with operations
   app.get("/api/daily-reports/:id", requireAuth, async (req, res) => {
     try {

@@ -106,9 +106,30 @@ export default function WorkOrderReport({
 
   const totalProjectHours = reportData.reduce((sum, row) => sum + row.totalHours, 0);
 
-  const handleExportReport = () => {
-    // TODO: Implementare export PDF/Excel del report finale
-    alert("Export report finale - funzionalità in sviluppo");
+  const handleExportReport = async () => {
+    try {
+      const response = await fetch(`/api/export/work-order/${workOrderId}`);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Errore durante l\'export');
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Commessa_${workOrderNumber}_${new Date().toISOString().split('T')[0]}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      console.log('Work order export completed');
+    } catch (error: any) {
+      alert(error.message || 'Errore durante l\'export del report');
+      console.error('Export error:', error);
+    }
   };
 
   return (
