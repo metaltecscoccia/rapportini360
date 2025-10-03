@@ -474,15 +474,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/operations", requireAuth, async (req, res) => {
     try {
       const operationData = req.body;
+      console.log("Operation data received:", JSON.stringify(operationData, null, 2));
       
       // Validate operation data
       const operationResult = insertOperationSchema.safeParse(operationData);
       if (!operationResult.success) {
+        console.error("Validation failed:", JSON.stringify(operationResult.error.issues, null, 2));
         return res.status(400).json({ 
           error: "Dati operazione non validi", 
           issues: operationResult.error.issues 
         });
       }
+      
+      console.log("Validated operation data:", JSON.stringify(operationResult.data, null, 2));
       
       // Create the operation
       const newOperation = await storage.createOperation(operationResult.data);
