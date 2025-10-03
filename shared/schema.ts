@@ -81,6 +81,8 @@ export const insertDailyReportSchema = createInsertSchema(dailyReports).omit({
 
 export const insertOperationSchema = createInsertSchema(operations).omit({
   id: true,
+}).extend({
+  hours: z.union([z.string(), z.number()]).transform(val => String(val))
 });
 
 // Update schemas for editing
