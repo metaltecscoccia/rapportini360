@@ -19,7 +19,8 @@ import { useToast } from "@/hooks/use-toast";
 import { 
   Users, 
   FileText, 
-  Building, 
+  Building,
+  Building2, 
   Briefcase, 
   Search, 
   Filter,
@@ -103,6 +104,8 @@ export default function AdminDashboard() {
   const [deleteReportDialogOpen, setDeleteReportDialogOpen] = useState(false);
   const [selectedReportToDelete, setSelectedReportToDelete] = useState<any>(null);
   const [addClientDialogOpen, setAddClientDialogOpen] = useState(false);
+  const [deleteClientDialogOpen, setDeleteClientDialogOpen] = useState(false);
+  const [selectedClientToDelete, setSelectedClientToDelete] = useState<any>(null);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -277,6 +280,29 @@ export default function AdminDashboard() {
     },
   });
 
+  // Mutation per eliminare cliente
+  const deleteClientMutation = useMutation({
+    mutationFn: async (clientId: string) => {
+      return apiRequest('DELETE', `/api/clients/${clientId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
+      toast({
+        title: "Cliente eliminato",
+        description: "Il cliente è stato eliminato con successo. Le commesse associate rimangono nel database.",
+      });
+      setDeleteClientDialogOpen(false);
+      setSelectedClientToDelete(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Errore",
+        description: error.message || "Errore durante l'eliminazione del cliente.",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Mutation per creare nuova commessa
   const createWorkOrderMutation = useMutation({
     mutationFn: async (data: AddWorkOrderForm) => {
@@ -398,6 +424,17 @@ export default function AdminDashboard() {
   const confirmDeleteWorkOrder = () => {
     if (selectedWorkOrderToDelete) {
       deleteWorkOrderMutation.mutate(selectedWorkOrderToDelete.id);
+    }
+  };
+
+  const handleDeleteClient = (client: any) => {
+    setSelectedClientToDelete(client);
+    setDeleteClientDialogOpen(true);
+  };
+
+  const confirmDeleteClient = () => {
+    if (selectedClientToDelete) {
+      deleteClientMutation.mutate(selectedClientToDelete.id);
     }
   };
 
@@ -636,7 +673,7 @@ export default function AdminDashboard() {
     
     return {
       ...wo,
-      clientName: client?.name || "Cliente sconosciuto",
+      clientName: client?.name || "Cliente eliminato",
       totalHours,
       totalOperations,
       lastActivity: lastActivity || "Nessuna attività",
@@ -757,6 +794,10 @@ export default function AdminDashboard() {
           <TabsTrigger value="work-orders" data-testid="tab-work-orders">
             <Wrench className="h-4 w-4 mr-2" />
             Commesse
+          </TabsTrigger>
+          <TabsTrigger value="clients" data-testid="tab-clients">
+            <Building2 className="h-4 w-4 mr-2" />
+            Clienti
           </TabsTrigger>
           <TabsTrigger value="employees" data-testid="tab-employees">
             <Users className="h-4 w-4 mr-2" />
@@ -1042,6 +1083,82 @@ export default function AdminDashboard() {
           )}
         </TabsContent>
 
+        {/* Clients Tab */}
+        <TabsContent value="clients" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Gestione Clienti</CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Visualizza e gestisci tutti i clienti. L'eliminazione di un cliente non eliminerà le commesse associate.
+                  </p>
+                </div>
+                <Button onClick={() => setAddClientDialogOpen(true)} data-testid="button-add-client">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Nuovo Cliente
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nome Cliente</TableHead>
+                    <TableHead>Commesse Attive</TableHead>
+                    <TableHead>Commesse Totali</TableHead>
+                    <TableHead>Azioni</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {isLoadingClients ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center py-8">
+                        Caricamento...
+                      </TableCell>
+                    </TableRow>
+                  ) : (clients as any[]).length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                        Nessun cliente trovato. Aggiungi il primo cliente.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    (clients as any[]).map((client: any) => {
+                      const clientWorkOrders = (workOrders as any[]).filter((wo: any) => wo.clientId === client.id);
+                      const activeWorkOrders = clientWorkOrders.filter((wo: any) => wo.isActive);
+                      
+                      return (
+                        <TableRow key={client.id}>
+                          <TableCell className="font-medium" data-testid={`text-client-name-${client.id}`}>
+                            {client.name}
+                          </TableCell>
+                          <TableCell data-testid={`text-active-workorders-${client.id}`}>
+                            {activeWorkOrders.length}
+                          </TableCell>
+                          <TableCell data-testid={`text-total-workorders-${client.id}`}>
+                            {clientWorkOrders.length}
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => handleDeleteClient(client)}
+                              data-testid={`button-delete-client-${client.id}`}
+                            >
+                              <Trash className="h-4 w-4 mr-2" />
+                              Elimina
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         {/* Employees Tab */}
         <TabsContent value="employees" className="space-y-4">
@@ -1720,6 +1837,37 @@ export default function AdminDashboard() {
               data-testid="button-confirm-delete-workorder"
             >
               {deleteWorkOrderMutation.isPending ? "Eliminazione..." : "Elimina"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog per eliminare cliente */}
+      <Dialog open={deleteClientDialogOpen} onOpenChange={setDeleteClientDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Elimina Cliente</DialogTitle>
+            <DialogDescription>
+              Sei sicuro di voler eliminare il cliente "{selectedClientToDelete?.name}"?
+              Le commesse associate al cliente rimarranno nel database.
+              Questa azione non può essere annullata.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setDeleteClientDialogOpen(false)}
+              data-testid="button-cancel-delete-client"
+            >
+              Annulla
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={confirmDeleteClient}
+              disabled={deleteClientMutation.isPending}
+              data-testid="button-confirm-delete-client"
+            >
+              {deleteClientMutation.isPending ? "Eliminazione..." : "Elimina"}
             </Button>
           </DialogFooter>
         </DialogContent>

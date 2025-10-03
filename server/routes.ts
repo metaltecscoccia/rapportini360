@@ -639,12 +639,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           return {
             ...op,
-            employeeName: employee?.fullName || "Unknown",
+            employeeName: employee?.fullName || "Dipendente sconosciuto",
             employeeId: dailyReport?.employeeId,
             date: dailyReport?.date,
-            clientName: client?.name || "Unknown",
-            workOrderName: workOrder?.name || "Unknown",
-            reportStatus: dailyReport?.status || "Unknown"
+            clientName: client?.name || "Cliente eliminato",
+            workOrderName: workOrder?.name || "Commessa sconosciuta",
+            reportStatus: dailyReport?.status || "Stato sconosciuto"
           };
         })
       );
