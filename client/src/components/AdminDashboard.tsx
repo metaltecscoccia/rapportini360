@@ -505,6 +505,7 @@ export default function AdminDashboard() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/daily-reports'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/work-orders/stats'] });
       toast({
         title: "Rapportino approvato",
         description: "Il rapportino è stato approvato con successo."
@@ -526,6 +527,7 @@ export default function AdminDashboard() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/daily-reports'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/work-orders/stats'] });
       toast({
         title: "Rapportino eliminato",
         description: "Il rapportino è stato eliminato con successo."
@@ -577,6 +579,7 @@ export default function AdminDashboard() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/daily-reports'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/work-orders/stats'] });
       setEditReportDialogOpen(false);
       setSelectedReport(null);
       setReportOperations([]);
@@ -1626,6 +1629,7 @@ export default function AdminDashboard() {
                     });
                     
                     queryClient.invalidateQueries({ queryKey: ['/api/daily-reports'] });
+                    queryClient.invalidateQueries({ queryKey: ['/api/work-orders/stats'] });
                     toast({
                       title: "Rapportino creato",
                       description: `Rapportino per ${selectedEmployeeForReport.fullName} creato con successo.`
