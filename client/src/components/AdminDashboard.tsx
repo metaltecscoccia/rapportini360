@@ -76,6 +76,7 @@ type AddClientForm = z.infer<typeof addClientSchema>;
 export default function AdminDashboard() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [reportDateFilter, setReportDateFilter] = useState("all"); // all, last7days, last30days, last90days, currentYear
   const [selectedTab, setSelectedTab] = useState("reports");
   const [selectedWorkOrder, setSelectedWorkOrder] = useState<{
     id: string;
@@ -468,7 +469,33 @@ export default function AdminDashboard() {
     const employeeName = report.employeeName || report.employee || "";
     const matchesSearch = employeeName.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "all" || report.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    
+    // Filtro temporale
+    let matchesDate = true;
+    if (reportDateFilter !== "all") {
+      const reportDate = new Date(report.date);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      if (reportDateFilter === "last7days") {
+        const sevenDaysAgo = new Date(today);
+        sevenDaysAgo.setDate(today.getDate() - 7);
+        matchesDate = reportDate >= sevenDaysAgo;
+      } else if (reportDateFilter === "last30days") {
+        const thirtyDaysAgo = new Date(today);
+        thirtyDaysAgo.setDate(today.getDate() - 30);
+        matchesDate = reportDate >= thirtyDaysAgo;
+      } else if (reportDateFilter === "last90days") {
+        const ninetyDaysAgo = new Date(today);
+        ninetyDaysAgo.setDate(today.getDate() - 90);
+        matchesDate = reportDate >= ninetyDaysAgo;
+      } else if (reportDateFilter === "currentYear") {
+        const currentYear = today.getFullYear();
+        matchesDate = reportDate.getFullYear() === currentYear;
+      }
+    }
+    
+    return matchesSearch && matchesStatus && matchesDate;
   });
 
   // Mutation per approvare rapportino
@@ -668,20 +695,14 @@ export default function AdminDashboard() {
   // Prepara dati commesse con statistiche aggregate
   const workOrdersWithStats = workOrders.map((wo: any) => {
     const client = clients.find((c: any) => c.id === wo.clientId);
-    
-    // Per ora, le statistiche dettagliate sono disponibili solo per la commessa di esempio
-    // In futuro, queste potrebbero essere calcolate dal backend o caricate separatamente
-    const isExampleWorkOrder = wo.id === "sample-100";
-    const totalHours = isExampleWorkOrder ? "120.5" : "0";
-    const totalOperations = isExampleWorkOrder ? 110 : 0;
-    const lastActivity = isExampleWorkOrder ? new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] : null;
+    const stats = workOrdersStats.find((s: any) => s.workOrderId === wo.id);
     
     return {
       ...wo,
       clientName: client?.name || "Cliente eliminato",
-      totalHours,
-      totalOperations,
-      lastActivity: lastActivity || "Nessuna attività",
+      totalHours: stats?.totalHours || 0,
+      totalOperations: stats?.totalOperations || 0,
+      lastActivity: stats?.lastActivity || "Nessuna attività",
       status: wo.isActive ? "In Corso" : "Completato"
     };
   });
@@ -847,6 +868,20 @@ export default function AdminDashboard() {
                     <SelectItem value="all">Tutti gli stati</SelectItem>
                     <SelectItem value="In attesa">In attesa</SelectItem>
                     <SelectItem value="Approvato">Approvato</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Select value={reportDateFilter} onValueChange={setReportDateFilter}>
+                  <SelectTrigger className="w-[200px]" data-testid="select-date-filter">
+                    <Calendar className="h-4 w-4 mr-2" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tutti i giorni</SelectItem>
+                    <SelectItem value="last7days">Ultimi 7 giorni</SelectItem>
+                    <SelectItem value="last30days">Ultimi 30 giorni</SelectItem>
+                    <SelectItem value="last90days">Ultimi 90 giorni</SelectItem>
+                    <SelectItem value="currentYear">Anno corrente</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
