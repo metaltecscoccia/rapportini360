@@ -220,7 +220,7 @@ export default function DailyReportForm({
 
 
   return (
-    <div className="max-w-4xl mx-auto p-4 space-y-6">
+    <div className="max-w-4xl mx-auto px-3 sm:px-4 py-4 space-y-6">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
@@ -294,7 +294,7 @@ export default function DailyReportForm({
                     
                     <div className="space-y-2">
                       <Label>Lavorazioni</Label>
-                      <div className="grid grid-cols-2 gap-2 p-3 border rounded-md">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-3 border rounded-md">
                         {workTypes.map(type => (
                           <div key={type} className="flex items-center space-x-2">
                             <Checkbox
@@ -353,24 +353,25 @@ export default function DailyReportForm({
               ))}
             </div>
             
-            <div className="flex justify-between items-center gap-3">
+            <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3">
               <div className="text-sm text-muted-foreground">
                 <strong>Ore totali: {getTotalHours()}h</strong>
                 <span className="ml-2 text-xs">
                   {getTotalHours() === 8 ? "(✓ Standard)" : getTotalHours() < 8 ? "(⚠ Sotto standard)" : "(⚠ Sopra standard)"}
                 </span>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={addOperation}
                   data-testid="button-add-operation"
+                  className="w-full sm:w-auto"
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Aggiungi Operazione
                 </Button>
-                <Button type="submit" data-testid="button-submit-report">
+                <Button type="submit" data-testid="button-submit-report" className="w-full sm:w-auto">
                   <Send className="h-4 w-4 mr-2" />
                   {isEditing ? "Aggiorna Rapportino" : "Invia Rapportino"}
                 </Button>
