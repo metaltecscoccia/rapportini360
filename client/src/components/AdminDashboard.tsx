@@ -359,6 +359,27 @@ export default function AdminDashboard() {
     },
   });
 
+  // Mutation per aggiornare stato commessa
+  const updateWorkOrderStatusMutation = useMutation({
+    mutationFn: async ({ workOrderId, isActive }: { workOrderId: string; isActive: boolean }) => {
+      return apiRequest('PATCH', `/api/work-orders/${workOrderId}/status`, { isActive });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/work-orders'] });
+      toast({
+        title: "Stato aggiornato",
+        description: "Lo stato della commessa è stato aggiornato con successo."
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Errore",
+        description: error.message || "Errore nell'aggiornamento dello stato",
+        variant: "destructive"
+      });
+    }
+  });
+
   // Reset password mutation
   const resetPasswordMutation = useMutation({
     mutationFn: async ({ employeeId, newPassword }: { employeeId: string; newPassword: string }) => {
