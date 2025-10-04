@@ -367,6 +367,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update work order status (admin only)
+  app.patch("/api/work-orders/:id/status", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { isActive } = req.body;
+      
+      if (typeof isActive !== 'boolean') {
+        return res.status(400).json({ error: "isActive deve essere un valore booleano" });
+      }
+      
+      const updatedWorkOrder = await storage.updateWorkOrderStatus(id, isActive);
+      res.json(updatedWorkOrder);
+    } catch (error: any) {
+      console.error("Error updating work order status:", error);
+      res.status(500).json({ error: "Failed to update work order status" });
+    }
+  });
+
   // Delete work order (admin only)
   app.delete("/api/work-orders/:id", requireAdmin, async (req, res) => {
     try {
