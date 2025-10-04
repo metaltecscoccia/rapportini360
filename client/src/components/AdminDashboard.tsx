@@ -793,7 +793,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -871,7 +871,7 @@ export default function AdminDashboard() {
               </div>
               
               {/* Filters */}
-              <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex flex-col md:flex-row flex-wrap gap-4">
                 <div className="flex-1 relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
@@ -920,19 +920,20 @@ export default function AdminDashboard() {
                   </div>
                 </div>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Dipendente</TableHead>
-                      <TableHead>Data</TableHead>
-                      <TableHead>Ora Creazione</TableHead>
-                      <TableHead>Stato</TableHead>
-                      <TableHead>Operazioni</TableHead>
-                      <TableHead>Ore Totali</TableHead>
-                      <TableHead>Azioni</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
+                <div className="overflow-x-auto" data-testid="scroll-table-reports">
+                  <Table className="min-w-[900px]">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Dipendente</TableHead>
+                        <TableHead>Data</TableHead>
+                        <TableHead>Ora Creazione</TableHead>
+                        <TableHead>Stato</TableHead>
+                        <TableHead>Operazioni</TableHead>
+                        <TableHead>Ore Totali</TableHead>
+                        <TableHead>Azioni</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
                     {filteredReports.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={7} className="text-center py-8">
@@ -1002,6 +1003,7 @@ export default function AdminDashboard() {
                     )}
                   </TableBody>
                 </Table>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -1037,7 +1039,7 @@ export default function AdminDashboard() {
                 </div>
                 
                 {/* Filtri per commesse */}
-                <div className="flex flex-col sm:flex-row gap-4 mt-4">
+                <div className="flex flex-col sm:flex-row flex-wrap gap-4 mt-4">
                   <div className="flex-1">
                     <Label htmlFor="status-filter" className="text-sm mb-2 block">Stato</Label>
                     <Select
@@ -1075,20 +1077,21 @@ export default function AdminDashboard() {
                 </div>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Numero Commessa</TableHead>
-                      <TableHead>Cliente</TableHead>
-                      <TableHead>Descrizione</TableHead>
-                      <TableHead>Stato</TableHead>
-                      <TableHead>Operazioni</TableHead>
-                      <TableHead>Ore Totali</TableHead>
-                      <TableHead>Ultima Attività</TableHead>
-                      <TableHead>Azioni</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
+                <div className="overflow-x-auto" data-testid="scroll-table-workorders">
+                  <Table className="min-w-[1000px]">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Numero Commessa</TableHead>
+                        <TableHead>Cliente</TableHead>
+                        <TableHead>Descrizione</TableHead>
+                        <TableHead>Stato</TableHead>
+                        <TableHead>Operazioni</TableHead>
+                        <TableHead>Ore Totali</TableHead>
+                        <TableHead>Ultima Attività</TableHead>
+                        <TableHead>Azioni</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
                     {filteredWorkOrders.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
@@ -1156,6 +1159,7 @@ export default function AdminDashboard() {
                     )))}
                   </TableBody>
                 </Table>
+                </div>
               </CardContent>
             </Card>
           )}
@@ -1179,16 +1183,17 @@ export default function AdminDashboard() {
               </div>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nome Cliente</TableHead>
-                    <TableHead>Commesse Attive</TableHead>
-                    <TableHead>Commesse Totali</TableHead>
-                    <TableHead>Azioni</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+              <div className="overflow-x-auto" data-testid="scroll-table-clients">
+                <Table className="min-w-[640px]">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nome Cliente</TableHead>
+                      <TableHead>Commesse Attive</TableHead>
+                      <TableHead>Commesse Totali</TableHead>
+                      <TableHead>Azioni</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                   {isLoadingClients ? (
                     <TableRow>
                       <TableCell colSpan={4} className="text-center py-8">
@@ -1234,6 +1239,7 @@ export default function AdminDashboard() {
                   )}
                 </TableBody>
               </Table>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -1439,17 +1445,18 @@ export default function AdminDashboard() {
                   Caricamento dipendenti...
                 </div>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Nome</TableHead>
-                      <TableHead>Username</TableHead>
-                      <TableHead>Password Attuale</TableHead>
-                      <TableHead>Ruolo</TableHead>
-                      <TableHead>Azioni</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
+                <div className="overflow-x-auto" data-testid="scroll-table-employees">
+                  <Table className="min-w-[700px]">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nome</TableHead>
+                        <TableHead>Username</TableHead>
+                        <TableHead>Password Attuale</TableHead>
+                        <TableHead>Ruolo</TableHead>
+                        <TableHead>Azioni</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
                     {(employees as any[]).filter((emp: any) => emp.role === 'employee').map((employee: any) => (
                       <TableRow key={employee.id}>
                         <TableCell className="font-medium">{employee.fullName}</TableCell>
@@ -1497,6 +1504,7 @@ export default function AdminDashboard() {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -1566,7 +1574,7 @@ export default function AdminDashboard() {
 
       {/* Dialog per modifica rapportino */}
       <Dialog open={editReportDialogOpen} onOpenChange={setEditReportDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[90vw] md:max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Modifica Rapportino</DialogTitle>
             <DialogDescription>
@@ -1608,7 +1616,7 @@ export default function AdminDashboard() {
           }
         }}
       >
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[90vw] md:max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Crea Rapportino per Dipendente</DialogTitle>
             <DialogDescription>
@@ -1880,7 +1888,7 @@ export default function AdminDashboard() {
 
       {/* Dialog per eliminare commessa */}
       <Dialog open={deleteWorkOrderDialogOpen} onOpenChange={setDeleteWorkOrderDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Elimina Commessa</DialogTitle>
             <DialogDescription>
@@ -1910,7 +1918,7 @@ export default function AdminDashboard() {
 
       {/* Dialog per eliminare cliente */}
       <Dialog open={deleteClientDialogOpen} onOpenChange={setDeleteClientDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Elimina Cliente</DialogTitle>
             <DialogDescription>
@@ -1941,7 +1949,7 @@ export default function AdminDashboard() {
 
       {/* Dialog per eliminare rapportino */}
       <Dialog open={deleteReportDialogOpen} onOpenChange={setDeleteReportDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Elimina Rapportino</DialogTitle>
             <DialogDescription>
