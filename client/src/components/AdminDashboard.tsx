@@ -592,17 +592,8 @@ export default function AdminDashboard() {
 
   // Mutation per aggiornare rapportino
   const updateReportMutation = useMutation({
-    mutationFn: async ({ reportId, employeeId, date, status, operations }: { 
-      reportId: string; 
-      employeeId: string;
-      date: string;
-      status: string;
-      operations: any[] 
-    }) => {
+    mutationFn: async ({ reportId, operations }: { reportId: string; operations: any[] }) => {
       const response = await apiRequest('PUT', `/api/daily-reports/${reportId}`, {
-        employeeId,
-        date,
-        status,
         operations
       });
       return response.json();
@@ -636,9 +627,6 @@ export default function AdminDashboard() {
     if (selectedReport) {
       updateReportMutation.mutate({
         reportId: selectedReport.id,
-        employeeId: selectedReport.employeeId,
-        date: selectedReport.date,
-        status: selectedReport.status,
         operations
       });
     }

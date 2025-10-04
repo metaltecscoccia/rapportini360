@@ -605,7 +605,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/daily-reports/:id", requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
-      const { operations, ...reportData } = req.body;
+      const { operations } = req.body;
       
       // Check if report exists
       const existingReport = await storage.getDailyReport(id);
@@ -617,15 +617,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if ((req as any).session.userRole !== "admin" && (req as any).session.userId !== existingReport.employeeId) {
         return res.status(403).json({ error: "Non autorizzato a modificare questo rapportino" });
       }
-      
-      // Validate report data
-      const reportResult = updateDailyReportSchema.safeParse(reportData);
-      if (!reportResult.success) {
-        return res.status(400).json({ error: "Dati rapportino non validi", issues: reportResult.error.issues });
-      }
-      
-      // Update the report
-      const updatedReport = await storage.updateDailyReport(id, reportResult.data);
       
       // Update operations if provided
       if (operations && Array.isArray(operations)) {
@@ -648,7 +639,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Return updated report with operations
       const finalOperations = await storage.getOperationsByReportId(id);
       res.json({
-        ...updatedReport,
+        ...existingReport,
         operations: finalOperations
       });
     } catch (error) {
