@@ -772,9 +772,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const operations = await storage.getOperationsByReportId(id);
       
+      // Enrich operations with client and work order names
+      const enrichedOperations = await Promise.all(
+        operations.map(async (op) => {
+          const client = await storage.getAllClients().then(clients => 
+            clients.find(c => c.id === op.clientId)
+          );
+          const workOrder = await storage.getWorkOrdersByClient(op.clientId).then(orders => 
+            orders.find(wo => wo.id === op.workOrderId)
+          );
+          
+          return {
+            ...op,
+            clientName: client?.name || "Cliente eliminato",
+            workOrderName: workOrder?.name || "Commessa sconosciuta"
+          };
+        })
+      );
+      
       res.json({
         ...report,
-        operations
+        operations: enrichedOperations
       });
     } catch (error) {
       console.error("Error fetching daily report:", error);

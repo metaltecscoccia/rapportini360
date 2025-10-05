@@ -35,7 +35,11 @@ import {
   Eye,
   Key,
   Hammer,
-  Package
+  Package,
+  ChevronDown,
+  ChevronUp,
+  MapPin,
+  ClipboardList
 } from "lucide-react";
 import StatusBadge from "./StatusBadge";
 import WorkOrderReport from "./WorkOrderReport";
@@ -154,6 +158,10 @@ export default function AdminDashboard() {
   const [quickAddWorkTypeName, setQuickAddWorkTypeName] = useState("");
   const [showQuickAddMaterial, setShowQuickAddMaterial] = useState(false);
   const [quickAddMaterialName, setQuickAddMaterialName] = useState("");
+  
+  // State for expandable report rows
+  const [expandedReportId, setExpandedReportId] = useState<string | null>(null);
+  const [expandedReportData, setExpandedReportData] = useState<any>(null);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -1180,6 +1188,37 @@ export default function AdminDashboard() {
       });
     }
   };
+  
+  // Mutation per espandere e recuperare dettagli rapportino
+  const fetchReportDetailsMutation = useMutation({
+    mutationFn: async (reportId: string) => {
+      const response = await apiRequest('GET', `/api/daily-reports/${reportId}`);
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setExpandedReportData(data);
+    },
+    onError: (error: any) => {
+      console.error("Error fetching report details:", error);
+      toast({
+        title: "Errore",
+        description: "Impossibile caricare i dettagli del rapportino",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  const handleToggleReportExpansion = (reportId: string) => {
+    if (expandedReportId === reportId) {
+      // Collassa se già espanso
+      setExpandedReportId(null);
+      setExpandedReportData(null);
+    } else {
+      // Espandi e carica i dettagli
+      setExpandedReportId(reportId);
+      fetchReportDetailsMutation.mutate(reportId);
+    }
+  };
 
   const handleExportReports = async (selectedDate?: string) => {
     try {
@@ -1495,6 +1534,7 @@ export default function AdminDashboard() {
                   <Table className="min-w-[900px]">
                     <TableHeader>
                       <TableRow>
+                        <TableHead className="w-12"></TableHead>
                         <TableHead>Dipendente</TableHead>
                         <TableHead>Data</TableHead>
                         <TableHead>Ora Creazione</TableHead>
@@ -1507,7 +1547,7 @@ export default function AdminDashboard() {
                     <TableBody>
                     {filteredReports.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center py-8">
+                        <TableCell colSpan={8} className="text-center py-8">
                           <div className="text-muted-foreground">
                             {searchTerm || statusFilter !== "all" 
                               ? "Nessun rapportino trovato con i filtri applicati" 
@@ -1516,61 +1556,177 @@ export default function AdminDashboard() {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      filteredReports.map((report: any) => (
-                        <TableRow key={report.id}>
-                          <TableCell className="font-medium">
-                            {report.employeeName || report.employee || "Sconosciuto"}
-                          </TableCell>
-                          <TableCell>
-                            {new Date(report.date).toLocaleDateString("it-IT")}
-                          </TableCell>
-                          <TableCell>
-                            {report.createdAt ? new Date(report.createdAt).toLocaleTimeString("it-IT", { 
-                              hour: '2-digit', 
-                              minute: '2-digit' 
-                            }) : "-"}
-                          </TableCell>
-                          <TableCell>
-                            <StatusBadge status={report.status} />
-                          </TableCell>
-                          <TableCell>{report.operations || 0}</TableCell>
-                          <TableCell>{report.totalHours || 0}h</TableCell>
-                          <TableCell>
-                            <div className="flex gap-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleEditReport(report.id)}
-                                data-testid={`button-edit-report-${report.id}`}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              {report.status === "In attesa" && (
-                                <Button
-                                  variant="default"
-                                  size="sm"
-                                  onClick={() => handleApproveReport(report.id)}
-                                  disabled={approveReportMutation.isPending}
-                                  data-testid={`button-approve-report-${report.id}`}
-                                >
-                                  <CheckCircle className="h-4 w-4" />
-                                </Button>
-                              )}
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedReportToDelete(report);
-                                  setDeleteReportDialogOpen(true);
-                                }}
-                                data-testid={`button-delete-report-${report.id}`}
-                              >
-                                <Trash className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))
+                      filteredReports.map((report: any) => {
+                        const isExpanded = expandedReportId === report.id;
+                        const reportDetails = isExpanded ? expandedReportData : null;
+                        
+                        return (
+                          <>
+                            <TableRow 
+                              key={report.id}
+                              className="cursor-pointer hover-elevate"
+                              onClick={() => handleToggleReportExpansion(report.id)}
+                              data-testid={`row-report-${report.id}`}
+                            >
+                              <TableCell className="w-12">
+                                {isExpanded ? (
+                                  <ChevronUp className="h-4 w-4" />
+                                ) : (
+                                  <ChevronDown className="h-4 w-4" />
+                                )}
+                              </TableCell>
+                              <TableCell className="font-medium">
+                                {report.employeeName || report.employee || "Sconosciuto"}
+                              </TableCell>
+                              <TableCell>
+                                {new Date(report.date).toLocaleDateString("it-IT")}
+                              </TableCell>
+                              <TableCell>
+                                {report.createdAt ? new Date(report.createdAt).toLocaleTimeString("it-IT", { 
+                                  hour: '2-digit', 
+                                  minute: '2-digit' 
+                                }) : "-"}
+                              </TableCell>
+                              <TableCell>
+                                <StatusBadge status={report.status} />
+                              </TableCell>
+                              <TableCell>{report.operations || 0}</TableCell>
+                              <TableCell>{report.totalHours || 0}h</TableCell>
+                              <TableCell onClick={(e) => e.stopPropagation()}>
+                                <div className="flex gap-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleEditReport(report.id)}
+                                    data-testid={`button-edit-report-${report.id}`}
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                  {report.status === "In attesa" && (
+                                    <Button
+                                      variant="default"
+                                      size="sm"
+                                      onClick={() => handleApproveReport(report.id)}
+                                      disabled={approveReportMutation.isPending}
+                                      data-testid={`button-approve-report-${report.id}`}
+                                    >
+                                      <CheckCircle className="h-4 w-4" />
+                                    </Button>
+                                  )}
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                      setSelectedReportToDelete(report);
+                                      setDeleteReportDialogOpen(true);
+                                    }}
+                                    data-testid={`button-delete-report-${report.id}`}
+                                  >
+                                    <Trash className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                            
+                            {/* Riga espandibile con dettagli operazioni */}
+                            {isExpanded && reportDetails && (
+                              <TableRow key={`${report.id}-details`}>
+                                <TableCell colSpan={8} className="bg-muted/30 p-6">
+                                  {fetchReportDetailsMutation.isPending ? (
+                                    <div className="flex items-center justify-center py-4">
+                                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                                    </div>
+                                  ) : reportDetails.operations && reportDetails.operations.length > 0 ? (
+                                    <div className="space-y-4">
+                                      <div className="font-medium text-sm flex items-center gap-2">
+                                        <ClipboardList className="h-4 w-4" />
+                                        Operazioni del Rapportino
+                                      </div>
+                                      
+                                      <div className="grid gap-3">
+                                        {reportDetails.operations.map((operation: any, index: number) => (
+                                          <div 
+                                            key={operation.id} 
+                                            className="bg-background rounded-md border p-4 space-y-2"
+                                            data-testid={`operation-${index}`}
+                                          >
+                                            <div className="flex items-start justify-between gap-4">
+                                              <div className="flex-1 space-y-2">
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                  <Badge variant="outline" className="gap-1">
+                                                    <Building2 className="h-3 w-3" />
+                                                    {operation.clientName || "Cliente non specificato"}
+                                                  </Badge>
+                                                  <Badge variant="outline" className="gap-1">
+                                                    <Briefcase className="h-3 w-3" />
+                                                    {operation.workOrderName || "Commessa non specificata"}
+                                                  </Badge>
+                                                  <Badge variant="secondary" className="gap-1">
+                                                    <Clock className="h-3 w-3" />
+                                                    {operation.hours}h
+                                                  </Badge>
+                                                </div>
+                                                
+                                                {operation.workTypes && operation.workTypes.length > 0 && (
+                                                  <div className="flex items-center gap-2 flex-wrap">
+                                                    <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                                      <Wrench className="h-3 w-3" />
+                                                      Tipi lavoro:
+                                                    </span>
+                                                    {operation.workTypes.map((type: string, idx: number) => (
+                                                      <Badge key={idx} variant="secondary" className="text-xs">
+                                                        {type}
+                                                      </Badge>
+                                                    ))}
+                                                  </div>
+                                                )}
+                                                
+                                                {operation.materials && operation.materials.length > 0 && (
+                                                  <div className="flex items-center gap-2 flex-wrap">
+                                                    <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                                      <Package className="h-3 w-3" />
+                                                      Materiali:
+                                                    </span>
+                                                    {operation.materials.map((material: string, idx: number) => (
+                                                      <Badge key={idx} variant="outline" className="text-xs">
+                                                        {material}
+                                                      </Badge>
+                                                    ))}
+                                                  </div>
+                                                )}
+                                                
+                                                {operation.notes && (
+                                                  <div className="text-sm text-muted-foreground pt-1 border-t">
+                                                    <span className="font-medium">Note operazione:</span> {operation.notes}
+                                                  </div>
+                                                )}
+                                              </div>
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                      
+                                      {reportDetails.notes && (
+                                        <div className="mt-4 p-4 bg-background rounded-md border">
+                                          <div className="flex items-center gap-2 mb-2">
+                                            <FileText className="h-4 w-4 text-muted-foreground" />
+                                            <span className="font-medium text-sm">Note Rapportino</span>
+                                          </div>
+                                          <p className="text-sm text-muted-foreground">{reportDetails.notes}</p>
+                                        </div>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <div className="text-center text-muted-foreground py-4">
+                                      Nessuna operazione registrata
+                                    </div>
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </>
+                        );
+                      })
                     )}
                   </TableBody>
                 </Table>
