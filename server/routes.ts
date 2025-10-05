@@ -389,6 +389,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/work-orders/:id", requireAdmin, async (req, res) => {
     try {
       const { id } = req.params;
+      
+      // First delete all operations associated with this work order
+      await storage.deleteOperationsByWorkOrderId(id);
+      
+      // Then delete the work order
       const deleted = await storage.deleteWorkOrder(id);
       if (deleted) {
         res.json({ success: true });
