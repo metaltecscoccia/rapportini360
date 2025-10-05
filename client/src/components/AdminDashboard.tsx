@@ -148,6 +148,12 @@ export default function AdminDashboard() {
   const [editMaterialDialogOpen, setEditMaterialDialogOpen] = useState(false);
   const [deleteMaterialDialogOpen, setDeleteMaterialDialogOpen] = useState(false);
   const [selectedMaterial, setSelectedMaterial] = useState<any>(null);
+  
+  // State for inline quick-add forms in work order dialog
+  const [showQuickAddWorkType, setShowQuickAddWorkType] = useState(false);
+  const [quickAddWorkTypeName, setQuickAddWorkTypeName] = useState("");
+  const [showQuickAddMaterial, setShowQuickAddMaterial] = useState(false);
+  const [quickAddMaterialName, setQuickAddMaterialName] = useState("");
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -809,6 +815,69 @@ export default function AdminDashboard() {
     },
   });
 
+  // Quick-add mutations for work order dialog
+  const quickAddWorkTypeMutation = useMutation({
+    mutationFn: async (data: WorkTypeForm) => {
+      return apiRequest('POST', '/api/work-types', data);
+    },
+    onSuccess: (response: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/work-types'] });
+      toast({
+        title: "Lavorazione aggiunta",
+        description: "La nuova lavorazione è stata aggiunta con successo.",
+      });
+      
+      // Auto-select the newly created work type in both forms
+      const currentWorkTypes = workOrderForm.getValues('availableWorkTypes') || [];
+      workOrderForm.setValue('availableWorkTypes', [...currentWorkTypes, response.name]);
+      
+      const currentEditWorkTypes = editWorkOrderForm.getValues('availableWorkTypes') || [];
+      editWorkOrderForm.setValue('availableWorkTypes', [...currentEditWorkTypes, response.name]);
+      
+      // Reset quick-add form
+      setQuickAddWorkTypeName("");
+      setShowQuickAddWorkType(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Errore",
+        description: error.message || "Errore durante l'aggiunta della lavorazione.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const quickAddMaterialMutation = useMutation({
+    mutationFn: async (data: MaterialForm) => {
+      return apiRequest('POST', '/api/materials', data);
+    },
+    onSuccess: (response: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/materials'] });
+      toast({
+        title: "Materiale aggiunto",
+        description: "Il nuovo materiale è stato aggiunto con successo.",
+      });
+      
+      // Auto-select the newly created material in both forms
+      const currentMaterials = workOrderForm.getValues('availableMaterials') || [];
+      workOrderForm.setValue('availableMaterials', [...currentMaterials, response.name]);
+      
+      const currentEditMaterials = editWorkOrderForm.getValues('availableMaterials') || [];
+      editWorkOrderForm.setValue('availableMaterials', [...currentEditMaterials, response.name]);
+      
+      // Reset quick-add form
+      setQuickAddMaterialName("");
+      setShowQuickAddMaterial(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Errore",
+        description: error.message || "Errore durante l'aggiunta del materiale.",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Handlers for Work Types
   const handleAddWorkType = (data: WorkTypeForm) => {
     createWorkTypeMutation.mutate(data);
@@ -870,6 +939,25 @@ export default function AdminDashboard() {
   const confirmDeleteMaterial = () => {
     if (selectedMaterial) {
       deleteMaterialMutation.mutate(selectedMaterial.id);
+    }
+  };
+
+  // Handlers for quick-add functionality
+  const handleQuickAddWorkType = () => {
+    if (quickAddWorkTypeName.trim().length >= 2) {
+      quickAddWorkTypeMutation.mutate({
+        name: quickAddWorkTypeName.trim(),
+        isActive: true,
+      });
+    }
+  };
+
+  const handleQuickAddMaterial = () => {
+    if (quickAddMaterialName.trim().length >= 2) {
+      quickAddMaterialMutation.mutate({
+        name: quickAddMaterialName.trim(),
+        isActive: true,
+      });
     }
   };
 
@@ -2453,6 +2541,60 @@ export default function AdminDashboard() {
                       {!isLoadingWorkTypes && (workTypes as any[]).filter((wt: any) => wt.isActive).length === 0 && (
                         <p className="text-sm text-muted-foreground">Nessuna lavorazione attiva disponibile</p>
                       )}
+                      
+                      {/* Quick add work type form */}
+                      {showQuickAddWorkType ? (
+                        <div className="flex gap-2 pt-2 border-t">
+                          <Input
+                            value={quickAddWorkTypeName}
+                            onChange={(e) => setQuickAddWorkTypeName(e.target.value)}
+                            placeholder="Nome lavorazione"
+                            className="flex-1"
+                            data-testid="input-quick-add-worktype"
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleQuickAddWorkType();
+                              }
+                            }}
+                          />
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={handleQuickAddWorkType}
+                            disabled={quickAddWorkTypeMutation.isPending || quickAddWorkTypeName.trim().length < 2}
+                            data-testid="button-save-quick-worktype"
+                          >
+                            Salva
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setShowQuickAddWorkType(false);
+                              setQuickAddWorkTypeName("");
+                            }}
+                            data-testid="button-cancel-quick-worktype"
+                          >
+                            Annulla
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="pt-2 border-t">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="w-full"
+                            onClick={() => setShowQuickAddWorkType(true)}
+                            data-testid="button-show-quick-add-worktype"
+                          >
+                            <Plus className="h-4 w-4 mr-2" />
+                            Nuova Lavorazione
+                          </Button>
+                        </div>
+                      )}
                     </div>
                     <FormMessage />
                   </FormItem>
@@ -2498,6 +2640,60 @@ export default function AdminDashboard() {
                       )}
                       {!isLoadingMaterials && (materials as any[]).filter((m: any) => m.isActive).length === 0 && (
                         <p className="text-sm text-muted-foreground">Nessun materiale attivo disponibile</p>
+                      )}
+                      
+                      {/* Quick add material form */}
+                      {showQuickAddMaterial ? (
+                        <div className="flex gap-2 pt-2 border-t">
+                          <Input
+                            value={quickAddMaterialName}
+                            onChange={(e) => setQuickAddMaterialName(e.target.value)}
+                            placeholder="Nome materiale"
+                            className="flex-1"
+                            data-testid="input-quick-add-material"
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleQuickAddMaterial();
+                              }
+                            }}
+                          />
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={handleQuickAddMaterial}
+                            disabled={quickAddMaterialMutation.isPending || quickAddMaterialName.trim().length < 2}
+                            data-testid="button-save-quick-material"
+                          >
+                            Salva
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setShowQuickAddMaterial(false);
+                              setQuickAddMaterialName("");
+                            }}
+                            data-testid="button-cancel-quick-material"
+                          >
+                            Annulla
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="pt-2 border-t">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="w-full"
+                            onClick={() => setShowQuickAddMaterial(true)}
+                            data-testid="button-show-quick-add-material"
+                          >
+                            <Plus className="h-4 w-4 mr-2" />
+                            Nuovo Materiale
+                          </Button>
+                        </div>
                       )}
                     </div>
                     <FormMessage />
