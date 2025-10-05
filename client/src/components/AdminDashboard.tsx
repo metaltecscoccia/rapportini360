@@ -128,6 +128,9 @@ export default function AdminDashboard() {
   const [addClientDialogOpen, setAddClientDialogOpen] = useState(false);
   const [deleteClientDialogOpen, setDeleteClientDialogOpen] = useState(false);
   const [selectedClientToDelete, setSelectedClientToDelete] = useState<any>(null);
+  const [clientWorkOrdersCount, setClientWorkOrdersCount] = useState<number>(0);
+  const [clientOperationsCount, setClientOperationsCount] = useState<number>(0);
+  const [employeeReportsCount, setEmployeeReportsCount] = useState<number>(0);
   
   // State for work types management
   const [addWorkTypeDialogOpen, setAddWorkTypeDialogOpen] = useState(false);
@@ -358,9 +361,10 @@ export default function AdminDashboard() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/work-orders'] });
       toast({
         title: "Cliente eliminato",
-        description: "Il cliente è stato eliminato con successo. Le commesse associate rimangono nel database.",
+        description: "Il cliente e tutte le commesse e operazioni associate sono stati eliminati con successo.",
       });
       setDeleteClientDialogOpen(false);
       setSelectedClientToDelete(null);
@@ -491,8 +495,19 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleDeleteEmployee = (employee: any) => {
+  const handleDeleteEmployee = async (employee: any) => {
     setSelectedEmployee(employee);
+    
+    // Fetch daily reports count
+    try {
+      const response = await fetch(`/api/users/${employee.id}/daily-reports/count`);
+      const data = await response.json();
+      setEmployeeReportsCount(data.count || 0);
+    } catch (error) {
+      console.error("Error fetching reports count:", error);
+      setEmployeeReportsCount(0);
+    }
+    
     setDeleteEmployeeDialogOpen(true);
   };
 
@@ -532,8 +547,25 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleDeleteClient = (client: any) => {
+  const handleDeleteClient = async (client: any) => {
     setSelectedClientToDelete(client);
+    
+    // Fetch work orders and operations count
+    try {
+      const [workOrdersResponse, operationsResponse] = await Promise.all([
+        fetch(`/api/clients/${client.id}/work-orders/count`),
+        fetch(`/api/clients/${client.id}/operations/count`)
+      ]);
+      const workOrdersData = await workOrdersResponse.json();
+      const operationsData = await operationsResponse.json();
+      setClientWorkOrdersCount(workOrdersData.count || 0);
+      setClientOperationsCount(operationsData.count || 0);
+    } catch (error) {
+      console.error("Error fetching client counts:", error);
+      setClientWorkOrdersCount(0);
+      setClientOperationsCount(0);
+    }
+    
     setDeleteClientDialogOpen(true);
   };
 
@@ -1709,8 +1741,15 @@ export default function AdminDashboard() {
                   <AlertDialogHeader>
                     <AlertDialogTitle>Elimina Dipendente</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Sei sicuro di voler eliminare il dipendente "{selectedEmployee?.fullName}"? 
-                      Questa azione non può essere annullata e tutti i dati associati verranno rimossi permanentemente.
+                      Sei sicuro di voler eliminare il dipendente "{selectedEmployee?.fullName}"?
+                      {employeeReportsCount > 0 && (
+                        <span className="block mt-2 font-semibold text-destructive">
+                          Questa operazione eliminerà anche {employeeReportsCount} {employeeReportsCount === 1 ? 'rapportino associato' : 'rapportini associati'}.
+                        </span>
+                      )}
+                      <span className="block mt-2">
+                        Questa azione non può essere annullata.
+                      </span>
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
@@ -2472,8 +2511,24 @@ export default function AdminDashboard() {
             <DialogTitle>Elimina Cliente</DialogTitle>
             <DialogDescription>
               Sei sicuro di voler eliminare il cliente "{selectedClientToDelete?.name}"?
-              Le commesse associate al cliente rimarranno nel database.
-              Questa azione non può essere annullata.
+              {(clientWorkOrdersCount > 0 || clientOperationsCount > 0) && (
+                <span className="block mt-2 font-semibold text-destructive">
+                  Questa operazione eliminerà anche:
+                  {clientWorkOrdersCount > 0 && (
+                    <span className="block">
+                      • {clientWorkOrdersCount} {clientWorkOrdersCount === 1 ? 'commessa' : 'commesse'}
+                    </span>
+                  )}
+                  {clientOperationsCount > 0 && (
+                    <span className="block">
+                      • {clientOperationsCount} {clientOperationsCount === 1 ? 'operazione associata' : 'operazioni associate'}
+                    </span>
+                  )}
+                </span>
+              )}
+              <span className="block mt-2">
+                Questa azione non può essere annullata.
+              </span>
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
