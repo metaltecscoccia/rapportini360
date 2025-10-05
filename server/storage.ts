@@ -1,6 +1,8 @@
 import { 
   users,
   clients,
+  workTypes,
+  materials,
   workOrders,
   dailyReports,
   operations,
@@ -8,6 +10,10 @@ import {
   type InsertUser,
   type Client,
   type InsertClient,
+  type WorkType,
+  type InsertWorkType,
+  type Material,
+  type InsertMaterial,
   type WorkOrder,
   type InsertWorkOrder,
   type DailyReport,
@@ -34,6 +40,20 @@ export interface IStorage {
   getAllClients(): Promise<Client[]>;
   createClient(client: InsertClient): Promise<Client>;
   deleteClient(id: string): Promise<boolean>;
+  
+  // Work Types (Lavorazioni)
+  getAllWorkTypes(): Promise<WorkType[]>;
+  getWorkType(id: string): Promise<WorkType | undefined>;
+  createWorkType(workType: InsertWorkType): Promise<WorkType>;
+  updateWorkType(id: string, updates: Partial<InsertWorkType>): Promise<WorkType>;
+  deleteWorkType(id: string): Promise<boolean>;
+  
+  // Materials (Materiali)
+  getAllMaterials(): Promise<Material[]>;
+  getMaterial(id: string): Promise<Material | undefined>;
+  createMaterial(material: InsertMaterial): Promise<Material>;
+  updateMaterial(id: string, updates: Partial<InsertMaterial>): Promise<Material>;
+  deleteMaterial(id: string): Promise<boolean>;
   
   // Work Orders
   getAllWorkOrders(): Promise<WorkOrder[]>;
@@ -175,6 +195,82 @@ export class DatabaseStorage implements IStorage {
   async deleteClient(id: string): Promise<boolean> {
     await this.ensureInitialized();
     const result = await db.delete(clients).where(eq(clients.id, id));
+    return result.rowCount !== null && result.rowCount > 0;
+  }
+
+  // Work Types (Lavorazioni)
+  async getAllWorkTypes(): Promise<WorkType[]> {
+    await this.ensureInitialized();
+    return await db.select().from(workTypes);
+  }
+
+  async getWorkType(id: string): Promise<WorkType | undefined> {
+    await this.ensureInitialized();
+    const [workType] = await db.select().from(workTypes).where(eq(workTypes.id, id));
+    return workType || undefined;
+  }
+
+  async createWorkType(insertWorkType: InsertWorkType): Promise<WorkType> {
+    await this.ensureInitialized();
+    const [workType] = await db.insert(workTypes).values(insertWorkType).returning();
+    return workType;
+  }
+
+  async updateWorkType(id: string, updates: Partial<InsertWorkType>): Promise<WorkType> {
+    await this.ensureInitialized();
+    const [updatedWorkType] = await db.update(workTypes)
+      .set(updates)
+      .where(eq(workTypes.id, id))
+      .returning();
+    
+    if (!updatedWorkType) {
+      throw new Error("Lavorazione non trovata");
+    }
+    
+    return updatedWorkType;
+  }
+
+  async deleteWorkType(id: string): Promise<boolean> {
+    await this.ensureInitialized();
+    const result = await db.delete(workTypes).where(eq(workTypes.id, id));
+    return result.rowCount !== null && result.rowCount > 0;
+  }
+
+  // Materials (Materiali)
+  async getAllMaterials(): Promise<Material[]> {
+    await this.ensureInitialized();
+    return await db.select().from(materials);
+  }
+
+  async getMaterial(id: string): Promise<Material | undefined> {
+    await this.ensureInitialized();
+    const [material] = await db.select().from(materials).where(eq(materials.id, id));
+    return material || undefined;
+  }
+
+  async createMaterial(insertMaterial: InsertMaterial): Promise<Material> {
+    await this.ensureInitialized();
+    const [material] = await db.insert(materials).values(insertMaterial).returning();
+    return material;
+  }
+
+  async updateMaterial(id: string, updates: Partial<InsertMaterial>): Promise<Material> {
+    await this.ensureInitialized();
+    const [updatedMaterial] = await db.update(materials)
+      .set(updates)
+      .where(eq(materials.id, id))
+      .returning();
+    
+    if (!updatedMaterial) {
+      throw new Error("Materiale non trovato");
+    }
+    
+    return updatedMaterial;
+  }
+
+  async deleteMaterial(id: string): Promise<boolean> {
+    await this.ensureInitialized();
+    const result = await db.delete(materials).where(eq(materials.id, id));
     return result.rowCount !== null && result.rowCount > 0;
   }
 
