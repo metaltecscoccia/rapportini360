@@ -2855,6 +2855,60 @@ export default function AdminDashboard() {
                       {!isLoadingWorkTypes && (workTypes as any[]).filter((wt: any) => wt.isActive).length === 0 && (
                         <p className="text-sm text-muted-foreground">Nessuna lavorazione attiva disponibile</p>
                       )}
+                      
+                      {/* Quick add work type form */}
+                      {showQuickAddWorkType ? (
+                        <div className="flex gap-2 pt-2 border-t">
+                          <Input
+                            value={quickAddWorkTypeName}
+                            onChange={(e) => setQuickAddWorkTypeName(e.target.value)}
+                            placeholder="Nome lavorazione"
+                            className="flex-1"
+                            data-testid="input-quick-add-worktype-edit"
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleQuickAddWorkType();
+                              }
+                            }}
+                          />
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={handleQuickAddWorkType}
+                            disabled={quickAddWorkTypeMutation.isPending || quickAddWorkTypeName.trim().length < 2}
+                            data-testid="button-save-quick-worktype-edit"
+                          >
+                            Salva
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setShowQuickAddWorkType(false);
+                              setQuickAddWorkTypeName("");
+                            }}
+                            data-testid="button-cancel-quick-worktype-edit"
+                          >
+                            Annulla
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="pt-2 border-t">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="w-full"
+                            onClick={() => setShowQuickAddWorkType(true)}
+                            data-testid="button-show-quick-add-worktype-edit"
+                          >
+                            <Plus className="h-4 w-4 mr-2" />
+                            Nuova Lavorazione
+                          </Button>
+                        </div>
+                      )}
                     </div>
                     <FormMessage />
                   </FormItem>
@@ -2900,6 +2954,60 @@ export default function AdminDashboard() {
                       )}
                       {!isLoadingMaterials && (materials as any[]).filter((m: any) => m.isActive).length === 0 && (
                         <p className="text-sm text-muted-foreground">Nessun materiale attivo disponibile</p>
+                      )}
+                      
+                      {/* Quick add material form */}
+                      {showQuickAddMaterial ? (
+                        <div className="flex gap-2 pt-2 border-t">
+                          <Input
+                            value={quickAddMaterialName}
+                            onChange={(e) => setQuickAddMaterialName(e.target.value)}
+                            placeholder="Nome materiale"
+                            className="flex-1"
+                            data-testid="input-quick-add-material-edit"
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleQuickAddMaterial();
+                              }
+                            }}
+                          />
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={handleQuickAddMaterial}
+                            disabled={quickAddMaterialMutation.isPending || quickAddMaterialName.trim().length < 2}
+                            data-testid="button-save-quick-material-edit"
+                          >
+                            Salva
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setShowQuickAddMaterial(false);
+                              setQuickAddMaterialName("");
+                            }}
+                            data-testid="button-cancel-quick-material-edit"
+                          >
+                            Annulla
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="pt-2 border-t">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="w-full"
+                            onClick={() => setShowQuickAddMaterial(true)}
+                            data-testid="button-show-quick-add-material-edit"
+                          >
+                            <Plus className="h-4 w-4 mr-2" />
+                            Nuovo Materiale
+                          </Button>
+                        </div>
                       )}
                     </div>
                     <FormMessage />
