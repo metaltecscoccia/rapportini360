@@ -1478,7 +1478,7 @@ export default function AdminDashboard() {
                       <TableRow>
                         <TableHead>Numero Commessa</TableHead>
                         <TableHead>Cliente</TableHead>
-                        <TableHead>Descrizione</TableHead>
+                        <TableHead>Nome</TableHead>
                         <TableHead>Stato</TableHead>
                         <TableHead>Operazioni</TableHead>
                         <TableHead>Ore Totali</TableHead>
@@ -1500,7 +1500,7 @@ export default function AdminDashboard() {
                         <TableCell>{workOrder.clientName}</TableCell>
                         <TableCell>
                           <div className="max-w-xs">
-                            {workOrder.description}
+                            {workOrder.name}
                           </div>
                         </TableCell>
                         <TableCell>
