@@ -1312,7 +1312,8 @@ export default function AdminDashboard() {
 
   // Raggruppa commesse per cliente
   const workOrdersByClient = filteredWorkOrders.reduce((acc: any, workOrder: any) => {
-    const clientName = workOrder.clientName;
+    // Safety check: assicurati che clientName non sia mai undefined/null/empty
+    const clientName = workOrder.clientName || "Cliente eliminato";
     if (!acc[clientName]) {
       acc[clientName] = [];
     }
