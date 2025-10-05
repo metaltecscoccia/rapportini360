@@ -123,7 +123,9 @@ export default function AdminDashboard() {
   const [workOrderStatusFilter, setWorkOrderStatusFilter] = useState("all");
   const [workOrderDateFilter, setWorkOrderDateFilter] = useState("all"); // all, last7days, last30days, last90days
   const [addWorkOrderDialogOpen, setAddWorkOrderDialogOpen] = useState(false);
+  const [editWorkOrderDialogOpen, setEditWorkOrderDialogOpen] = useState(false);
   const [deleteWorkOrderDialogOpen, setDeleteWorkOrderDialogOpen] = useState(false);
+  const [selectedWorkOrderToEdit, setSelectedWorkOrderToEdit] = useState<any>(null);
   const [selectedWorkOrderToDelete, setSelectedWorkOrderToDelete] = useState<any>(null);
   const [workOrderOperationsCount, setWorkOrderOperationsCount] = useState<number>(0);
   const [deleteReportDialogOpen, setDeleteReportDialogOpen] = useState(false);
@@ -162,6 +164,19 @@ export default function AdminDashboard() {
 
   // Form per aggiunta commessa
   const workOrderForm = useForm<AddWorkOrderForm>({
+    resolver: zodResolver(addWorkOrderSchema),
+    defaultValues: {
+      clientId: "",
+      name: "",
+      description: "",
+      isActive: true,
+      availableWorkTypes: [],
+      availableMaterials: [],
+    },
+  });
+
+  // Form per modifica commessa
+  const editWorkOrderForm = useForm<AddWorkOrderForm>({
     resolver: zodResolver(addWorkOrderSchema),
     defaultValues: {
       clientId: "",
@@ -457,6 +472,37 @@ export default function AdminDashboard() {
     }
   });
 
+  // Mutation per aggiornare commessa completa
+  const updateWorkOrderMutation = useMutation({
+    mutationFn: async ({ workOrderId, data }: { workOrderId: string; data: AddWorkOrderForm }) => {
+      return apiRequest('PUT', `/api/work-orders/${workOrderId}`, {
+        clientId: data.clientId,
+        name: data.name,
+        description: data.description || "",
+        isActive: data.isActive,
+        availableWorkTypes: data.availableWorkTypes || [],
+        availableMaterials: data.availableMaterials || [],
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/work-orders'] });
+      toast({
+        title: "Commessa aggiornata",
+        description: "La commessa è stata aggiornata con successo."
+      });
+      editWorkOrderForm.reset();
+      setEditWorkOrderDialogOpen(false);
+      setSelectedWorkOrderToEdit(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Errore",
+        description: error.message || "Errore durante l'aggiornamento della commessa.",
+        variant: "destructive"
+      });
+    }
+  });
+
   // Reset password mutation
   const resetPasswordMutation = useMutation({
     mutationFn: async ({ employeeId, newPassword }: { employeeId: string; newPassword: string }) => {
@@ -530,6 +576,28 @@ export default function AdminDashboard() {
 
   const handleAddWorkOrder = (data: AddWorkOrderForm) => {
     createWorkOrderMutation.mutate(data);
+  };
+
+  const handleEditWorkOrder = (workOrder: any) => {
+    setSelectedWorkOrderToEdit(workOrder);
+    editWorkOrderForm.reset({
+      clientId: workOrder.clientId,
+      name: workOrder.name,
+      description: workOrder.description || "",
+      isActive: workOrder.isActive ?? true,
+      availableWorkTypes: workOrder.availableWorkTypes || [],
+      availableMaterials: workOrder.availableMaterials || [],
+    });
+    setEditWorkOrderDialogOpen(true);
+  };
+
+  const handleUpdateWorkOrder = (data: AddWorkOrderForm) => {
+    if (selectedWorkOrderToEdit) {
+      updateWorkOrderMutation.mutate({
+        workOrderId: selectedWorkOrderToEdit.id,
+        data
+      });
+    }
   };
 
   const handleDeleteWorkOrder = async (workOrder: any) => {
@@ -1471,6 +1539,14 @@ export default function AdminDashboard() {
                             >
                               <Eye className="h-4 w-4 mr-2" />
                               Visualizza Report
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleEditWorkOrder(workOrder)}
+                              data-testid={`button-edit-workorder-${workOrder.id}`}
+                            >
+                              <Edit className="h-4 w-4" />
                             </Button>
                             <Button
                               variant="outline"
@@ -2466,6 +2542,212 @@ export default function AdminDashboard() {
                   data-testid="button-submit-add-workorder"
                 >
                   {createWorkOrderMutation.isPending ? "Creazione..." : "Crea Commessa"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog per modificare commessa */}
+      <Dialog open={editWorkOrderDialogOpen} onOpenChange={setEditWorkOrderDialogOpen}>
+        <DialogContent className="sm:max-w-[425px] max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Modifica Commessa</DialogTitle>
+            <DialogDescription>
+              Modifica i dati della commessa.
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...editWorkOrderForm}>
+            <form onSubmit={editWorkOrderForm.handleSubmit(handleUpdateWorkOrder)} className="space-y-4">
+              <FormField
+                control={editWorkOrderForm.control}
+                name="clientId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Cliente</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-edit-workorder-client">
+                          <SelectValue placeholder="Seleziona cliente" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {(clients as any[]).map((client: any) => (
+                          <SelectItem key={client.id} value={client.id}>
+                            {client.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={editWorkOrderForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome Commessa</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="Es. Cancello Automatico" 
+                        {...field} 
+                        data-testid="input-edit-workorder-name"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={editWorkOrderForm.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Descrizione (opzionale)</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="Es. Realizzazione cancello industriale..." 
+                        {...field} 
+                        data-testid="input-edit-workorder-description"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={editWorkOrderForm.control}
+                name="availableWorkTypes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Lavorazioni disponibili</FormLabel>
+                    <div className="space-y-2 border rounded-lg p-3 max-h-48 overflow-y-auto">
+                      {isLoadingWorkTypes ? (
+                        <p className="text-sm text-muted-foreground">Caricamento lavorazioni...</p>
+                      ) : (
+                        (workTypes as any[])
+                          .filter((wt: any) => wt.isActive)
+                          .map((workType: any) => (
+                            <div key={workType.id} className="flex items-center space-x-2">
+                              <input
+                                type="checkbox"
+                                id={`edit-worktype-${workType.id}`}
+                                className="h-4 w-4"
+                                checked={field.value?.includes(workType.name) || false}
+                                onChange={(e) => {
+                                  const currentValues = field.value || [];
+                                  if (e.target.checked) {
+                                    field.onChange([...currentValues, workType.name]);
+                                  } else {
+                                    field.onChange(currentValues.filter((v: string) => v !== workType.name));
+                                  }
+                                }}
+                                data-testid={`checkbox-edit-worktype-${workType.id}`}
+                              />
+                              <Label 
+                                htmlFor={`edit-worktype-${workType.id}`}
+                                className="text-sm font-normal cursor-pointer"
+                              >
+                                {workType.name}
+                              </Label>
+                            </div>
+                          ))
+                      )}
+                      {!isLoadingWorkTypes && (workTypes as any[]).filter((wt: any) => wt.isActive).length === 0 && (
+                        <p className="text-sm text-muted-foreground">Nessuna lavorazione attiva disponibile</p>
+                      )}
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={editWorkOrderForm.control}
+                name="availableMaterials"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Materiali disponibili</FormLabel>
+                    <div className="space-y-2 border rounded-lg p-3 max-h-48 overflow-y-auto">
+                      {isLoadingMaterials ? (
+                        <p className="text-sm text-muted-foreground">Caricamento materiali...</p>
+                      ) : (
+                        (materials as any[])
+                          .filter((m: any) => m.isActive)
+                          .map((material: any) => (
+                            <div key={material.id} className="flex items-center space-x-2">
+                              <input
+                                type="checkbox"
+                                id={`edit-material-${material.id}`}
+                                className="h-4 w-4"
+                                checked={field.value?.includes(material.name) || false}
+                                onChange={(e) => {
+                                  const currentValues = field.value || [];
+                                  if (e.target.checked) {
+                                    field.onChange([...currentValues, material.name]);
+                                  } else {
+                                    field.onChange(currentValues.filter((v: string) => v !== material.name));
+                                  }
+                                }}
+                                data-testid={`checkbox-edit-material-${material.id}`}
+                              />
+                              <Label 
+                                htmlFor={`edit-material-${material.id}`}
+                                className="text-sm font-normal cursor-pointer"
+                              >
+                                {material.name}
+                              </Label>
+                            </div>
+                          ))
+                      )}
+                      {!isLoadingMaterials && (materials as any[]).filter((m: any) => m.isActive).length === 0 && (
+                        <p className="text-sm text-muted-foreground">Nessun materiale attivo disponibile</p>
+                      )}
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={editWorkOrderForm.control}
+                name="isActive"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                    <div className="space-y-0.5">
+                      <FormLabel>Commessa Attiva</FormLabel>
+                      <p className="text-sm text-muted-foreground">
+                        La commessa è in corso
+                      </p>
+                    </div>
+                    <FormControl>
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4"
+                        checked={field.value}
+                        onChange={field.onChange}
+                        data-testid="checkbox-edit-workorder-active"
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setEditWorkOrderDialogOpen(false)}
+                  data-testid="button-cancel-edit-workorder"
+                >
+                  Annulla
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={updateWorkOrderMutation.isPending}
+                  data-testid="button-submit-edit-workorder"
+                >
+                  {updateWorkOrderMutation.isPending ? "Salvataggio..." : "Salva Modifiche"}
                 </Button>
               </DialogFooter>
             </form>
