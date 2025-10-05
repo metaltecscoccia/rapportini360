@@ -692,6 +692,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get operations count for a specific work order
+  app.get("/api/work-orders/:workOrderId/operations/count", requireAuth, async (req, res) => {
+    try {
+      const { workOrderId } = req.params;
+      const count = await storage.getOperationsCountByWorkOrderId(workOrderId);
+      res.json({ count });
+    } catch (error) {
+      console.error("Error fetching work order operations count:", error);
+      res.status(500).json({ error: "Failed to fetch operations count" });
+    }
+  });
+
   // Get operations for a specific work order (for final report)
   app.get("/api/work-orders/:workOrderId/operations", requireAuth, async (req, res) => {
     try {
