@@ -93,7 +93,7 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="password">Password {username.toLowerCase() === 'admin' && <span className="text-muted-foreground text-xs">(opzionale per admin)</span>}</Label>
+              <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
                 type="password"
