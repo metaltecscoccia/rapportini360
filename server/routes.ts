@@ -134,6 +134,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get daily reports count for a user (admin only)
+  app.get("/api/users/:id/daily-reports/count", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const count = await storage.getDailyReportsCountByEmployeeId(id);
+      res.json({ count });
+    } catch (error) {
+      console.error("Error counting daily reports:", error);
+      res.status(500).json({ error: "Failed to count daily reports" });
+    }
+  });
+
   // Delete user (admin only)
   app.delete("/api/users/:id", requireAdmin, async (req, res) => {
     try {
@@ -150,6 +162,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "Non è possibile eliminare utenti amministratori" });
       }
       
+      // Delete all daily reports (and their operations) for this employee
+      await storage.deleteDailyReportsByEmployeeId(id);
+      
+      // Delete the user
       const deleted = await storage.deleteUser(id);
       
       if (deleted) {
@@ -298,10 +314,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Delete client (admin only) - work orders and operations remain in database
+  // Get work orders count for a client (admin only)
+  app.get("/api/clients/:id/work-orders/count", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const count = await storage.getWorkOrdersCountByClientId(id);
+      res.json({ count });
+    } catch (error) {
+      console.error("Error counting work orders:", error);
+      res.status(500).json({ error: "Failed to count work orders" });
+    }
+  });
+
+  // Get operations count for a client (admin only)
+  app.get("/api/clients/:id/operations/count", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const count = await storage.getOperationsCountByClientId(id);
+      res.json({ count });
+    } catch (error) {
+      console.error("Error counting operations:", error);
+      res.status(500).json({ error: "Failed to count operations" });
+    }
+  });
+
+  // Delete client (admin only) - cascading delete of work orders and operations
   app.delete("/api/clients/:id", requireAdmin, async (req, res) => {
     try {
       const { id } = req.params;
+      
+      // First delete all operations for this client's work orders
+      await storage.deleteOperationsByClientId(id);
+      
+      // Then delete all work orders for this client
+      await storage.deleteWorkOrdersByClientId(id);
+      
+      // Finally delete the client
       const deleted = await storage.deleteClient(id);
       
       if (!deleted) {

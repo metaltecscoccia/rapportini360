@@ -77,12 +77,20 @@ export interface IStorage {
   getOperationsByReportId(reportId: string): Promise<Operation[]>;
   getOperationsByWorkOrderId(workOrderId: string): Promise<Operation[]>;
   getOperationsCountByWorkOrderId(workOrderId: string): Promise<number>;
+  getOperationsCountByClientId(clientId: string): Promise<number>;
   getOperation(id: string): Promise<Operation | undefined>;
   createOperation(operation: InsertOperation): Promise<Operation>;
   updateOperation(id: string, updates: UpdateOperation): Promise<Operation>;
   deleteOperation(id: string): Promise<boolean>;
   deleteOperationsByReportId(reportId: string): Promise<boolean>;
   deleteOperationsByWorkOrderId(workOrderId: string): Promise<boolean>;
+  deleteOperationsByClientId(clientId: string): Promise<boolean>;
+  
+  // Counts for cascade delete
+  getDailyReportsCountByEmployeeId(employeeId: string): Promise<number>;
+  getWorkOrdersCountByClientId(clientId: string): Promise<number>;
+  deleteDailyReportsByEmployeeId(employeeId: string): Promise<boolean>;
+  deleteWorkOrdersByClientId(clientId: string): Promise<boolean>;
   
   // Statistics
   getWorkOrdersStats(): Promise<Array<{
@@ -440,6 +448,74 @@ export class DatabaseStorage implements IStorage {
   async deleteOperationsByWorkOrderId(workOrderId: string): Promise<boolean> {
     await this.ensureInitialized();
     const result = await db.delete(operations).where(eq(operations.workOrderId, workOrderId));
+    return result.rowCount !== null && result.rowCount > 0;
+  }
+
+  async getOperationsCountByClientId(clientId: string): Promise<number> {
+    await this.ensureInitialized();
+    const clientWorkOrders = await db.select().from(workOrders).where(eq(workOrders.clientId, clientId));
+    const workOrderIds = clientWorkOrders.map(wo => wo.id);
+    
+    if (workOrderIds.length === 0) {
+      return 0;
+    }
+    
+    const ops = await db.select().from(operations);
+    const count = ops.filter(op => workOrderIds.includes(op.workOrderId)).length;
+    return count;
+  }
+
+  async deleteOperationsByClientId(clientId: string): Promise<boolean> {
+    await this.ensureInitialized();
+    const clientWorkOrders = await db.select().from(workOrders).where(eq(workOrders.clientId, clientId));
+    const workOrderIds = clientWorkOrders.map(wo => wo.id);
+    
+    if (workOrderIds.length === 0) {
+      return true;
+    }
+    
+    let totalDeleted = 0;
+    for (const workOrderId of workOrderIds) {
+      const result = await db.delete(operations).where(eq(operations.workOrderId, workOrderId));
+      if (result.rowCount) totalDeleted += result.rowCount;
+    }
+    
+    return totalDeleted > 0;
+  }
+
+  async getDailyReportsCountByEmployeeId(employeeId: string): Promise<number> {
+    await this.ensureInitialized();
+    const reports = await db.select().from(dailyReports).where(eq(dailyReports.employeeId, employeeId));
+    return reports.length;
+  }
+
+  async getWorkOrdersCountByClientId(clientId: string): Promise<number> {
+    await this.ensureInitialized();
+    const orders = await db.select().from(workOrders).where(eq(workOrders.clientId, clientId));
+    return orders.length;
+  }
+
+  async deleteDailyReportsByEmployeeId(employeeId: string): Promise<boolean> {
+    await this.ensureInitialized();
+    const employeeReports = await db.select().from(dailyReports).where(eq(dailyReports.employeeId, employeeId));
+    
+    for (const report of employeeReports) {
+      await this.deleteOperationsByReportId(report.id);
+    }
+    
+    const result = await db.delete(dailyReports).where(eq(dailyReports.employeeId, employeeId));
+    return result.rowCount !== null && result.rowCount > 0;
+  }
+
+  async deleteWorkOrdersByClientId(clientId: string): Promise<boolean> {
+    await this.ensureInitialized();
+    const clientWorkOrders = await db.select().from(workOrders).where(eq(workOrders.clientId, clientId));
+    
+    for (const workOrder of clientWorkOrders) {
+      await this.deleteOperationsByWorkOrderId(workOrder.id);
+    }
+    
+    const result = await db.delete(workOrders).where(eq(workOrders.clientId, clientId));
     return result.rowCount !== null && result.rowCount > 0;
   }
 
