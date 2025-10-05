@@ -29,18 +29,19 @@ interface EnrichedOperation {
   reportStatus: string;
 }
 
-// Interface for aggregated data by date
-interface DailyAggregatedData {
+// Interface for employee row data
+interface EmployeeReportRow {
   date: string;
-  employees: string[];
+  employeeName: string;
+  employeeId: string;
+  hours: number;
   workTypes: string[];
-  hours: Record<string, number>;
-  totalHours: number;
+  employeeNotes: string | null;
   adminNotes: string;
 }
 
-// Function to aggregate operations by date
-function aggregateOperationsByDate(operations: EnrichedOperation[]): DailyAggregatedData[] {
+// Function to create employee rows grouped by date
+function createEmployeeRows(operations: EnrichedOperation[]): EmployeeReportRow[] {
   const groupedByDate = operations.reduce((acc, op) => {
     if (!acc[op.date]) {
       acc[op.date] = [];
@@ -49,31 +50,37 @@ function aggregateOperationsByDate(operations: EnrichedOperation[]): DailyAggreg
     return acc;
   }, {} as Record<string, EnrichedOperation[]>);
 
-  return Object.entries(groupedByDate).map(([date, ops]) => {
-      const employees = Array.from(new Set(ops.map(op => op.employeeName)));
-    const workTypes = Array.from(new Set(ops.flatMap(op => op.workTypes)));
-    
-    const hours: Record<string, number> = {};
-    ops.forEach(op => {
-      const hoursWorked = Number(op.hours) || 0;
-      
-      if (!hours[op.employeeName]) {
-        hours[op.employeeName] = 0;
-      }
-      hours[op.employeeName] += hoursWorked;
+  const rows: EmployeeReportRow[] = [];
+  
+  Object.entries(groupedByDate)
+    .sort(([dateA], [dateB]) => new Date(dateA).getTime() - new Date(dateB).getTime())
+    .forEach(([date, ops]) => {
+      const employeeOps = ops.reduce((acc, op) => {
+        if (!acc[op.employeeId]) {
+          acc[op.employeeId] = [];
+        }
+        acc[op.employeeId].push(op);
+        return acc;
+      }, {} as Record<string, EnrichedOperation[]>);
+
+      Object.entries(employeeOps).forEach(([employeeId, empOps]) => {
+        const totalHours = empOps.reduce((sum, op) => sum + (Number(op.hours) || 0), 0);
+        const workTypes = Array.from(new Set(empOps.flatMap(op => op.workTypes)));
+        const notes = empOps.map(op => op.notes).filter(n => n).join("; ") || null;
+        
+        rows.push({
+          date,
+          employeeName: empOps[0].employeeName,
+          employeeId,
+          hours: totalHours,
+          workTypes,
+          employeeNotes: notes,
+          adminNotes: ""
+        });
+      });
     });
-    
-    const totalHours = Object.values(hours).reduce((sum, h) => sum + h, 0);
-    
-    return {
-      date,
-      employees,
-      workTypes,
-      hours,
-      totalHours,
-      adminNotes: ""
-    };
-  }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+  return rows;
 }
 
 export default function WorkOrderReport({ 
@@ -89,22 +96,18 @@ export default function WorkOrderReport({
     enabled: !!workOrderId
   });
 
-  // Aggregate operations by date
-  const reportData = aggregateOperationsByDate(operations);
+  // Create employee rows grouped by date
+  const reportData = createEmployeeRows(operations);
   const [adminNotes, setAdminNotes] = useState<Record<string, string>>({});
 
-  const updateAdminNotes = (date: string, notes: string) => {
+  const updateAdminNotes = (rowKey: string, notes: string) => {
     setAdminNotes(prev => ({
       ...prev,
-      [date]: notes
+      [rowKey]: notes
     }));
   };
 
-  const formatEmployeeHours = (employees: string[], hours: Record<string, number>) => {
-    return employees.map(emp => `${emp} (${hours[emp] || 0}h)`).join(", ");
-  };
-
-  const totalProjectHours = reportData.reduce((sum, row) => sum + row.totalHours, 0);
+  const totalProjectHours = reportData.reduce((sum: number, row: EmployeeReportRow) => sum + row.hours, 0);
 
   const handleExportReport = async () => {
     try {
@@ -174,7 +177,9 @@ export default function WorkOrderReport({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Giorni Lavorativi</p>
-              <p className="text-2xl font-bold">{reportData.length}</p>
+              <p className="text-2xl font-bold">
+                {new Set(reportData.map(row => row.date)).size}
+              </p>
             </div>
             <div>
               <p className="text-sm font-medium text-muted-foreground">Ore Totali Progetto</p>
@@ -183,7 +188,7 @@ export default function WorkOrderReport({
             <div>
               <p className="text-sm font-medium text-muted-foreground">Dipendenti Coinvolti</p>
               <p className="text-2xl font-bold">
-                {new Set(reportData.flatMap(row => row.employees)).size}
+                {new Set(reportData.map(row => row.employeeId)).size}
               </p>
             </div>
           </div>
@@ -203,74 +208,69 @@ export default function WorkOrderReport({
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto" data-testid="scroll-table-workorder">
-            <Table className="min-w-[800px]">
+            <Table className="min-w-[900px]">
               <TableHeader>
                 <TableRow className="border-b">
                   <TableHead className="h-8 px-3 text-xs font-semibold w-[90px]">Data</TableHead>
-                  <TableHead className="h-8 px-3 text-xs font-semibold w-[140px]">Dipendenti</TableHead>
+                  <TableHead className="h-8 px-3 text-xs font-semibold w-[140px]">Dipendente</TableHead>
                   <TableHead className="h-8 px-3 text-xs font-semibold w-[80px]">Ore</TableHead>
-                  <TableHead className="h-8 px-3 text-xs font-semibold min-w-[180px]">Lavorazioni</TableHead>
-                  <TableHead className="h-8 px-3 text-xs font-semibold min-w-[200px]">Note Admin</TableHead>
+                  <TableHead className="h-8 px-3 text-xs font-semibold min-w-[160px]">Lavorazioni</TableHead>
+                  <TableHead className="h-8 px-3 text-xs font-semibold min-w-[180px]">Note Dipendente</TableHead>
+                  <TableHead className="h-8 px-3 text-xs font-semibold min-w-[180px]">Note Admin</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {reportData.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="h-20 text-center text-sm text-muted-foreground">
+                    <TableCell colSpan={6} className="h-20 text-center text-sm text-muted-foreground">
                       Nessuna operazione approvata per questa commessa
                     </TableCell>
                   </TableRow>
                 ) : (
-                  reportData.map((row, index) => (
-                    <TableRow key={row.date} className="hover-elevate">
-                      <TableCell className="h-10 px-3 py-1 text-xs font-medium">
-                        {new Date(row.date).toLocaleDateString('it-IT', { 
-                          day: '2-digit', 
-                          month: '2-digit',
-                          year: '2-digit'
-                        })}
-                      </TableCell>
-                      <TableCell className="h-10 px-3 py-1">
-                        <div className="text-xs space-y-0.5">
-                          {row.employees.map((emp, empIndex) => (
-                            <div key={empIndex} className="truncate" title={emp}>
-                              {emp}
-                            </div>
-                          ))}
-                        </div>
-                      </TableCell>
-                      <TableCell className="h-10 px-3 py-1">
-                        <div className="text-xs space-y-0.5">
-                          {row.employees.map((emp, empIndex) => (
-                            <div key={empIndex} className="font-medium">
-                              {(row.hours as any)[emp]?.toFixed(1) || 0}h
-                            </div>
-                          ))}
-                          <div className="font-semibold text-primary pt-0.5 border-t mt-0.5">
-                            {row.totalHours.toFixed(1)}h
+                  reportData.map((row: EmployeeReportRow, index: number) => {
+                    const rowKey = `${row.date}-${row.employeeId}`;
+                    const prevRow = index > 0 ? reportData[index - 1] : null;
+                    const showDate = !prevRow || prevRow.date !== row.date;
+                    
+                    return (
+                      <TableRow key={rowKey} className="hover-elevate">
+                        <TableCell className="h-10 px-3 py-1 text-xs font-medium">
+                          {showDate ? new Date(row.date).toLocaleDateString('it-IT', { 
+                            day: '2-digit', 
+                            month: '2-digit',
+                            year: '2-digit'
+                          }) : ''}
+                        </TableCell>
+                        <TableCell className="h-10 px-3 py-1 text-xs">
+                          {row.employeeName}
+                        </TableCell>
+                        <TableCell className="h-10 px-3 py-1 text-xs font-medium">
+                          {row.hours.toFixed(1)}h
+                        </TableCell>
+                        <TableCell className="h-10 px-3 py-1">
+                          <div className="flex flex-wrap gap-1">
+                            {row.workTypes.map((type: string, typeIndex: number) => (
+                              <Badge key={typeIndex} variant="secondary" className="text-[10px] h-4 px-1.5 py-0">
+                                {type}
+                              </Badge>
+                            ))}
                           </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="h-10 px-3 py-1">
-                        <div className="flex flex-wrap gap-1">
-                          {row.workTypes.map((type, typeIndex) => (
-                            <Badge key={typeIndex} variant="secondary" className="text-[10px] h-4 px-1.5 py-0">
-                              {type}
-                            </Badge>
-                          ))}
-                        </div>
-                      </TableCell>
-                      <TableCell className="h-10 px-3 py-1">
-                        <Input
-                          placeholder="Note..."
-                          value={adminNotes[row.date] || row.adminNotes}
-                          onChange={(e) => updateAdminNotes(row.date, e.target.value)}
-                          className="text-xs h-7 px-2"
-                          data-testid={`input-admin-notes-${index}`}
-                        />
-                      </TableCell>
-                    </TableRow>
-                  ))
+                        </TableCell>
+                        <TableCell className="h-10 px-3 py-1 text-xs text-muted-foreground">
+                          {row.employeeNotes || '-'}
+                        </TableCell>
+                        <TableCell className="h-10 px-3 py-1">
+                          <Input
+                            placeholder="Note..."
+                            value={adminNotes[rowKey] || row.adminNotes}
+                            onChange={(e) => updateAdminNotes(rowKey, e.target.value)}
+                            className="text-xs h-7 px-2"
+                            data-testid={`input-admin-notes-${index}`}
+                          />
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
                 )}
               </TableBody>
             </Table>
