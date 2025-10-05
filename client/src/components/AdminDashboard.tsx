@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Switch } from "@/components/ui/switch";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -52,6 +53,7 @@ const editEmployeeSchema = z.object({
   fullName: z.string().min(2, "Il nome deve essere di almeno 2 caratteri"),
   username: z.string().min(3, "L'username deve essere di almeno 3 caratteri"),
   password: z.string().min(1, "Password è richiesta").optional().or(z.literal("")),
+  isActive: z.boolean().default(true),
 });
 
 // Schema per creazione commessa
@@ -97,6 +99,7 @@ export default function AdminDashboard() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [reportDateFilter, setReportDateFilter] = useState("all"); // all, last7days, last30days, last90days, currentYear
+  const [employeeStatusFilter, setEmployeeStatusFilter] = useState("all"); // all, active, inactive
   const [selectedTab, setSelectedTab] = useState("reports");
   const [selectedWorkOrder, setSelectedWorkOrder] = useState<{
     id: string;
@@ -177,6 +180,7 @@ export default function AdminDashboard() {
       fullName: "",
       username: "",
       password: "",
+      isActive: true,
     },
   });
 
@@ -487,6 +491,7 @@ export default function AdminDashboard() {
       fullName: employee.fullName,
       username: employee.username,
       password: "", // Password vuota per default
+      isActive: employee.isActive ?? true,
     });
     setEditEmployeeDialogOpen(true);
   };
@@ -1716,6 +1721,29 @@ export default function AdminDashboard() {
                           </FormItem>
                         )}
                       />
+                      <FormField
+                        control={editForm.control}
+                        name="isActive"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                            <div className="space-y-0.5">
+                              <FormLabel className="text-base">
+                                Stato Dipendente
+                              </FormLabel>
+                              <div className="text-sm text-muted-foreground">
+                                {field.value ? "Attivo" : "Licenziato"}
+                              </div>
+                            </div>
+                            <FormControl>
+                              <Switch
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                                data-testid="switch-employee-active"
+                              />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
                       <DialogFooter>
                         <Button 
                           type="button" 
@@ -1769,6 +1797,19 @@ export default function AdminDashboard() {
               </AlertDialog>
             </CardHeader>
             <CardContent>
+              <div className="mb-4">
+                <Label>Filtra per Stato</Label>
+                <Select value={employeeStatusFilter} onValueChange={setEmployeeStatusFilter}>
+                  <SelectTrigger className="w-[200px]" data-testid="select-employee-status-filter">
+                    <SelectValue placeholder="Seleziona stato" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tutti i dipendenti</SelectItem>
+                    <SelectItem value="active">Solo attivi</SelectItem>
+                    <SelectItem value="inactive">Solo licenziati</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               {isLoadingEmployees ? (
                 <div className="text-center py-8 text-muted-foreground">
                   Caricamento dipendenti...
@@ -1782,11 +1823,19 @@ export default function AdminDashboard() {
                         <TableHead>Username</TableHead>
                         <TableHead>Password Attuale</TableHead>
                         <TableHead>Ruolo</TableHead>
+                        <TableHead>Stato</TableHead>
                         <TableHead>Azioni</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                    {(employees as any[]).filter((emp: any) => emp.role === 'employee').map((employee: any) => (
+                    {(employees as any[])
+                      .filter((emp: any) => emp.role === 'employee')
+                      .filter((emp: any) => {
+                        if (employeeStatusFilter === "active") return emp.isActive === true;
+                        if (employeeStatusFilter === "inactive") return emp.isActive === false;
+                        return true;
+                      })
+                      .map((employee: any) => (
                       <TableRow key={employee.id}>
                         <TableCell className="font-medium">{employee.fullName}</TableCell>
                         <TableCell>{employee.username}</TableCell>
@@ -1797,6 +1846,11 @@ export default function AdminDashboard() {
                         </TableCell>
                         <TableCell>
                           <Badge variant="secondary">Dipendente</Badge>
+                        </TableCell>
+                        <TableCell data-testid={`text-employee-status-${employee.id}`}>
+                          <Badge variant={employee.isActive ? "default" : "outline"}>
+                            {employee.isActive ? "Attivo" : "Licenziato"}
+                          </Badge>
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-2">
