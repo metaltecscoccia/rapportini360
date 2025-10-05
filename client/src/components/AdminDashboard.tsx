@@ -820,25 +820,62 @@ export default function AdminDashboard() {
     mutationFn: async (data: WorkTypeForm) => {
       return apiRequest('POST', '/api/work-types', data);
     },
+    onMutate: async (newWorkType: WorkTypeForm) => {
+      // Cancel any outgoing refetches to avoid overwriting optimistic update
+      await queryClient.cancelQueries({ queryKey: ['/api/work-types'] });
+      
+      // Snapshot the previous value for rollback
+      const previousWorkTypes = queryClient.getQueryData(['/api/work-types']);
+      
+      // Optimistically update the cache with a temporary ID
+      const optimisticWorkType = {
+        id: `temp-${Date.now()}`,
+        name: newWorkType.name,
+        description: newWorkType.description || "",
+        isActive: true,
+      };
+      
+      queryClient.setQueryData(['/api/work-types'], (old: any) => {
+        return old ? [...old, optimisticWorkType] : [optimisticWorkType];
+      });
+      
+      // Auto-select the newly created work type in both forms immediately
+      const currentWorkTypes = workOrderForm.getValues('availableWorkTypes') || [];
+      workOrderForm.setValue('availableWorkTypes', [...currentWorkTypes, newWorkType.name]);
+      
+      const currentEditWorkTypes = editWorkOrderForm.getValues('availableWorkTypes') || [];
+      editWorkOrderForm.setValue('availableWorkTypes', [...currentEditWorkTypes, newWorkType.name]);
+      
+      // Return context for rollback
+      return { previousWorkTypes, workTypeName: newWorkType.name };
+    },
     onSuccess: (response: any) => {
+      // Refetch to get the real data from server
       queryClient.invalidateQueries({ queryKey: ['/api/work-types'] });
       toast({
         title: "Lavorazione aggiunta",
         description: "La nuova lavorazione è stata aggiunta con successo.",
       });
       
-      // Auto-select the newly created work type in both forms
-      const currentWorkTypes = workOrderForm.getValues('availableWorkTypes') || [];
-      workOrderForm.setValue('availableWorkTypes', [...currentWorkTypes, response.name]);
-      
-      const currentEditWorkTypes = editWorkOrderForm.getValues('availableWorkTypes') || [];
-      editWorkOrderForm.setValue('availableWorkTypes', [...currentEditWorkTypes, response.name]);
-      
       // Reset quick-add form
       setQuickAddWorkTypeName("");
       setShowQuickAddWorkType(false);
     },
-    onError: (error: any) => {
+    onError: (error: any, newWorkType: WorkTypeForm, context: any) => {
+      // Rollback optimistic update
+      if (context?.previousWorkTypes) {
+        queryClient.setQueryData(['/api/work-types'], context.previousWorkTypes);
+      }
+      
+      // Remove from form selections
+      if (context?.workTypeName) {
+        const currentWorkTypes = workOrderForm.getValues('availableWorkTypes') || [];
+        workOrderForm.setValue('availableWorkTypes', currentWorkTypes.filter((wt: string) => wt !== context.workTypeName));
+        
+        const currentEditWorkTypes = editWorkOrderForm.getValues('availableWorkTypes') || [];
+        editWorkOrderForm.setValue('availableWorkTypes', currentEditWorkTypes.filter((wt: string) => wt !== context.workTypeName));
+      }
+      
       toast({
         title: "Errore",
         description: error.message || "Errore durante l'aggiunta della lavorazione.",
