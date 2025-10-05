@@ -1310,6 +1310,19 @@ export default function AdminDashboard() {
     return true;
   });
 
+  // Raggruppa commesse per cliente
+  const workOrdersByClient = filteredWorkOrders.reduce((acc: any, workOrder: any) => {
+    const clientName = workOrder.clientName;
+    if (!acc[clientName]) {
+      acc[clientName] = [];
+    }
+    acc[clientName].push(workOrder);
+    return acc;
+  }, {});
+
+  // Ordina i clienti alfabeticamente
+  const sortedClientNames = Object.keys(workOrdersByClient).sort((a, b) => a.localeCompare(b));
+
   return (
     <div className="p-6 space-y-6">
       {/* Dashboard Header */}
@@ -1634,97 +1647,108 @@ export default function AdminDashboard() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="overflow-x-auto" data-testid="scroll-table-workorders">
-                  <Table className="min-w-[1000px]">
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Numero Commessa</TableHead>
-                        <TableHead>Cliente</TableHead>
-                        <TableHead>Nome</TableHead>
-                        <TableHead>Stato</TableHead>
-                        <TableHead>Operazioni</TableHead>
-                        <TableHead>Ore Totali</TableHead>
-                        <TableHead>Ultima Attività</TableHead>
-                        <TableHead>Azioni</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                    {filteredWorkOrders.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
-                          Nessuna commessa trovata con i filtri selezionati
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      filteredWorkOrders.map((workOrder) => (
-                      <TableRow key={workOrder.id}>
-                        <TableCell className="font-medium">{workOrder.number}</TableCell>
-                        <TableCell>{workOrder.clientName}</TableCell>
-                        <TableCell>
-                          <div className="max-w-xs">
-                            {workOrder.name}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Select
-                            value={workOrder.isActive ? "in-corso" : "completato"}
-                            onValueChange={(value) => {
-                              const isActive = value === "in-corso";
-                              updateWorkOrderStatusMutation.mutate({ workOrderId: workOrder.id, isActive });
-                            }}
-                            disabled={updateWorkOrderStatusMutation.isPending}
-                          >
-                            <SelectTrigger 
-                              className="w-[140px]" 
-                              data-testid={`select-workorder-status-${workOrder.id}`}
-                            >
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="in-corso">In Corso</SelectItem>
-                              <SelectItem value="completato">Completato</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{workOrder.totalOperations} operazioni</Badge>
-                        </TableCell>
-                        <TableCell className="font-medium">{workOrder.totalHours}h</TableCell>
-                        <TableCell>{workOrder.lastActivity}</TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleSelectWorkOrder(workOrder)}
-                              data-testid={`button-view-workorder-${workOrder.id}`}
-                            >
-                              <Eye className="h-4 w-4 mr-2" />
-                              Visualizza Report
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleEditWorkOrder(workOrder)}
-                              data-testid={`button-edit-workorder-${workOrder.id}`}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleDeleteWorkOrder(workOrder)}
-                              data-testid={`button-delete-workorder-${workOrder.id}`}
-                            >
-                              <Trash className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    )))}
-                  </TableBody>
-                </Table>
-                </div>
+                {filteredWorkOrders.length === 0 ? (
+                  <div className="text-center text-muted-foreground py-8">
+                    Nessuna commessa trovata con i filtri selezionati
+                  </div>
+                ) : (
+                  <div className="space-y-6" data-testid="scroll-table-workorders">
+                    {sortedClientNames.map((clientName) => (
+                      <div key={clientName} className="space-y-3">
+                        {/* Intestazione Cliente */}
+                        <div className="flex items-center gap-2 pb-2 border-b-2 border-primary">
+                          <Building2 className="h-5 w-5 text-primary" />
+                          <h3 className="text-lg font-semibold text-primary">{clientName}</h3>
+                          <Badge variant="outline" className="ml-2">
+                            {workOrdersByClient[clientName].length} {workOrdersByClient[clientName].length === 1 ? 'commessa' : 'commesse'}
+                          </Badge>
+                        </div>
+                        
+                        {/* Tabella Commesse del Cliente */}
+                        <div className="overflow-x-auto">
+                          <Table className="min-w-[900px]">
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Nome</TableHead>
+                                <TableHead>Stato</TableHead>
+                                <TableHead>Operazioni</TableHead>
+                                <TableHead>Ore Totali</TableHead>
+                                <TableHead>Ultima Attività</TableHead>
+                                <TableHead>Azioni</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {workOrdersByClient[clientName].map((workOrder: any) => (
+                                <TableRow key={workOrder.id}>
+                                  <TableCell>
+                                    <div className="max-w-xs font-medium">
+                                      {workOrder.name}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Select
+                                      value={workOrder.isActive ? "in-corso" : "completato"}
+                                      onValueChange={(value) => {
+                                        const isActive = value === "in-corso";
+                                        updateWorkOrderStatusMutation.mutate({ workOrderId: workOrder.id, isActive });
+                                      }}
+                                      disabled={updateWorkOrderStatusMutation.isPending}
+                                    >
+                                      <SelectTrigger 
+                                        className="w-[140px]" 
+                                        data-testid={`select-workorder-status-${workOrder.id}`}
+                                      >
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="in-corso">In Corso</SelectItem>
+                                        <SelectItem value="completato">Completato</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge variant="outline">{workOrder.totalOperations} operazioni</Badge>
+                                  </TableCell>
+                                  <TableCell className="font-medium">{workOrder.totalHours}h</TableCell>
+                                  <TableCell>{workOrder.lastActivity}</TableCell>
+                                  <TableCell>
+                                    <div className="flex gap-2">
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => handleSelectWorkOrder(workOrder)}
+                                        data-testid={`button-view-workorder-${workOrder.id}`}
+                                      >
+                                        <Eye className="h-4 w-4 mr-2" />
+                                        Visualizza Report
+                                      </Button>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => handleEditWorkOrder(workOrder)}
+                                        data-testid={`button-edit-workorder-${workOrder.id}`}
+                                      >
+                                        <Edit className="h-4 w-4" />
+                                      </Button>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => handleDeleteWorkOrder(workOrder)}
+                                        data-testid={`button-delete-workorder-${workOrder.id}`}
+                                      >
+                                        <Trash className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
