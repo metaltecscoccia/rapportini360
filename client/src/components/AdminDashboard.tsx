@@ -60,6 +60,8 @@ const addWorkOrderSchema = z.object({
   name: z.string().min(2, "Il nome deve essere di almeno 2 caratteri"),
   description: z.string().optional(),
   isActive: z.boolean().default(true),
+  availableWorkTypes: z.array(z.string()).default([]),
+  availableMaterials: z.array(z.string()).default([]),
 });
 
 // Schema per creazione cliente
@@ -160,6 +162,8 @@ export default function AdminDashboard() {
       name: "",
       description: "",
       isActive: true,
+      availableWorkTypes: [],
+      availableMaterials: [],
     },
   });
 
@@ -377,6 +381,8 @@ export default function AdminDashboard() {
         name: data.name,
         description: data.description || "",
         isActive: data.isActive,
+        availableWorkTypes: data.availableWorkTypes || [],
+        availableMaterials: data.availableMaterials || [],
       });
     },
     onSuccess: () => {
@@ -2231,6 +2237,98 @@ export default function AdminDashboard() {
                         data-testid="input-workorder-description"
                       />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={workOrderForm.control}
+                name="availableWorkTypes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Lavorazioni disponibili</FormLabel>
+                    <div className="space-y-2 border rounded-lg p-3 max-h-48 overflow-y-auto">
+                      {isLoadingWorkTypes ? (
+                        <p className="text-sm text-muted-foreground">Caricamento lavorazioni...</p>
+                      ) : (
+                        (workTypes as any[])
+                          .filter((wt: any) => wt.isActive)
+                          .map((workType: any) => (
+                            <div key={workType.id} className="flex items-center space-x-2">
+                              <input
+                                type="checkbox"
+                                id={`worktype-${workType.id}`}
+                                className="h-4 w-4"
+                                checked={field.value?.includes(workType.name) || false}
+                                onChange={(e) => {
+                                  const currentValues = field.value || [];
+                                  if (e.target.checked) {
+                                    field.onChange([...currentValues, workType.name]);
+                                  } else {
+                                    field.onChange(currentValues.filter((v: string) => v !== workType.name));
+                                  }
+                                }}
+                                data-testid={`checkbox-worktype-${workType.id}`}
+                              />
+                              <Label 
+                                htmlFor={`worktype-${workType.id}`}
+                                className="text-sm font-normal cursor-pointer"
+                              >
+                                {workType.name}
+                              </Label>
+                            </div>
+                          ))
+                      )}
+                      {!isLoadingWorkTypes && (workTypes as any[]).filter((wt: any) => wt.isActive).length === 0 && (
+                        <p className="text-sm text-muted-foreground">Nessuna lavorazione attiva disponibile</p>
+                      )}
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={workOrderForm.control}
+                name="availableMaterials"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Materiali disponibili</FormLabel>
+                    <div className="space-y-2 border rounded-lg p-3 max-h-48 overflow-y-auto">
+                      {isLoadingMaterials ? (
+                        <p className="text-sm text-muted-foreground">Caricamento materiali...</p>
+                      ) : (
+                        (materials as any[])
+                          .filter((m: any) => m.isActive)
+                          .map((material: any) => (
+                            <div key={material.id} className="flex items-center space-x-2">
+                              <input
+                                type="checkbox"
+                                id={`material-${material.id}`}
+                                className="h-4 w-4"
+                                checked={field.value?.includes(material.name) || false}
+                                onChange={(e) => {
+                                  const currentValues = field.value || [];
+                                  if (e.target.checked) {
+                                    field.onChange([...currentValues, material.name]);
+                                  } else {
+                                    field.onChange(currentValues.filter((v: string) => v !== material.name));
+                                  }
+                                }}
+                                data-testid={`checkbox-material-${material.id}`}
+                              />
+                              <Label 
+                                htmlFor={`material-${material.id}`}
+                                className="text-sm font-normal cursor-pointer"
+                              >
+                                {material.name}
+                              </Label>
+                            </div>
+                          ))
+                      )}
+                      {!isLoadingMaterials && (materials as any[]).filter((m: any) => m.isActive).length === 0 && (
+                        <p className="text-sm text-muted-foreground">Nessun materiale attivo disponibile</p>
+                      )}
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}
