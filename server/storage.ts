@@ -56,11 +56,13 @@ export interface IStorage {
   // Operations
   getOperationsByReportId(reportId: string): Promise<Operation[]>;
   getOperationsByWorkOrderId(workOrderId: string): Promise<Operation[]>;
+  getOperationsCountByWorkOrderId(workOrderId: string): Promise<number>;
   getOperation(id: string): Promise<Operation | undefined>;
   createOperation(operation: InsertOperation): Promise<Operation>;
   updateOperation(id: string, updates: UpdateOperation): Promise<Operation>;
   deleteOperation(id: string): Promise<boolean>;
   deleteOperationsByReportId(reportId: string): Promise<boolean>;
+  deleteOperationsByWorkOrderId(workOrderId: string): Promise<boolean>;
   
   // Statistics
   getWorkOrdersStats(): Promise<Array<{
@@ -330,6 +332,18 @@ export class DatabaseStorage implements IStorage {
   async deleteOperationsByReportId(reportId: string): Promise<boolean> {
     await this.ensureInitialized();
     const result = await db.delete(operations).where(eq(operations.dailyReportId, reportId));
+    return result.rowCount !== null && result.rowCount > 0;
+  }
+
+  async getOperationsCountByWorkOrderId(workOrderId: string): Promise<number> {
+    await this.ensureInitialized();
+    const ops = await db.select().from(operations).where(eq(operations.workOrderId, workOrderId));
+    return ops.length;
+  }
+
+  async deleteOperationsByWorkOrderId(workOrderId: string): Promise<boolean> {
+    await this.ensureInitialized();
+    const result = await db.delete(operations).where(eq(operations.workOrderId, workOrderId));
     return result.rowCount !== null && result.rowCount > 0;
   }
 
