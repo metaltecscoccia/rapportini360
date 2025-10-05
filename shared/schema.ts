@@ -11,6 +11,7 @@ export const users = pgTable("users", {
   plainPassword: text("plain_password"), // Only for employees, null for admin
   role: text("role").notNull().default("employee"), // employee or admin
   fullName: text("full_name").notNull(),
+  isActive: boolean("is_active").notNull().default(true), // true = attivo, false = licenziato
 });
 
 // Clients table
