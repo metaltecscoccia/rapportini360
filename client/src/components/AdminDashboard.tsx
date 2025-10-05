@@ -32,7 +32,9 @@ import {
   Calendar,
   Wrench,
   Eye,
-  Key
+  Key,
+  Hammer,
+  Package
 } from "lucide-react";
 import StatusBadge from "./StatusBadge";
 import WorkOrderReport from "./WorkOrderReport";
@@ -65,10 +67,26 @@ const addClientSchema = z.object({
   name: z.string().min(2, "Il nome deve essere di almeno 2 caratteri"),
 });
 
+// Schema per lavorazioni (work types)
+const workTypeSchema = z.object({
+  name: z.string().min(2, "Il nome deve essere di almeno 2 caratteri"),
+  description: z.string().optional(),
+  isActive: z.boolean().default(true),
+});
+
+// Schema per materiali
+const materialSchema = z.object({
+  name: z.string().min(2, "Il nome deve essere di almeno 2 caratteri"),
+  description: z.string().optional(),
+  isActive: z.boolean().default(true),
+});
+
 type AddEmployeeForm = z.infer<typeof addEmployeeSchema>;
 type EditEmployeeForm = z.infer<typeof editEmployeeSchema>;
 type AddWorkOrderForm = z.infer<typeof addWorkOrderSchema>;
 type AddClientForm = z.infer<typeof addClientSchema>;
+type WorkTypeForm = z.infer<typeof workTypeSchema>;
+type MaterialForm = z.infer<typeof materialSchema>;
 
 
 // Mock data removed - now using real data from API
@@ -108,6 +126,18 @@ export default function AdminDashboard() {
   const [addClientDialogOpen, setAddClientDialogOpen] = useState(false);
   const [deleteClientDialogOpen, setDeleteClientDialogOpen] = useState(false);
   const [selectedClientToDelete, setSelectedClientToDelete] = useState<any>(null);
+  
+  // State for work types management
+  const [addWorkTypeDialogOpen, setAddWorkTypeDialogOpen] = useState(false);
+  const [editWorkTypeDialogOpen, setEditWorkTypeDialogOpen] = useState(false);
+  const [deleteWorkTypeDialogOpen, setDeleteWorkTypeDialogOpen] = useState(false);
+  const [selectedWorkType, setSelectedWorkType] = useState<any>(null);
+  
+  // State for materials management
+  const [addMaterialDialogOpen, setAddMaterialDialogOpen] = useState(false);
+  const [editMaterialDialogOpen, setEditMaterialDialogOpen] = useState(false);
+  const [deleteMaterialDialogOpen, setDeleteMaterialDialogOpen] = useState(false);
+  const [selectedMaterial, setSelectedMaterial] = useState<any>(null);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -151,6 +181,26 @@ export default function AdminDashboard() {
     },
   });
 
+  // Form per lavorazioni
+  const workTypeForm = useForm<WorkTypeForm>({
+    resolver: zodResolver(workTypeSchema),
+    defaultValues: {
+      name: "",
+      description: "",
+      isActive: true,
+    },
+  });
+
+  // Form per materiali
+  const materialForm = useForm<MaterialForm>({
+    resolver: zodResolver(materialSchema),
+    defaultValues: {
+      name: "",
+      description: "",
+      isActive: true,
+    },
+  });
+
   // Query per recuperare tutti i dipendenti
   const { data: employees = [], isLoading: isLoadingEmployees } = useQuery({
     queryKey: ['/api/users'],
@@ -174,6 +224,16 @@ export default function AdminDashboard() {
   // Query per recuperare le statistiche delle commesse
   const { data: workOrdersStats = [], isLoading: isLoadingWorkOrdersStats } = useQuery<any[]>({
     queryKey: ['/api/work-orders/stats'],
+  });
+
+  // Query per recuperare le lavorazioni
+  const { data: workTypes = [], isLoading: isLoadingWorkTypes } = useQuery<any[]>({
+    queryKey: ['/api/work-types'],
+  });
+
+  // Query per recuperare i materiali
+  const { data: materials = [], isLoading: isLoadingMaterials } = useQuery<any[]>({
+    queryKey: ['/api/materials'],
   });
 
   // Mutation per creare nuovo dipendente
@@ -495,6 +555,208 @@ export default function AdminDashboard() {
         employeeId: selectedEmployee.id,
         newPassword: newPassword.trim()
       });
+    }
+  };
+
+  // Mutations for Work Types
+  const createWorkTypeMutation = useMutation({
+    mutationFn: async (data: WorkTypeForm) => {
+      return apiRequest('POST', '/api/work-types', data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/work-types'] });
+      toast({
+        title: "Lavorazione aggiunta",
+        description: "La nuova lavorazione è stata aggiunta con successo.",
+      });
+      workTypeForm.reset();
+      setAddWorkTypeDialogOpen(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Errore",
+        description: error.message || "Errore durante l'aggiunta della lavorazione.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateWorkTypeMutation = useMutation({
+    mutationFn: async (data: WorkTypeForm & { id: string }) => {
+      const { id, ...updateData } = data;
+      return apiRequest('PATCH', `/api/work-types/${id}`, updateData);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/work-types'] });
+      toast({
+        title: "Lavorazione aggiornata",
+        description: "La lavorazione è stata aggiornata con successo.",
+      });
+      workTypeForm.reset();
+      setEditWorkTypeDialogOpen(false);
+      setSelectedWorkType(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Errore",
+        description: error.message || "Errore durante l'aggiornamento della lavorazione.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteWorkTypeMutation = useMutation({
+    mutationFn: async (workTypeId: string) => {
+      return apiRequest('DELETE', `/api/work-types/${workTypeId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/work-types'] });
+      toast({
+        title: "Lavorazione eliminata",
+        description: "La lavorazione è stata eliminata con successo.",
+      });
+      setDeleteWorkTypeDialogOpen(false);
+      setSelectedWorkType(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Errore",
+        description: error.message || "Errore durante l'eliminazione della lavorazione.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutations for Materials
+  const createMaterialMutation = useMutation({
+    mutationFn: async (data: MaterialForm) => {
+      return apiRequest('POST', '/api/materials', data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/materials'] });
+      toast({
+        title: "Materiale aggiunto",
+        description: "Il nuovo materiale è stato aggiunto con successo.",
+      });
+      materialForm.reset();
+      setAddMaterialDialogOpen(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Errore",
+        description: error.message || "Errore durante l'aggiunta del materiale.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateMaterialMutation = useMutation({
+    mutationFn: async (data: MaterialForm & { id: string }) => {
+      const { id, ...updateData } = data;
+      return apiRequest('PATCH', `/api/materials/${id}`, updateData);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/materials'] });
+      toast({
+        title: "Materiale aggiornato",
+        description: "Il materiale è stato aggiornato con successo.",
+      });
+      materialForm.reset();
+      setEditMaterialDialogOpen(false);
+      setSelectedMaterial(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Errore",
+        description: error.message || "Errore durante l'aggiornamento del materiale.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteMaterialMutation = useMutation({
+    mutationFn: async (materialId: string) => {
+      return apiRequest('DELETE', `/api/materials/${materialId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/materials'] });
+      toast({
+        title: "Materiale eliminato",
+        description: "Il materiale è stato eliminato con successo.",
+      });
+      setDeleteMaterialDialogOpen(false);
+      setSelectedMaterial(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Errore",
+        description: error.message || "Errore durante l'eliminazione del materiale.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Handlers for Work Types
+  const handleAddWorkType = (data: WorkTypeForm) => {
+    createWorkTypeMutation.mutate(data);
+  };
+
+  const handleEditWorkType = (workType: any) => {
+    setSelectedWorkType(workType);
+    workTypeForm.reset({
+      name: workType.name,
+      description: workType.description || "",
+      isActive: workType.isActive,
+    });
+    setEditWorkTypeDialogOpen(true);
+  };
+
+  const handleUpdateWorkType = (data: WorkTypeForm) => {
+    if (selectedWorkType) {
+      updateWorkTypeMutation.mutate({ ...data, id: selectedWorkType.id });
+    }
+  };
+
+  const handleDeleteWorkType = (workType: any) => {
+    setSelectedWorkType(workType);
+    setDeleteWorkTypeDialogOpen(true);
+  };
+
+  const confirmDeleteWorkType = () => {
+    if (selectedWorkType) {
+      deleteWorkTypeMutation.mutate(selectedWorkType.id);
+    }
+  };
+
+  // Handlers for Materials
+  const handleAddMaterial = (data: MaterialForm) => {
+    createMaterialMutation.mutate(data);
+  };
+
+  const handleEditMaterial = (material: any) => {
+    setSelectedMaterial(material);
+    materialForm.reset({
+      name: material.name,
+      description: material.description || "",
+      isActive: material.isActive,
+    });
+    setEditMaterialDialogOpen(true);
+  };
+
+  const handleUpdateMaterial = (data: MaterialForm) => {
+    if (selectedMaterial) {
+      updateMaterialMutation.mutate({ ...data, id: selectedMaterial.id });
+    }
+  };
+
+  const handleDeleteMaterial = (material: any) => {
+    setSelectedMaterial(material);
+    setDeleteMaterialDialogOpen(true);
+  };
+
+  const confirmDeleteMaterial = () => {
+    if (selectedMaterial) {
+      deleteMaterialMutation.mutate(selectedMaterial.id);
     }
   };
 
@@ -864,6 +1126,14 @@ export default function AdminDashboard() {
           <TabsTrigger value="employees" data-testid="tab-employees">
             <Users className="h-4 w-4 mr-2" />
             Dipendenti
+          </TabsTrigger>
+          <TabsTrigger value="work-types" data-testid="tab-work-types">
+            <Hammer className="h-4 w-4 mr-2" />
+            Lavorazioni
+          </TabsTrigger>
+          <TabsTrigger value="materials" data-testid="tab-materials">
+            <Package className="h-4 w-4 mr-2" />
+            Materiali
           </TabsTrigger>
         </TabsList>
 
@@ -1521,6 +1791,168 @@ export default function AdminDashboard() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* Work Types Tab */}
+        <TabsContent value="work-types" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Lavorazioni</CardTitle>
+                <Button onClick={() => setAddWorkTypeDialogOpen(true)} data-testid="button-add-worktype">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Aggiungi Lavorazione
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {isLoadingWorkTypes ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  Caricamento lavorazioni...
+                </div>
+              ) : (
+                <div className="overflow-x-auto" data-testid="scroll-table-worktypes">
+                  <Table className="min-w-[640px]">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nome</TableHead>
+                        <TableHead>Descrizione</TableHead>
+                        <TableHead>Stato</TableHead>
+                        <TableHead>Azioni</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                    {(workTypes as any[]).length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                          Nessuna lavorazione trovata. Aggiungi la prima lavorazione.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      (workTypes as any[]).map((workType: any) => (
+                        <TableRow key={workType.id}>
+                          <TableCell className="font-medium" data-testid={`text-worktype-name-${workType.id}`}>
+                            {workType.name}
+                          </TableCell>
+                          <TableCell data-testid={`text-worktype-description-${workType.id}`}>
+                            {workType.description || "-"}
+                          </TableCell>
+                          <TableCell data-testid={`text-worktype-status-${workType.id}`}>
+                            <Badge variant={workType.isActive ? "default" : "secondary"}>
+                              {workType.isActive ? "Attivo" : "Non attivo"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-2">
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={() => handleEditWorkType(workType)}
+                                data-testid={`button-edit-worktype-${workType.id}`}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={() => handleDeleteWorkType(workType)}
+                                data-testid={`button-delete-worktype-${workType.id}`}
+                                className="text-destructive hover:text-destructive"
+                              >
+                                <Trash className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Materials Tab */}
+        <TabsContent value="materials" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Materiali</CardTitle>
+                <Button onClick={() => setAddMaterialDialogOpen(true)} data-testid="button-add-material">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Aggiungi Materiale
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {isLoadingMaterials ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  Caricamento materiali...
+                </div>
+              ) : (
+                <div className="overflow-x-auto" data-testid="scroll-table-materials">
+                  <Table className="min-w-[640px]">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nome</TableHead>
+                        <TableHead>Descrizione</TableHead>
+                        <TableHead>Stato</TableHead>
+                        <TableHead>Azioni</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                    {(materials as any[]).length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                          Nessun materiale trovato. Aggiungi il primo materiale.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      (materials as any[]).map((material: any) => (
+                        <TableRow key={material.id}>
+                          <TableCell className="font-medium" data-testid={`text-material-name-${material.id}`}>
+                            {material.name}
+                          </TableCell>
+                          <TableCell data-testid={`text-material-description-${material.id}`}>
+                            {material.description || "-"}
+                          </TableCell>
+                          <TableCell data-testid={`text-material-status-${material.id}`}>
+                            <Badge variant={material.isActive ? "default" : "secondary"}>
+                              {material.isActive ? "Attivo" : "Non attivo"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-2">
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={() => handleEditMaterial(material)}
+                                data-testid={`button-edit-material-${material.id}`}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={() => handleDeleteMaterial(material)}
+                                data-testid={`button-delete-material-${material.id}`}
+                                className="text-destructive hover:text-destructive"
+                              >
+                                <Trash className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
 
       {/* Dialog per impostare nuova password */}
@@ -1996,6 +2428,414 @@ export default function AdminDashboard() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Dialog per aggiungere lavorazione */}
+      <Dialog open={addWorkTypeDialogOpen} onOpenChange={setAddWorkTypeDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Aggiungi Lavorazione</DialogTitle>
+            <DialogDescription>
+              Inserisci i dati della nuova lavorazione.
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...workTypeForm}>
+            <form onSubmit={workTypeForm.handleSubmit(handleAddWorkType)} className="space-y-4">
+              <FormField
+                control={workTypeForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="Es. Saldatura" 
+                        {...field} 
+                        data-testid="input-worktype-name"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={workTypeForm.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Descrizione (opzionale)</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="Es. Saldatura a TIG" 
+                        {...field} 
+                        data-testid="input-worktype-description"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={workTypeForm.control}
+                name="isActive"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                    <div className="space-y-0.5">
+                      <FormLabel>Attivo</FormLabel>
+                      <p className="text-sm text-muted-foreground">
+                        La lavorazione è disponibile per l'uso
+                      </p>
+                    </div>
+                    <FormControl>
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4"
+                        checked={field.value}
+                        onChange={field.onChange}
+                        data-testid="checkbox-worktype-active"
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setAddWorkTypeDialogOpen(false)}
+                  data-testid="button-cancel-add-worktype"
+                >
+                  Annulla
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={createWorkTypeMutation.isPending}
+                  data-testid="button-submit-add-worktype"
+                >
+                  {createWorkTypeMutation.isPending ? "Creazione..." : "Aggiungi Lavorazione"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog per modificare lavorazione */}
+      <Dialog open={editWorkTypeDialogOpen} onOpenChange={setEditWorkTypeDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Modifica Lavorazione</DialogTitle>
+            <DialogDescription>
+              Modifica i dati della lavorazione.
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...workTypeForm}>
+            <form onSubmit={workTypeForm.handleSubmit(handleUpdateWorkType)} className="space-y-4">
+              <FormField
+                control={workTypeForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="Es. Saldatura" 
+                        {...field} 
+                        data-testid="input-edit-worktype-name"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={workTypeForm.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Descrizione (opzionale)</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="Es. Saldatura a TIG" 
+                        {...field} 
+                        data-testid="input-edit-worktype-description"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={workTypeForm.control}
+                name="isActive"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                    <div className="space-y-0.5">
+                      <FormLabel>Attivo</FormLabel>
+                      <p className="text-sm text-muted-foreground">
+                        La lavorazione è disponibile per l'uso
+                      </p>
+                    </div>
+                    <FormControl>
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4"
+                        checked={field.value}
+                        onChange={field.onChange}
+                        data-testid="checkbox-edit-worktype-active"
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setEditWorkTypeDialogOpen(false)}
+                  data-testid="button-cancel-edit-worktype"
+                >
+                  Annulla
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={updateWorkTypeMutation.isPending}
+                  data-testid="button-submit-edit-worktype"
+                >
+                  {updateWorkTypeMutation.isPending ? "Aggiornamento..." : "Aggiorna Lavorazione"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog per eliminare lavorazione */}
+      <AlertDialog open={deleteWorkTypeDialogOpen} onOpenChange={setDeleteWorkTypeDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Elimina Lavorazione</AlertDialogTitle>
+            <AlertDialogDescription>
+              Sei sicuro di voler eliminare la lavorazione "{selectedWorkType?.name}"? 
+              Questa azione non può essere annullata.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete-worktype">Annulla</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDeleteWorkType}
+              disabled={deleteWorkTypeMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-confirm-delete-worktype"
+            >
+              {deleteWorkTypeMutation.isPending ? "Eliminazione..." : "Elimina"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Dialog per aggiungere materiale */}
+      <Dialog open={addMaterialDialogOpen} onOpenChange={setAddMaterialDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Aggiungi Materiale</DialogTitle>
+            <DialogDescription>
+              Inserisci i dati del nuovo materiale.
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...materialForm}>
+            <form onSubmit={materialForm.handleSubmit(handleAddMaterial)} className="space-y-4">
+              <FormField
+                control={materialForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="Es. Acciaio Inox" 
+                        {...field} 
+                        data-testid="input-material-name"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={materialForm.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Descrizione (opzionale)</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="Es. AISI 304" 
+                        {...field} 
+                        data-testid="input-material-description"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={materialForm.control}
+                name="isActive"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                    <div className="space-y-0.5">
+                      <FormLabel>Attivo</FormLabel>
+                      <p className="text-sm text-muted-foreground">
+                        Il materiale è disponibile per l'uso
+                      </p>
+                    </div>
+                    <FormControl>
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4"
+                        checked={field.value}
+                        onChange={field.onChange}
+                        data-testid="checkbox-material-active"
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setAddMaterialDialogOpen(false)}
+                  data-testid="button-cancel-add-material"
+                >
+                  Annulla
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={createMaterialMutation.isPending}
+                  data-testid="button-submit-add-material"
+                >
+                  {createMaterialMutation.isPending ? "Creazione..." : "Aggiungi Materiale"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog per modificare materiale */}
+      <Dialog open={editMaterialDialogOpen} onOpenChange={setEditMaterialDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Modifica Materiale</DialogTitle>
+            <DialogDescription>
+              Modifica i dati del materiale.
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...materialForm}>
+            <form onSubmit={materialForm.handleSubmit(handleUpdateMaterial)} className="space-y-4">
+              <FormField
+                control={materialForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="Es. Acciaio Inox" 
+                        {...field} 
+                        data-testid="input-edit-material-name"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={materialForm.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Descrizione (opzionale)</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="Es. AISI 304" 
+                        {...field} 
+                        data-testid="input-edit-material-description"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={materialForm.control}
+                name="isActive"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                    <div className="space-y-0.5">
+                      <FormLabel>Attivo</FormLabel>
+                      <p className="text-sm text-muted-foreground">
+                        Il materiale è disponibile per l'uso
+                      </p>
+                    </div>
+                    <FormControl>
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4"
+                        checked={field.value}
+                        onChange={field.onChange}
+                        data-testid="checkbox-edit-material-active"
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setEditMaterialDialogOpen(false)}
+                  data-testid="button-cancel-edit-material"
+                >
+                  Annulla
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={updateMaterialMutation.isPending}
+                  data-testid="button-submit-edit-material"
+                >
+                  {updateMaterialMutation.isPending ? "Aggiornamento..." : "Aggiorna Materiale"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog per eliminare materiale */}
+      <AlertDialog open={deleteMaterialDialogOpen} onOpenChange={setDeleteMaterialDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Elimina Materiale</AlertDialogTitle>
+            <AlertDialogDescription>
+              Sei sicuro di voler eliminare il materiale "{selectedMaterial?.name}"? 
+              Questa azione non può essere annullata.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete-material">Annulla</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDeleteMaterial}
+              disabled={deleteMaterialMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-confirm-delete-material"
+            >
+              {deleteMaterialMutation.isPending ? "Eliminazione..." : "Elimina"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
