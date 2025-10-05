@@ -312,6 +312,7 @@ export default function AdminDashboard() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/daily-reports'] });
       toast({
         title: "Dipendente eliminato",
         description: "Il dipendente è stato eliminato con successo.",
@@ -362,6 +363,7 @@ export default function AdminDashboard() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
       queryClient.invalidateQueries({ queryKey: ['/api/work-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/daily-reports'] });
       toast({
         title: "Cliente eliminato",
         description: "Il cliente e tutte le commesse e operazioni associate sono stati eliminati con successo.",
