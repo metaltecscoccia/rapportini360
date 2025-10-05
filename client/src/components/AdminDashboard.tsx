@@ -2159,7 +2159,7 @@ export default function AdminDashboard() {
 
       {/* Dialog per aggiungere nuova commessa */}
       <Dialog open={addWorkOrderDialogOpen} onOpenChange={setAddWorkOrderDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[425px] max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Aggiungi Nuova Commessa</DialogTitle>
             <DialogDescription>
