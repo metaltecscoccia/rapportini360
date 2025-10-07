@@ -1457,11 +1457,7 @@ export default function AdminDashboard() {
           </TabsTrigger>
           <TabsTrigger value="work-types" data-testid="tab-work-types">
             <Hammer className="h-4 w-4 mr-2" />
-            Lavorazioni
-          </TabsTrigger>
-          <TabsTrigger value="materials" data-testid="tab-materials">
-            <Package className="h-4 w-4 mr-2" />
-            Materiali
+            Configurazione
           </TabsTrigger>
         </TabsList>
 
@@ -2312,8 +2308,9 @@ export default function AdminDashboard() {
           </Card>
         </TabsContent>
 
-        {/* Work Types Tab */}
+        {/* Configurazione Tab (Lavorazioni e Materiali) */}
         <TabsContent value="work-types" className="space-y-4">
+          {/* Lavorazioni Card */}
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -2391,10 +2388,8 @@ export default function AdminDashboard() {
               )}
             </CardContent>
           </Card>
-        </TabsContent>
 
-        {/* Materials Tab */}
-        <TabsContent value="materials" className="space-y-4">
+          {/* Materiali Card */}
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
