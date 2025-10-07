@@ -1438,7 +1438,7 @@ export default function AdminDashboard() {
 
       {/* Main Content Tabs */}
       <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-        <TabsList>
+        <TabsList className="flex-wrap h-auto">
           <TabsTrigger value="reports" data-testid="tab-reports">
             <FileText className="h-4 w-4 mr-2" />
             Rapportini
