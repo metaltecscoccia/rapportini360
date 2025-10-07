@@ -734,6 +734,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Export filtered daily reports as Word document (admin only)
+  app.get("/api/export/daily-reports-range", requireAdmin, async (req, res) => {
+    try {
+      const { from, to, status, search } = req.query;
+      
+      console.log(`Generating Word report for range: from=${from}, to=${to}, status=${status}, search=${search}`);
+      const docBuffer = await wordService.generateDailyReportWordRange({
+        fromDate: from as string | undefined,
+        toDate: to as string | undefined,
+        status: status as string | undefined,
+        searchTerm: search as string | undefined
+      });
+
+      let filename = 'Rapportini';
+      if (from && to) {
+        filename += `_${from}_${to}`;
+      } else if (from) {
+        filename += `_da_${from}`;
+      } else if (to) {
+        filename += `_fino_${to}`;
+      } else {
+        filename += `_${new Date().toISOString().split('T')[0]}`;
+      }
+      filename += '.docx';
+      
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('Content-Length', docBuffer.length);
+      
+      res.send(docBuffer);
+    } catch (error) {
+      console.error("Error generating filtered Word document:", error);
+      if (error instanceof Error) {
+        res.status(500).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: "Failed to generate filtered Word report" });
+      }
+    }
+  });
+
   // Export work order report as Word document
   app.get("/api/export/work-order/:workOrderId", requireAdmin, async (req, res) => {
     try {

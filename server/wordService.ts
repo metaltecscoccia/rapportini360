@@ -476,4 +476,143 @@ export class WordService {
 
     return await Packer.toBuffer(doc);
   }
+
+  async generateDailyReportWordRange(filters: {
+    fromDate?: string;
+    toDate?: string;
+    status?: string;
+    searchTerm?: string;
+  }): Promise<Buffer> {
+    // Get all reports
+    let allReports = await storage.getAllDailyReports();
+    
+    // Apply filters
+    let filteredReports = allReports;
+    
+    // Filter by date range
+    if (filters.fromDate || filters.toDate) {
+      filteredReports = filteredReports.filter(report => {
+        const reportDate = new Date(report.date);
+        reportDate.setHours(0, 0, 0, 0);
+        
+        if (filters.fromDate && filters.toDate) {
+          const from = new Date(filters.fromDate);
+          const to = new Date(filters.toDate);
+          from.setHours(0, 0, 0, 0);
+          to.setHours(23, 59, 59, 999);
+          return reportDate >= from && reportDate <= to;
+        } else if (filters.fromDate) {
+          const from = new Date(filters.fromDate);
+          from.setHours(0, 0, 0, 0);
+          return reportDate >= from;
+        } else if (filters.toDate) {
+          const to = new Date(filters.toDate);
+          to.setHours(23, 59, 59, 999);
+          return reportDate <= to;
+        }
+        return true;
+      });
+    }
+    
+    // Filter by status
+    if (filters.status && filters.status !== 'all') {
+      filteredReports = filteredReports.filter(report => report.status === filters.status);
+    }
+    
+    // Filter by search term (employee name)
+    if (filters.searchTerm) {
+      const users = await storage.getAllUsers();
+      const usersMap = new Map(users.map(u => [u.id, u]));
+      filteredReports = filteredReports.filter(report => {
+        const user = usersMap.get(report.employeeId);
+        return user?.fullName.toLowerCase().includes(filters.searchTerm!.toLowerCase());
+      });
+    }
+    
+    if (filteredReports.length === 0) {
+      throw new Error('Nessun rapportino trovato con i filtri specificati.');
+    }
+
+    // Get all related data
+    const clients = await storage.getAllClients();
+    const clientsMap = new Map(clients.map(c => [c.id, c]));
+    
+    // Get all work orders
+    const allWorkOrders: WorkOrder[] = [];
+    for (const client of clients) {
+      const workOrders = await storage.getWorkOrdersByClient(client.id);
+      allWorkOrders.push(...workOrders);
+    }
+    const workOrdersMap = new Map(allWorkOrders.map(wo => [wo.id, wo]));
+
+    // Build document sections
+    const documentSections: Paragraph[] = [];
+    
+    // Document header
+    let dateRange = '';
+    if (filters.fromDate && filters.toDate) {
+      dateRange = `${this.formatDate(filters.fromDate)} - ${this.formatDate(filters.toDate)}`;
+    } else if (filters.fromDate) {
+      dateRange = `da ${this.formatDate(filters.fromDate)}`;
+    } else if (filters.toDate) {
+      dateRange = `fino a ${this.formatDate(filters.toDate)}`;
+    } else {
+      dateRange = 'Tutti i rapportini';
+    }
+    
+    documentSections.push(
+      new Paragraph({
+        text: 'METALTEC Scoccia S.R.L.',
+        heading: HeadingLevel.HEADING_1,
+        alignment: AlignmentType.CENTER,
+      }),
+      new Paragraph({
+        text: `Rapportini Giornalieri - ${dateRange}`,
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 400 }
+      }),
+      new Paragraph({ text: '' }) // Empty line
+    );
+    
+    // Build content for each report
+    for (let i = 0; i < filteredReports.length; i++) {
+      const report = filteredReports[i];
+      const user = await storage.getUser(report.employeeId);
+      const operations = await storage.getOperationsByReportId(report.id);
+      
+      if (user && operations.length > 0) {
+        const employeeSection = await this.createEmployeeSection(
+          user,
+          report,
+          operations,
+          clientsMap,
+          workOrdersMap
+        );
+        documentSections.push(...employeeSection);
+        
+        // Add spacing between employees
+        if (i < filteredReports.length - 1) {
+          documentSections.push(
+            new Paragraph({ text: '' }),
+            new Paragraph({ text: '' }),
+            new Paragraph({
+              text: '─────────────────────────────────────────────────────────',
+              alignment: AlignmentType.CENTER,
+              spacing: { before: 200, after: 200 }
+            }),
+            new Paragraph({ text: '' })
+          );
+        }
+      }
+    }
+
+    const doc = new Document({
+      sections: [{
+        properties: {},
+        children: documentSections
+      }]
+    });
+
+    return await Packer.toBuffer(doc);
+  }
 }

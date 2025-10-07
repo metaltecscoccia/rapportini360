@@ -102,7 +102,8 @@ type MaterialForm = z.infer<typeof materialSchema>;
 export default function AdminDashboard() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [reportDateFilter, setReportDateFilter] = useState("all"); // all, last7days, last30days, last90days, currentYear
+  const [fromDate, setFromDate] = useState<string>("");
+  const [toDate, setToDate] = useState<string>("");
   const [employeeStatusFilter, setEmployeeStatusFilter] = useState("all"); // all, active, inactive
   const [selectedTab, setSelectedTab] = useState("reports");
   const [selectedWorkOrder, setSelectedWorkOrder] = useState<{
@@ -1048,28 +1049,26 @@ export default function AdminDashboard() {
     const matchesSearch = employeeName.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "all" || report.status === statusFilter;
     
-    // Filtro temporale
+    // Filtro intervallo date
     let matchesDate = true;
-    if (reportDateFilter !== "all") {
+    if (fromDate || toDate) {
       const reportDate = new Date(report.date);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      reportDate.setHours(0, 0, 0, 0);
       
-      if (reportDateFilter === "last7days") {
-        const sevenDaysAgo = new Date(today);
-        sevenDaysAgo.setDate(today.getDate() - 7);
-        matchesDate = reportDate >= sevenDaysAgo;
-      } else if (reportDateFilter === "last30days") {
-        const thirtyDaysAgo = new Date(today);
-        thirtyDaysAgo.setDate(today.getDate() - 30);
-        matchesDate = reportDate >= thirtyDaysAgo;
-      } else if (reportDateFilter === "last90days") {
-        const ninetyDaysAgo = new Date(today);
-        ninetyDaysAgo.setDate(today.getDate() - 90);
-        matchesDate = reportDate >= ninetyDaysAgo;
-      } else if (reportDateFilter === "currentYear") {
-        const currentYear = today.getFullYear();
-        matchesDate = reportDate.getFullYear() === currentYear;
+      if (fromDate && toDate) {
+        const from = new Date(fromDate);
+        const to = new Date(toDate);
+        from.setHours(0, 0, 0, 0);
+        to.setHours(23, 59, 59, 999);
+        matchesDate = reportDate >= from && reportDate <= to;
+      } else if (fromDate) {
+        const from = new Date(fromDate);
+        from.setHours(0, 0, 0, 0);
+        matchesDate = reportDate >= from;
+      } else if (toDate) {
+        const to = new Date(toDate);
+        to.setHours(23, 59, 59, 999);
+        matchesDate = reportDate <= to;
       }
     }
     
@@ -1258,23 +1257,70 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleExportWithDateSelection = () => {
-    const selectedDate = prompt("Inserisci la data per l'export (DD/MM/YYYY):", new Date().toLocaleDateString("it-IT"));
-    if (selectedDate) {
-      // Validate date format DD/MM/YYYY
-      if (!/^\d{2}\/\d{2}\/\d{4}$/.test(selectedDate)) {
-        toast({
-          title: "Formato data non valido",
-          description: "Usa il formato DD/MM/YYYY (esempio: 03/10/2025)",
-          variant: "destructive"
-        });
-        return;
+  const handleExportFilteredReports = async () => {
+    try {
+      // Costruisci URL con parametri per intervallo di date
+      let url = '/api/export/daily-reports-range';
+      const params = new URLSearchParams();
+      
+      if (fromDate) params.append('from', fromDate);
+      if (toDate) params.append('to', toDate);
+      if (statusFilter && statusFilter !== 'all') params.append('status', statusFilter);
+      if (searchTerm) params.append('search', searchTerm);
+      
+      if (params.toString()) {
+        url += '?' + params.toString();
       }
       
-      // Convert DD/MM/YYYY to YYYY-MM-DD for API
-      const [day, month, year] = selectedDate.split('/');
-      const isoDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-      handleExportReports(isoDate);
+      const response = await fetch(url);
+      
+      if (response.ok) {
+        const blob = await response.blob();
+        const url_blob = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url_blob;
+        
+        // Nome file dinamico basato sui filtri
+        let filename = 'Rapportini';
+        if (fromDate && toDate) {
+          filename += `_${fromDate}_${toDate}`;
+        } else if (fromDate) {
+          filename += `_da_${fromDate}`;
+        } else if (toDate) {
+          filename += `_fino_${toDate}`;
+        } else {
+          filename += `_${new Date().toISOString().split('T')[0]}`;
+        }
+        filename += '.docx';
+        
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url_blob);
+        document.body.removeChild(a);
+        toast({
+          title: "Esportazione completata",
+          description: `${filteredReports.length} rapportini esportati`
+        });
+      } else {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to export Word document");
+      }
+    } catch (error) {
+      console.error("Error exporting filtered reports:", error);
+      if (error instanceof Error) {
+        toast({
+          title: "Esportazione non riuscita",
+          description: error.message || "Errore nell'esportazione dei rapportini",
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Errore",
+          description: "Errore nell'esportazione dei rapportini",
+          variant: "destructive"
+        });
+      }
     }
   };
 
@@ -1383,14 +1429,6 @@ export default function AdminDashboard() {
             <FileText className="h-4 w-4 mr-2" />
             Esporta Word Oggi
           </Button>
-          <Button 
-            variant="outline" 
-            onClick={handleExportWithDateSelection}
-            data-testid="button-export-reports-date"
-          >
-            <FileText className="h-4 w-4 mr-2" />
-            Esporta Word Data Specifica
-          </Button>
         </div>
       </div>
 
@@ -1466,7 +1504,18 @@ export default function AdminDashboard() {
           <Card>
             <CardHeader>
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <CardTitle>Rapportini Giornalieri</CardTitle>
+                <div className="flex items-center gap-2">
+                  <CardTitle>Rapportini Giornalieri</CardTitle>
+                  <Button 
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleExportFilteredReports()}
+                    data-testid="button-export-filtered"
+                  >
+                    <FileText className="h-4 w-4 mr-2" />
+                    Esporta
+                  </Button>
+                </div>
                 <Button 
                   onClick={() => setCreateReportDialogOpen(true)}
                   data-testid="button-create-report"
@@ -1501,19 +1550,28 @@ export default function AdminDashboard() {
                   </SelectContent>
                 </Select>
 
-                <Select value={reportDateFilter} onValueChange={setReportDateFilter}>
-                  <SelectTrigger className="w-[200px]" data-testid="select-date-filter">
-                    <Calendar className="h-4 w-4 mr-2" />
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Tutti i giorni</SelectItem>
-                    <SelectItem value="last7days">Ultimi 7 giorni</SelectItem>
-                    <SelectItem value="last30days">Ultimi 30 giorni</SelectItem>
-                    <SelectItem value="last90days">Ultimi 90 giorni</SelectItem>
-                    <SelectItem value="currentYear">Anno corrente</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="flex gap-2 items-center">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    <Input
+                      type="date"
+                      value={fromDate}
+                      onChange={(e) => setFromDate(e.target.value)}
+                      placeholder="Da"
+                      className="w-[150px]"
+                      data-testid="input-from-date"
+                    />
+                  </div>
+                  <span className="text-muted-foreground">-</span>
+                  <Input
+                    type="date"
+                    value={toDate}
+                    onChange={(e) => setToDate(e.target.value)}
+                    placeholder="A"
+                    className="w-[150px]"
+                    data-testid="input-to-date"
+                  />
+                </div>
               </div>
             </CardHeader>
             
