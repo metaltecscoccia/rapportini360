@@ -199,6 +199,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Admin access without password verification
         (req as any).session.userId = user.id;
         (req as any).session.userRole = user.role;
+        (req as any).session.organizationId = user.organizationId;
         
         // Return user data without password
         const { password: _, ...userWithoutPassword } = user;
@@ -222,6 +223,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create session
       (req as any).session.userId = user.id;
       (req as any).session.userRole = user.role;
+      (req as any).session.organizationId = user.organizationId;
       
       // Return user data without password
       const { password: _, ...userWithoutPassword } = user;
