@@ -1585,7 +1585,7 @@ export default function AdminDashboard() {
                 </div>
               ) : (
                 <div className="overflow-x-auto" data-testid="scroll-table-reports">
-                  <Table className="min-w-[900px]">
+                  <Table className="min-w-[820px]">
                     <TableHeader>
                       <TableRow>
                         <TableHead className="w-12"></TableHead>
