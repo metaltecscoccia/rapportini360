@@ -1576,7 +1576,13 @@ export default function AdminDashboard() {
                     ref={toDateInputRef}
                     type="date"
                     value={toDate}
-                    onChange={(e) => setToDate(e.target.value)}
+                    onChange={(e) => {
+                      setToDate(e.target.value);
+                      // Chiudi il calendario automaticamente dopo la selezione
+                      setTimeout(() => {
+                        toDateInputRef.current?.blur();
+                      }, 0);
+                    }}
                     placeholder="A"
                     className="w-[135px]"
                     data-testid="input-to-date"
