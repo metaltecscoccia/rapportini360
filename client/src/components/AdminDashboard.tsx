@@ -1527,7 +1527,7 @@ export default function AdminDashboard() {
               
               {/* Filters */}
               <div className="flex flex-col md:flex-row flex-wrap gap-4">
-                <div className="flex-1 relative">
+                <div className="w-[250px] relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     placeholder="Cerca dipendente..."
@@ -1558,7 +1558,7 @@ export default function AdminDashboard() {
                       value={fromDate}
                       onChange={(e) => setFromDate(e.target.value)}
                       placeholder="Da"
-                      className="w-[150px]"
+                      className="w-[135px]"
                       data-testid="input-from-date"
                     />
                   </div>
@@ -1568,7 +1568,7 @@ export default function AdminDashboard() {
                     value={toDate}
                     onChange={(e) => setToDate(e.target.value)}
                     placeholder="A"
-                    className="w-[150px]"
+                    className="w-[135px]"
                     data-testid="input-to-date"
                   />
                 </div>
