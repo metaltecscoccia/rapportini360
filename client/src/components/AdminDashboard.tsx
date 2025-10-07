@@ -1585,16 +1585,16 @@ export default function AdminDashboard() {
                 </div>
               ) : (
                 <div className="overflow-x-auto" data-testid="scroll-table-reports">
-                  <Table className="min-w-[820px]">
+                  <Table className="min-w-[480px] md:min-w-[820px]">
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="w-12"></TableHead>
+                        <TableHead className="w-12 hidden md:table-cell"></TableHead>
                         <TableHead>Dipendente</TableHead>
                         <TableHead>Data</TableHead>
-                        <TableHead>Ora Creazione</TableHead>
+                        <TableHead className="hidden md:table-cell">Ora Creazione</TableHead>
                         <TableHead>Stato</TableHead>
-                        <TableHead>Operazioni</TableHead>
-                        <TableHead>Ore Totali</TableHead>
+                        <TableHead className="hidden md:table-cell">Operazioni</TableHead>
+                        <TableHead className="hidden md:table-cell">Ore Totali</TableHead>
                         <TableHead>Azioni</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -1603,7 +1603,7 @@ export default function AdminDashboard() {
                       <TableRow>
                         <TableCell colSpan={8} className="text-center py-8">
                           <div className="text-muted-foreground">
-                            {searchTerm || statusFilter !== "all" 
+                            {searchTerm || statusFilter !== "all" || fromDate || toDate
                               ? "Nessun rapportino trovato con i filtri applicati" 
                               : "Nessun rapportino disponibile"}
                           </div>
@@ -1622,7 +1622,7 @@ export default function AdminDashboard() {
                               onClick={() => handleToggleReportExpansion(report.id)}
                               data-testid={`row-report-${report.id}`}
                             >
-                              <TableCell className="w-12">
+                              <TableCell className="w-12 hidden md:table-cell">
                                 {isExpanded ? (
                                   <ChevronUp className="h-4 w-4" />
                                 ) : (
@@ -1630,12 +1630,21 @@ export default function AdminDashboard() {
                                 )}
                               </TableCell>
                               <TableCell className="font-medium">
-                                {report.employeeName || report.employee || "Sconosciuto"}
+                                <div className="flex items-center justify-between gap-2">
+                                  <span>{report.employeeName || report.employee || "Sconosciuto"}</span>
+                                  <span className="md:hidden">
+                                    {isExpanded ? (
+                                      <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                                    ) : (
+                                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                    )}
+                                  </span>
+                                </div>
                               </TableCell>
                               <TableCell>
                                 {new Date(report.date).toLocaleDateString("it-IT")}
                               </TableCell>
-                              <TableCell>
+                              <TableCell className="hidden md:table-cell">
                                 {report.createdAt ? new Date(report.createdAt).toLocaleTimeString("it-IT", { 
                                   hour: '2-digit', 
                                   minute: '2-digit' 
@@ -1644,8 +1653,8 @@ export default function AdminDashboard() {
                               <TableCell>
                                 <StatusBadge status={report.status} />
                               </TableCell>
-                              <TableCell>{report.operations || 0}</TableCell>
-                              <TableCell>{report.totalHours || 0}h</TableCell>
+                              <TableCell className="hidden md:table-cell">{report.operations || 0}</TableCell>
+                              <TableCell className="hidden md:table-cell">{report.totalHours || 0}h</TableCell>
                               <TableCell onClick={(e) => e.stopPropagation()}>
                                 <div className="flex gap-2">
                                   <Button
@@ -1692,6 +1701,32 @@ export default function AdminDashboard() {
                                     </div>
                                   ) : reportDetails.operations && reportDetails.operations.length > 0 ? (
                                     <div className="space-y-4">
+                                      {/* Info aggiuntive visibili solo su mobile */}
+                                      <div className="md:hidden bg-background rounded-md border p-3 space-y-2">
+                                        <div className="grid grid-cols-2 gap-2 text-sm">
+                                          <div className="flex items-center gap-2">
+                                            <Clock className="h-4 w-4 text-muted-foreground" />
+                                            <span className="text-muted-foreground">Ora creazione:</span>
+                                          </div>
+                                          <div className="font-medium">
+                                            {report.createdAt ? new Date(report.createdAt).toLocaleTimeString("it-IT", { 
+                                              hour: '2-digit', 
+                                              minute: '2-digit' 
+                                            }) : "-"}
+                                          </div>
+                                          <div className="flex items-center gap-2">
+                                            <ClipboardList className="h-4 w-4 text-muted-foreground" />
+                                            <span className="text-muted-foreground">Operazioni:</span>
+                                          </div>
+                                          <div className="font-medium">{report.operations || 0}</div>
+                                          <div className="flex items-center gap-2">
+                                            <Clock className="h-4 w-4 text-muted-foreground" />
+                                            <span className="text-muted-foreground">Ore totali:</span>
+                                          </div>
+                                          <div className="font-medium">{report.totalHours || 0}h</div>
+                                        </div>
+                                      </div>
+                                      
                                       <div className="font-medium text-sm flex items-center gap-2">
                                         <ClipboardList className="h-4 w-4" />
                                         Operazioni del Rapportino
