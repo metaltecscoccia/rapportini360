@@ -2418,7 +2418,8 @@ export default function AdminDashboard() {
         </TabsContent>
 
         {/* Configurazione Tab (Lavorazioni e Materiali) */}
-        <TabsContent value="work-types" className="space-y-4">
+        <TabsContent value="work-types">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Lavorazioni Card */}
           <Card>
             <CardHeader>
@@ -2437,19 +2438,22 @@ export default function AdminDashboard() {
                 </div>
               ) : (
                 <div className="overflow-x-auto" data-testid="scroll-table-worktypes">
-                  <Table className="min-w-[640px]">
+                  <Table>
                     <TableHeader>
                       <TableRow>
                         <TableHead>Nome</TableHead>
-                        <TableHead>Descrizione</TableHead>
-                        <TableHead>Stato</TableHead>
+                        <TableHead className="hidden lg:table-cell">Descrizione</TableHead>
+                        <TableHead className="hidden lg:table-cell">Stato</TableHead>
                         <TableHead>Azioni</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                     {(workTypes as any[]).length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                        <TableCell colSpan={2} className="text-center text-muted-foreground py-8 lg:hidden">
+                          Nessuna lavorazione trovata. Aggiungi la prima lavorazione.
+                        </TableCell>
+                        <TableCell colSpan={4} className="hidden lg:table-cell text-center text-muted-foreground py-8">
                           Nessuna lavorazione trovata. Aggiungi la prima lavorazione.
                         </TableCell>
                       </TableRow>
@@ -2459,10 +2463,10 @@ export default function AdminDashboard() {
                           <TableCell className="font-medium" data-testid={`text-worktype-name-${workType.id}`}>
                             {workType.name}
                           </TableCell>
-                          <TableCell data-testid={`text-worktype-description-${workType.id}`}>
+                          <TableCell className="hidden lg:table-cell" data-testid={`text-worktype-description-${workType.id}`}>
                             {workType.description || "-"}
                           </TableCell>
-                          <TableCell data-testid={`text-worktype-status-${workType.id}`}>
+                          <TableCell className="hidden lg:table-cell" data-testid={`text-worktype-status-${workType.id}`}>
                             <Badge variant={workType.isActive ? "default" : "secondary"}>
                               {workType.isActive ? "Attivo" : "Non attivo"}
                             </Badge>
@@ -2516,19 +2520,22 @@ export default function AdminDashboard() {
                 </div>
               ) : (
                 <div className="overflow-x-auto" data-testid="scroll-table-materials">
-                  <Table className="min-w-[640px]">
+                  <Table>
                     <TableHeader>
                       <TableRow>
                         <TableHead>Nome</TableHead>
-                        <TableHead>Descrizione</TableHead>
-                        <TableHead>Stato</TableHead>
+                        <TableHead className="hidden lg:table-cell">Descrizione</TableHead>
+                        <TableHead className="hidden lg:table-cell">Stato</TableHead>
                         <TableHead>Azioni</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                     {(materials as any[]).length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                        <TableCell colSpan={2} className="text-center text-muted-foreground py-8 lg:hidden">
+                          Nessun materiale trovato. Aggiungi il primo materiale.
+                        </TableCell>
+                        <TableCell colSpan={4} className="hidden lg:table-cell text-center text-muted-foreground py-8">
                           Nessun materiale trovato. Aggiungi il primo materiale.
                         </TableCell>
                       </TableRow>
@@ -2538,10 +2545,10 @@ export default function AdminDashboard() {
                           <TableCell className="font-medium" data-testid={`text-material-name-${material.id}`}>
                             {material.name}
                           </TableCell>
-                          <TableCell data-testid={`text-material-description-${material.id}`}>
+                          <TableCell className="hidden lg:table-cell" data-testid={`text-material-description-${material.id}`}>
                             {material.description || "-"}
                           </TableCell>
-                          <TableCell data-testid={`text-material-status-${material.id}`}>
+                          <TableCell className="hidden lg:table-cell" data-testid={`text-material-status-${material.id}`}>
                             <Badge variant={material.isActive ? "default" : "secondary"}>
                               {material.isActive ? "Attivo" : "Non attivo"}
                             </Badge>
@@ -2576,6 +2583,7 @@ export default function AdminDashboard() {
               )}
             </CardContent>
           </Card>
+          </div>
         </TabsContent>
       </Tabs>
 
