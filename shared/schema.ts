@@ -3,13 +3,24 @@ import { pgTable, text, varchar, timestamp, integer, boolean, numeric } from "dr
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+// Organizations table (Aziende/Clienti SaaS)
+export const organizations = pgTable("organizations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(),
+  subdomain: text("subdomain").unique(), // es: "azienda1" per azienda1.tuaapp.com
+  logo: text("logo"), // URL del logo aziendale
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
 // Users table
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  username: text("username").notNull().unique(),
+  organizationId: varchar("organization_id").references(() => organizations.id),
+  username: text("username").notNull(),
   password: text("password").notNull(),
   plainPassword: text("plain_password"), // Only for employees, null for admin
-  role: text("role").notNull().default("employee"), // employee or admin
+  role: text("role").notNull().default("employee"), // employee, admin, or superadmin
   fullName: text("full_name").notNull(),
   isActive: boolean("is_active").notNull().default(true), // true = attivo, false = licenziato
 });
@@ -17,14 +28,16 @@ export const users = pgTable("users", {
 // Clients table
 export const clients = pgTable("clients", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: text("name").notNull().unique(),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
+  name: text("name").notNull(),
   description: text("description"),
 });
 
 // Work types master table (Lavorazioni)
 export const workTypes = pgTable("work_types", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: text("name").notNull().unique(),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
+  name: text("name").notNull(),
   description: text("description"),
   isActive: boolean("is_active").notNull().default(true),
 });
@@ -32,7 +45,8 @@ export const workTypes = pgTable("work_types", {
 // Materials master table (Materiali)
 export const materials = pgTable("materials", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: text("name").notNull().unique(),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
+  name: text("name").notNull(),
   description: text("description"),
   isActive: boolean("is_active").notNull().default(true),
 });
@@ -40,6 +54,7 @@ export const materials = pgTable("materials", {
 // Work orders (Commesse) table
 export const workOrders = pgTable("work_orders", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   clientId: varchar("client_id").notNull().references(() => clients.id),
   name: text("name").notNull(),
   description: text("description"),
@@ -51,6 +66,7 @@ export const workOrders = pgTable("work_orders", {
 // Daily reports table
 export const dailyReports = pgTable("daily_reports", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   employeeId: varchar("employee_id").notNull().references(() => users.id),
   date: text("date").notNull(), // YYYY-MM-DD format
   status: text("status").notNull().default("In attesa"), // "In attesa" or "Approvato"
@@ -71,8 +87,14 @@ export const operations = pgTable("operations", {
 });
 
 // Insert schemas
+export const insertOrganizationSchema = createInsertSchema(organizations).omit({
+  id: true,
+  createdAt: true,
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
+  organizationId: true, // Will be set automatically from session
 }).extend({
   // Password validation - no requirements
   password: z.string().min(1, "Password è richiesta"),
@@ -87,22 +109,27 @@ export const updateUserSchema = insertUserSchema.partial().extend({
 
 export const insertClientSchema = createInsertSchema(clients).omit({
   id: true,
+  organizationId: true, // Will be set automatically from session
 });
 
 export const insertWorkTypeSchema = createInsertSchema(workTypes).omit({
   id: true,
+  organizationId: true, // Will be set automatically from session
 });
 
 export const insertMaterialSchema = createInsertSchema(materials).omit({
   id: true,
+  organizationId: true, // Will be set automatically from session
 });
 
 export const insertWorkOrderSchema = createInsertSchema(workOrders).omit({
   id: true,
+  organizationId: true, // Will be set automatically from session
 });
 
 export const insertDailyReportSchema = createInsertSchema(dailyReports).omit({
   id: true,
+  organizationId: true, // Will be set automatically from session
   createdAt: true,
   updatedAt: true,
 });
@@ -123,6 +150,9 @@ export const updateOperationSchema = insertOperationSchema.partial().extend({
 });
 
 // Types
+export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;
+export type Organization = typeof organizations.$inferSelect;
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type UpdateUser = z.infer<typeof updateUserSchema>;
 export type User = typeof users.$inferSelect;
