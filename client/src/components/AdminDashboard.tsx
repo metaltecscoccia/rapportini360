@@ -184,7 +184,7 @@ export default function AdminDashboard() {
       name: "",
       description: "",
       isActive: true,
-      availableWorkTypes: [],
+      availableWorkTypes: ["Taglio", "Saldatura", "Piegatura", "Montaggio"],
       availableMaterials: [],
     },
   });
