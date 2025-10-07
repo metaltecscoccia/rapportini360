@@ -1571,6 +1571,22 @@ export default function AdminDashboard() {
                     className="w-[135px]"
                     data-testid="input-to-date"
                   />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const today = new Date();
+                      const year = today.getFullYear();
+                      const month = String(today.getMonth() + 1).padStart(2, '0');
+                      const day = String(today.getDate()).padStart(2, '0');
+                      const todayStr = `${year}-${month}-${day}`;
+                      setFromDate(todayStr);
+                      setToDate(todayStr);
+                    }}
+                    data-testid="button-today"
+                  >
+                    Oggi
+                  </Button>
                 </div>
               </div>
             </CardHeader>
