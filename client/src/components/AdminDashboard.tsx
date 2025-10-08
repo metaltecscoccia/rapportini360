@@ -17,6 +17,7 @@ import { z } from "zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { formatDateToItalian, formatDateToISO } from "@/lib/dateUtils";
 import { 
   Users, 
   FileText, 
@@ -1658,7 +1659,7 @@ export default function AdminDashboard() {
                                 </div>
                               </TableCell>
                               <TableCell>
-                                {new Date(report.date).toLocaleDateString("it-IT")}
+                                {formatDateToItalian(report.date)}
                               </TableCell>
                               <TableCell className="hidden md:table-cell">
                                 {report.createdAt ? new Date(report.createdAt).toLocaleTimeString("it-IT", { 
@@ -2662,7 +2663,7 @@ export default function AdminDashboard() {
             <div className="mt-4">
               <DailyReportForm
                 employeeName={selectedReport.employeeName || "Dipendente"}
-                date={selectedReport.date}
+                date={formatDateToItalian(selectedReport.date)}
                 onSubmit={handleUpdateReport}
                 initialOperations={reportOperations}
                 isEditing={true}
@@ -2732,12 +2733,12 @@ export default function AdminDashboard() {
                   Creazione rapportino per: <span className="text-primary">{selectedEmployeeForReport.fullName}</span>
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  Data: {new Date().toLocaleDateString("it-IT")}
+                  Data: {formatDateToItalian(new Date().toISOString().split('T')[0])}
                 </p>
               </div>
               <DailyReportForm
                 employeeName={selectedEmployeeForReport.fullName}
-                date={new Date().toISOString().split('T')[0]}
+                date={formatDateToItalian(new Date().toISOString().split('T')[0])}
                 onSubmit={async (operations) => {
                   try {
                     await apiRequest('POST', '/api/daily-reports', {
@@ -3567,7 +3568,7 @@ export default function AdminDashboard() {
             <DialogTitle>Elimina Rapportino</DialogTitle>
             <DialogDescription>
               Sei sicuro di voler eliminare il rapportino di {selectedReportToDelete?.employeeName} del{" "}
-              {selectedReportToDelete?.date ? new Date(selectedReportToDelete.date).toLocaleDateString("it-IT") : ""}? 
+              {selectedReportToDelete?.date ? formatDateToItalian(selectedReportToDelete.date) : ""}? 
               Questa azione non può essere annullata.
             </DialogDescription>
           </DialogHeader>
