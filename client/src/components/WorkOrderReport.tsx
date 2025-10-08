@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, FileText, Download, Loader2 } from "lucide-react";
+import { formatDateToItalian } from "@/lib/dateUtils";
 
 interface WorkOrderReportProps {
   workOrderId: string;
@@ -235,11 +236,7 @@ export default function WorkOrderReport({
                     return (
                       <TableRow key={rowKey} className="hover-elevate">
                         <TableCell className="h-10 px-3 py-1 text-xs font-medium">
-                          {showDate ? new Date(row.date).toLocaleDateString('it-IT', { 
-                            day: '2-digit', 
-                            month: '2-digit',
-                            year: '2-digit'
-                          }) : ''}
+                          {showDate ? formatDateToItalian(row.date) : ''}
                         </TableCell>
                         <TableCell className="h-10 px-3 py-1 text-xs">
                           {row.employeeName}
