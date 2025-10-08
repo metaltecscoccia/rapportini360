@@ -1,6 +1,7 @@
 import { Document, Packer, Paragraph, Table, TableCell, TableRow, TextRun, HeadingLevel, AlignmentType, WidthType, BorderStyle } from 'docx';
 import { storage } from './storage';
 import { DailyReport, Operation, User, Client, WorkOrder } from '@shared/schema';
+import { formatDateToItalianLong } from '../shared/dateUtils';
 import fs from 'fs';
 import path from 'path';
 
@@ -251,13 +252,7 @@ export class WordService {
   }
 
   private formatDate(dateStr: string): string {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('it-IT', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+    return formatDateToItalianLong(dateStr);
   }
 
   async generateWorkOrderReportWord(workOrderId: string): Promise<Buffer> {
@@ -490,25 +485,17 @@ export class WordService {
     let filteredReports = allReports;
     
     // Filter by date range
+    // Use string comparison directly since YYYY-MM-DD is lexicographically sortable
     if (filters.fromDate || filters.toDate) {
       filteredReports = filteredReports.filter(report => {
-        const reportDate = new Date(report.date);
-        reportDate.setHours(0, 0, 0, 0);
+        const reportDate = report.date;
         
         if (filters.fromDate && filters.toDate) {
-          const from = new Date(filters.fromDate);
-          const to = new Date(filters.toDate);
-          from.setHours(0, 0, 0, 0);
-          to.setHours(23, 59, 59, 999);
-          return reportDate >= from && reportDate <= to;
+          return reportDate >= filters.fromDate && reportDate <= filters.toDate;
         } else if (filters.fromDate) {
-          const from = new Date(filters.fromDate);
-          from.setHours(0, 0, 0, 0);
-          return reportDate >= from;
+          return reportDate >= filters.fromDate;
         } else if (filters.toDate) {
-          const to = new Date(filters.toDate);
-          to.setHours(23, 59, 59, 999);
-          return reportDate <= to;
+          return reportDate <= filters.toDate;
         }
         return true;
       });
