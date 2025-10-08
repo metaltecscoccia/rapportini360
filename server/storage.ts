@@ -309,9 +309,12 @@ export class DatabaseStorage implements IStorage {
     return workOrder || undefined;
   }
 
-  async createWorkOrder(insertWorkOrder: InsertWorkOrder): Promise<WorkOrder> {
+  async createWorkOrder(insertWorkOrder: InsertWorkOrder, organizationId: string): Promise<WorkOrder> {
     await this.ensureInitialized();
-    const [workOrder] = await db.insert(workOrders).values(insertWorkOrder).returning();
+    const [workOrder] = await db.insert(workOrders).values({
+      ...insertWorkOrder,
+      organizationId
+    }).returning();
     return workOrder;
   }
 
@@ -374,9 +377,12 @@ export class DatabaseStorage implements IStorage {
     return report || undefined;
   }
 
-  async createDailyReport(insertReport: InsertDailyReport): Promise<DailyReport> {
+  async createDailyReport(insertReport: InsertDailyReport, organizationId: string): Promise<DailyReport> {
     await this.ensureInitialized();
-    const [report] = await db.insert(dailyReports).values(insertReport).returning();
+    const [report] = await db.insert(dailyReports).values({
+      ...insertReport,
+      organizationId
+    }).returning();
     return report;
   }
 
