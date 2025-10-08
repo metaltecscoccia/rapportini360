@@ -89,17 +89,42 @@ Date format: DD/MM/YYYY (Italian format) for all date displays in the applicatio
 ## Date Handling
 
 ### Italian Date Format (DD/MM/YYYY)
-All dates in the application are displayed in Italian format (DD/MM/YYYY) as per user requirements. The system uses custom utility functions to ensure consistent date formatting across the entire application.
+All dates in the application are displayed in Italian format (DD/MM/YYYY) as per user requirements. The system uses custom utility functions to ensure consistent date formatting across the entire application, including PDF/Word exports.
 
-### Date Utilities (`client/src/lib/dateUtils.ts`)
+### Shared Date Utilities (`shared/dateUtils.ts`)
+The date utilities are now shared between client and server to ensure consistent formatting across the entire application:
+
 - **formatDateToItalian(dateStr)**: Converts YYYY-MM-DD to DD/MM/YYYY using manual regex parsing to avoid timezone issues
+- **formatDateToItalianLong(dateStr)**: Converts YYYY-MM-DD to Italian long format with day name (e.g., "martedì 08 ottobre 2025") for PDF/Word exports
 - **formatDateToISO(dateStr)**: Converts DD/MM/YYYY to YYYY-MM-DD with validation
 - **getTodayItalian()**: Returns today's date in DD/MM/YYYY format
 - **getTodayISO()**: Returns today's date in YYYY-MM-DD format
 - **isValidItalianDate(dateStr)**: Validates DD/MM/YYYY format
 
+### Critical Implementation Details
+- **Manual Regex Parsing**: All date parsing uses manual regex extraction (not `new Date()`) to avoid timezone-induced day shifts
+- **String Comparison Filtering**: Date range filtering uses direct string comparison on YYYY-MM-DD format (lexicographically sortable)
+- **Shared Codebase**: Client re-exports utilities from `shared/dateUtils.ts` for backward compatibility
+
 ### Storage Format
 - Database stores dates in YYYY-MM-DD format for compatibility and proper sorting
 - All UI displays convert to DD/MM/YYYY for user-friendly Italian format
+- PDF/Word exports use `formatDateToItalianLong()` for full Italian date representation
 - Date input fields use native HTML5 date picker (browser format) for better UX
 - Conversions are handled automatically by the date utilities to prevent timezone-related bugs
+
+## Multi-Tenancy Security
+
+### Organization Isolation (Fixed)
+The application implements strict multi-tenant data isolation with organizationId filtering at all layers:
+
+- **Storage Layer**: All `getAll*` methods require organizationId parameter for proper filtering
+- **Single-Record Methods**: Critical methods like `getWorkOrder` and `getOperationsByWorkOrderId` now enforce organization scoping
+- **Export Services**: PDF/Word export services properly filter all data by organizationId to prevent cross-tenant data leakage
+- **Session Management**: organizationId is stored in Express session during login and passed to all data access operations
+
+### Recent Security Fixes (2025-10-08)
+- Fixed critical vulnerability in export services where work order and operation queries bypassed organization filtering
+- Updated `getWorkOrder(id, organizationId)` to enforce organization scoping with `AND` clause
+- Updated `getOperationsByWorkOrderId(workOrderId, organizationId)` to join with workOrders table for organization filtering
+- All export routes now extract organizationId from session and pass to services
