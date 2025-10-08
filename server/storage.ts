@@ -58,7 +58,7 @@ export interface IStorage {
   // Work Orders
   getAllWorkOrders(organizationId: string): Promise<WorkOrder[]>;
   getWorkOrdersByClient(clientId: string, organizationId: string): Promise<WorkOrder[]>;
-  getWorkOrder(id: string): Promise<WorkOrder | undefined>;
+  getWorkOrder(id: string, organizationId: string): Promise<WorkOrder | undefined>;
   createWorkOrder(workOrder: InsertWorkOrder, organizationId: string): Promise<WorkOrder>;
   updateWorkOrder(id: string, updates: Partial<InsertWorkOrder>): Promise<WorkOrder>;
   updateWorkOrderStatus(id: string, isActive: boolean): Promise<WorkOrder>;
@@ -76,7 +76,7 @@ export interface IStorage {
   
   // Operations
   getOperationsByReportId(reportId: string): Promise<Operation[]>;
-  getOperationsByWorkOrderId(workOrderId: string): Promise<Operation[]>;
+  getOperationsByWorkOrderId(workOrderId: string, organizationId: string): Promise<Operation[]>;
   getOperationsCountByWorkOrderId(workOrderId: string): Promise<number>;
   getOperationsCountByClientId(clientId: string): Promise<number>;
   getOperation(id: string): Promise<Operation | undefined>;
@@ -309,9 +309,11 @@ export class DatabaseStorage implements IStorage {
     );
   }
 
-  async getWorkOrder(id: string): Promise<WorkOrder | undefined> {
+  async getWorkOrder(id: string, organizationId: string): Promise<WorkOrder | undefined> {
     await this.ensureInitialized();
-    const [workOrder] = await db.select().from(workOrders).where(eq(workOrders.id, id));
+    const [workOrder] = await db.select().from(workOrders).where(
+      and(eq(workOrders.id, id), eq(workOrders.organizationId, organizationId))
+    );
     return workOrder || undefined;
   }
 
@@ -438,9 +440,19 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(operations).where(eq(operations.dailyReportId, reportId));
   }
 
-  async getOperationsByWorkOrderId(workOrderId: string): Promise<Operation[]> {
+  async getOperationsByWorkOrderId(workOrderId: string, organizationId: string): Promise<Operation[]> {
     await this.ensureInitialized();
-    return await db.select().from(operations).where(eq(operations.workOrderId, workOrderId));
+    // Join with workOrders to ensure organization filtering
+    const result = await db.select({ operations })
+      .from(operations)
+      .innerJoin(workOrders, eq(operations.workOrderId, workOrders.id))
+      .where(
+        and(
+          eq(operations.workOrderId, workOrderId),
+          eq(workOrders.organizationId, organizationId)
+        )
+      );
+    return result.map(r => r.operations);
   }
 
   async getOperation(id: string): Promise<Operation | undefined> {

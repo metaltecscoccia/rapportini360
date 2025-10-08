@@ -725,6 +725,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/export/daily-reports/:date", requireAdmin, async (req, res) => {
     try {
       const { date } = req.params;
+      const organizationId = (req as any).session.organizationId;
       
       // Validate date format (YYYY-MM-DD)
       if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
@@ -732,7 +733,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       console.log(`Generating Word report for date: ${date}`);
-      const docBuffer = await wordService.generateDailyReportWord(date);
+      const docBuffer = await wordService.generateDailyReportWord(date, organizationId);
 
       const filename = `Rapportini_${date}.docx`;
       
@@ -755,6 +756,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/export/daily-reports-range", requireAdmin, async (req, res) => {
     try {
       const { from, to, status, search } = req.query;
+      const organizationId = (req as any).session.organizationId;
       
       console.log(`Generating Word report for range: from=${from}, to=${to}, status=${status}, search=${search}`);
       const docBuffer = await wordService.generateDailyReportWordRange({
@@ -762,7 +764,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         toDate: to as string | undefined,
         status: status as string | undefined,
         searchTerm: search as string | undefined
-      });
+      }, organizationId);
 
       let filename = 'Rapportini';
       if (from && to) {
@@ -795,11 +797,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/export/work-order/:workOrderId", requireAdmin, async (req, res) => {
     try {
       const { workOrderId } = req.params;
+      const organizationId = (req as any).session.organizationId;
       
       console.log(`Generating Word report for work order: ${workOrderId}`);
-      const docBuffer = await wordService.generateWorkOrderReportWord(workOrderId);
+      const docBuffer = await wordService.generateWorkOrderReportWord(workOrderId, organizationId);
 
-      const workOrder = await storage.getWorkOrder(workOrderId);
+      const workOrder = await storage.getWorkOrder(workOrderId, organizationId);
       const filename = `Commessa_${workOrder?.name.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.docx`;
       
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
@@ -961,7 +964,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { workOrderId } = req.params;
       const organizationId = (req as any).session.organizationId;
-      const operations = await storage.getOperationsByWorkOrderId(workOrderId);
+      const operations = await storage.getOperationsByWorkOrderId(workOrderId, organizationId);
       
       // Get additional data for each operation (employee names, etc.)
       const enrichedOperations = await Promise.all(

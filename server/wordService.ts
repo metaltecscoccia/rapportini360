@@ -7,8 +7,8 @@ import path from 'path';
 
 export class WordService {
   
-  async generateDailyReportWord(date: string): Promise<Buffer> {
-    const reports = await storage.getDailyReportsByDate(date);
+  async generateDailyReportWord(date: string, organizationId: string): Promise<Buffer> {
+    const reports = await storage.getDailyReportsByDate(date, organizationId);
     
     if (reports.length === 0) {
       // Format date in Italian format for user-friendly error message
@@ -18,13 +18,13 @@ export class WordService {
     }
 
     // Get all related data
-    const clients = await storage.getAllClients();
+    const clients = await storage.getAllClients(organizationId);
     const clientsMap = new Map(clients.map(c => [c.id, c]));
     
     // Get all work orders
     const allWorkOrders: WorkOrder[] = [];
     for (const client of clients) {
-      const workOrders = await storage.getWorkOrdersByClient(client.id);
+      const workOrders = await storage.getWorkOrdersByClient(client.id, organizationId);
       allWorkOrders.push(...workOrders);
     }
     const workOrdersMap = new Map(allWorkOrders.map(wo => [wo.id, wo]));
@@ -255,18 +255,18 @@ export class WordService {
     return formatDateToItalianLong(dateStr);
   }
 
-  async generateWorkOrderReportWord(workOrderId: string): Promise<Buffer> {
-    const workOrder = await storage.getWorkOrder(workOrderId);
+  async generateWorkOrderReportWord(workOrderId: string, organizationId: string): Promise<Buffer> {
+    const workOrder = await storage.getWorkOrder(workOrderId, organizationId);
     
     if (!workOrder) {
       throw new Error(`Commessa non trovata`);
     }
 
-    const client = (await storage.getAllClients()).find(c => c.id === workOrder.clientId);
-    const operations = await storage.getOperationsByWorkOrderId(workOrderId);
+    const client = (await storage.getAllClients(organizationId)).find(c => c.id === workOrder.clientId);
+    const operations = await storage.getOperationsByWorkOrderId(workOrderId, organizationId);
 
     // Filter only operations from approved reports
-    const dailyReports = await storage.getAllDailyReports();
+    const dailyReports = await storage.getAllDailyReports(organizationId);
     const approvedOperations = operations.filter(op => {
       const report = dailyReports.find(r => r.id === op.dailyReportId);
       return report?.status === 'Approvato';
@@ -477,9 +477,9 @@ export class WordService {
     toDate?: string;
     status?: string;
     searchTerm?: string;
-  }): Promise<Buffer> {
+  }, organizationId: string): Promise<Buffer> {
     // Get all reports
-    let allReports = await storage.getAllDailyReports();
+    let allReports = await storage.getAllDailyReports(organizationId);
     
     // Apply filters
     let filteredReports = allReports;
@@ -508,7 +508,7 @@ export class WordService {
     
     // Filter by search term (employee name)
     if (filters.searchTerm) {
-      const users = await storage.getAllUsers();
+      const users = await storage.getAllUsers(organizationId);
       const usersMap = new Map(users.map(u => [u.id, u]));
       filteredReports = filteredReports.filter(report => {
         const user = usersMap.get(report.employeeId);
@@ -521,13 +521,13 @@ export class WordService {
     }
 
     // Get all related data
-    const clients = await storage.getAllClients();
+    const clients = await storage.getAllClients(organizationId);
     const clientsMap = new Map(clients.map(c => [c.id, c]));
     
     // Get all work orders
     const allWorkOrders: WorkOrder[] = [];
     for (const client of clients) {
-      const workOrders = await storage.getWorkOrdersByClient(client.id);
+      const workOrders = await storage.getWorkOrdersByClient(client.id, organizationId);
       allWorkOrders.push(...workOrders);
     }
     const workOrdersMap = new Map(allWorkOrders.map(wo => [wo.id, wo]));

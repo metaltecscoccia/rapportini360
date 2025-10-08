@@ -7,8 +7,8 @@ import path from 'path';
 
 export class PDFService {
   
-  async generateDailyReportPDF(date: string): Promise<Buffer> {
-    const reports = await storage.getDailyReportsByDate(date);
+  async generateDailyReportPDF(date: string, organizationId: string): Promise<Buffer> {
+    const reports = await storage.getDailyReportsByDate(date, organizationId);
     
     if (reports.length === 0) {
       // Format date in Italian format for user-friendly error message
@@ -18,13 +18,13 @@ export class PDFService {
     }
 
     // Get all related data
-    const clients = await storage.getAllClients();
+    const clients = await storage.getAllClients(organizationId);
     const clientsMap = new Map(clients.map(c => [c.id, c]));
     
     // Get all work orders
     const allWorkOrders: WorkOrder[] = [];
     for (const client of clients) {
-      const workOrders = await storage.getWorkOrdersByClient(client.id);
+      const workOrders = await storage.getWorkOrdersByClient(client.id, organizationId);
       allWorkOrders.push(...workOrders);
     }
     const workOrdersMap = new Map(allWorkOrders.map(wo => [wo.id, wo]));
