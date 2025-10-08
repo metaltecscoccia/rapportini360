@@ -131,9 +131,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Users
-  async getAllUsers(): Promise<User[]> {
+  async getAllUsers(organizationId: string): Promise<User[]> {
     await this.ensureInitialized();
-    return await db.select().from(users);
+    return await db.select().from(users).where(eq(users.organizationId, organizationId));
   }
 
   async getUser(id: string): Promise<User | undefined> {
@@ -194,9 +194,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Clients
-  async getAllClients(): Promise<Client[]> {
+  async getAllClients(organizationId: string): Promise<Client[]> {
     await this.ensureInitialized();
-    return await db.select().from(clients);
+    return await db.select().from(clients).where(eq(clients.organizationId, organizationId));
   }
 
   async createClient(insertClient: InsertClient, organizationId: string): Promise<Client> {
@@ -215,9 +215,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Work Types (Lavorazioni)
-  async getAllWorkTypes(): Promise<WorkType[]> {
+  async getAllWorkTypes(organizationId: string): Promise<WorkType[]> {
     await this.ensureInitialized();
-    return await db.select().from(workTypes);
+    return await db.select().from(workTypes).where(eq(workTypes.organizationId, organizationId));
   }
 
   async getWorkType(id: string): Promise<WorkType | undefined> {
@@ -256,9 +256,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Materials (Materiali)
-  async getAllMaterials(): Promise<Material[]> {
+  async getAllMaterials(organizationId: string): Promise<Material[]> {
     await this.ensureInitialized();
-    return await db.select().from(materials);
+    return await db.select().from(materials).where(eq(materials.organizationId, organizationId));
   }
 
   async getMaterial(id: string): Promise<Material | undefined> {
@@ -297,14 +297,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Work Orders
-  async getAllWorkOrders(): Promise<WorkOrder[]> {
+  async getAllWorkOrders(organizationId: string): Promise<WorkOrder[]> {
     await this.ensureInitialized();
-    return await db.select().from(workOrders);
+    return await db.select().from(workOrders).where(eq(workOrders.organizationId, organizationId));
   }
 
-  async getWorkOrdersByClient(clientId: string): Promise<WorkOrder[]> {
+  async getWorkOrdersByClient(clientId: string, organizationId: string): Promise<WorkOrder[]> {
     await this.ensureInitialized();
-    return await db.select().from(workOrders).where(eq(workOrders.clientId, clientId));
+    return await db.select().from(workOrders).where(
+      and(eq(workOrders.clientId, clientId), eq(workOrders.organizationId, organizationId))
+    );
   }
 
   async getWorkOrder(id: string): Promise<WorkOrder | undefined> {
@@ -357,14 +359,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Daily Reports
-  async getAllDailyReports(): Promise<DailyReport[]> {
+  async getAllDailyReports(organizationId: string): Promise<DailyReport[]> {
     await this.ensureInitialized();
-    return await db.select().from(dailyReports);
+    return await db.select().from(dailyReports).where(eq(dailyReports.organizationId, organizationId));
   }
 
-  async getDailyReportsByDate(date: string): Promise<DailyReport[]> {
+  async getDailyReportsByDate(date: string, organizationId: string): Promise<DailyReport[]> {
     await this.ensureInitialized();
-    return await db.select().from(dailyReports).where(eq(dailyReports.date, date));
+    return await db.select().from(dailyReports).where(
+      and(eq(dailyReports.date, date), eq(dailyReports.organizationId, organizationId))
+    );
   }
 
   async getDailyReport(id: string): Promise<DailyReport | undefined> {
@@ -373,10 +377,14 @@ export class DatabaseStorage implements IStorage {
     return report || undefined;
   }
 
-  async getDailyReportByEmployeeAndDate(employeeId: string, date: string): Promise<DailyReport | undefined> {
+  async getDailyReportByEmployeeAndDate(employeeId: string, date: string, organizationId: string): Promise<DailyReport | undefined> {
     await this.ensureInitialized();
     const [report] = await db.select().from(dailyReports).where(
-      and(eq(dailyReports.employeeId, employeeId), eq(dailyReports.date, date))
+      and(
+        eq(dailyReports.employeeId, employeeId), 
+        eq(dailyReports.date, date),
+        eq(dailyReports.organizationId, organizationId)
+      )
     );
     return report || undefined;
   }
