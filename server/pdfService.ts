@@ -1,6 +1,7 @@
 import { TDocumentDefinitions, Content } from 'pdfmake/interfaces';
 import { storage } from './storage';
 import { DailyReport, Operation, User, Client, WorkOrder } from '@shared/schema';
+import { formatDateToItalianLong } from '../shared/dateUtils';
 import fs from 'fs';
 import path from 'path';
 
@@ -252,12 +253,6 @@ export class PDFService {
   }
 
   private formatDate(dateStr: string): string {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('it-IT', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+    return formatDateToItalianLong(dateStr);
   }
 }
