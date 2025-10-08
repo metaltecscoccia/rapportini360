@@ -58,7 +58,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get all users (admin only)
   app.get("/api/users", requireAdmin, async (req, res) => {
     try {
-      const users = await storage.getAllUsers();
+      const organizationId = (req as any).session.organizationId;
+      const users = await storage.getAllUsers(organizationId);
       res.json(users);
     } catch (error) {
       console.error("Error fetching users:", error);
@@ -89,7 +90,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       console.log("Creating user...");
-      const user = await storage.createUser(result.data);
+      const organizationId = (req as any).session.organizationId;
+      const user = await storage.createUser(result.data, organizationId);
       console.log("User created successfully:", user.id);
       
       res.json(user);
@@ -291,7 +293,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get all clients
   app.get("/api/clients", requireAuth, async (req, res) => {
     try {
-      const clients = await storage.getAllClients();
+      const organizationId = (req as any).session.organizationId;
+      const clients = await storage.getAllClients(organizationId);
       res.json(clients);
     } catch (error) {
       console.error("Error fetching clients:", error);
@@ -308,7 +311,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Dati cliente non validi", issues: result.error.issues });
       }
       
-      const client = await storage.createClient(result.data);
+      const organizationId = (req as any).session.organizationId;
+      const client = await storage.createClient(result.data, organizationId);
       res.status(201).json(client);
     } catch (error: any) {
       console.error("Error creating client:", error);
@@ -368,7 +372,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Work Types (Lavorazioni) - Master list management
   app.get("/api/work-types", requireAuth, async (req, res) => {
     try {
-      const workTypes = await storage.getAllWorkTypes();
+      const organizationId = (req as any).session.organizationId;
+      const workTypes = await storage.getAllWorkTypes(organizationId);
       res.json(workTypes);
     } catch (error) {
       console.error("Error fetching work types:", error);
@@ -384,7 +389,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Dati lavorazione non validi", issues: result.error.issues });
       }
       
-      const workType = await storage.createWorkType(result.data);
+      const organizationId = (req as any).session.organizationId;
+      const workType = await storage.createWorkType(result.data, organizationId);
       res.status(201).json(workType);
     } catch (error: any) {
       console.error("Error creating work type:", error);
@@ -422,7 +428,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Materials (Materiali) - Master list management
   app.get("/api/materials", requireAuth, async (req, res) => {
     try {
-      const materials = await storage.getAllMaterials();
+      const organizationId = (req as any).session.organizationId;
+      const materials = await storage.getAllMaterials(organizationId);
       res.json(materials);
     } catch (error) {
       console.error("Error fetching materials:", error);
@@ -438,7 +445,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Dati materiale non validi", issues: result.error.issues });
       }
       
-      const material = await storage.createMaterial(result.data);
+      const organizationId = (req as any).session.organizationId;
+      const material = await storage.createMaterial(result.data, organizationId);
       res.status(201).json(material);
     } catch (error: any) {
       console.error("Error creating material:", error);
@@ -476,7 +484,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get work orders by client
   app.get("/api/clients/:clientId/work-orders", requireAuth, async (req, res) => {
     try {
-      const workOrders = await storage.getWorkOrdersByClient(req.params.clientId);
+      const organizationId = (req as any).session.organizationId;
+      const workOrders = await storage.getWorkOrdersByClient(req.params.clientId, organizationId);
       res.json(workOrders);
     } catch (error) {
       console.error("Error fetching work orders:", error);
@@ -497,7 +506,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Dati commessa non validi", issues: result.error.issues });
       }
       
-      const workOrder = await storage.createWorkOrder(result.data);
+      const organizationId = (req as any).session.organizationId;
+      const workOrder = await storage.createWorkOrder(result.data, organizationId);
       res.status(201).json(workOrder);
     } catch (error: any) {
       console.error("Error creating work order:", error);
@@ -508,7 +518,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get all work orders (admin only)
   app.get("/api/work-orders", requireAdmin, async (req, res) => {
     try {
-      const workOrders = await storage.getAllWorkOrders();
+      const organizationId = (req as any).session.organizationId;
+      const workOrders = await storage.getAllWorkOrders(organizationId);
       res.json(workOrders);
     } catch (error: any) {
       console.error("Error fetching work orders:", error);
@@ -519,7 +530,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get work orders statistics (admin only)
   app.get("/api/work-orders/stats", requireAdmin, async (req, res) => {
     try {
-      const stats = await storage.getWorkOrdersStats();
+      const organizationId = (req as any).session.organizationId;
+      const stats = await storage.getWorkOrdersStats(organizationId);
       res.json(stats);
     } catch (error: any) {
       console.error("Error fetching work order stats:", error);
@@ -588,9 +600,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/daily-reports/today", requireAuth, async (req, res) => {
     try {
       const userId = (req as any).session.userId;
+      const organizationId = (req as any).session.organizationId;
       const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
       
-      const report = await storage.getDailyReportByEmployeeAndDate(userId, today);
+      const report = await storage.getDailyReportByEmployeeAndDate(userId, today, organizationId);
       
       if (!report) {
         return res.status(404).json({ error: "Nessun rapportino trovato per oggi" });
@@ -612,7 +625,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get all daily reports (auth required)
   app.get("/api/daily-reports", requireAuth, async (req, res) => {
     try {
-      const reports = await storage.getAllDailyReports();
+      const organizationId = (req as any).session.organizationId;
+      const reports = await storage.getAllDailyReports(organizationId);
       
       // Enrich reports with employee names and operation counts
       const enrichedReports = await Promise.all(reports.map(async (report) => {
@@ -651,7 +665,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Create the report
-      const newReport = await storage.createDailyReport(reportResult.data);
+      const organizationId = (req as any).session.organizationId;
+      const newReport = await storage.createDailyReport(reportResult.data, organizationId);
       
       // Create operations if provided
       if (operations && Array.isArray(operations)) {
@@ -806,6 +821,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/daily-reports/:id", requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
+      const organizationId = (req as any).session.organizationId;
       
       const report = await storage.getDailyReport(id);
       if (!report) {
@@ -817,10 +833,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Enrich operations with client and work order names
       const enrichedOperations = await Promise.all(
         operations.map(async (op) => {
-          const client = await storage.getAllClients().then(clients => 
+          const client = await storage.getAllClients(organizationId).then(clients => 
             clients.find(c => c.id === op.clientId)
           );
-          const workOrder = await storage.getWorkOrdersByClient(op.clientId).then(orders => 
+          const workOrder = await storage.getWorkOrdersByClient(op.clientId, organizationId).then(orders => 
             orders.find(wo => wo.id === op.workOrderId)
           );
           
@@ -944,19 +960,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/work-orders/:workOrderId/operations", requireAuth, async (req, res) => {
     try {
       const { workOrderId } = req.params;
+      const organizationId = (req as any).session.organizationId;
       const operations = await storage.getOperationsByWorkOrderId(workOrderId);
       
       // Get additional data for each operation (employee names, etc.)
       const enrichedOperations = await Promise.all(
         operations.map(async (op) => {
-          const dailyReport = await storage.getAllDailyReports().then(reports => 
+          const dailyReport = await storage.getAllDailyReports(organizationId).then(reports => 
             reports.find(r => r.id === op.dailyReportId)
           );
           const employee = dailyReport ? await storage.getUser(dailyReport.employeeId) : null;
-          const client = await storage.getAllClients().then(clients => 
+          const client = await storage.getAllClients(organizationId).then(clients => 
             clients.find(c => c.id === op.clientId)
           );
-          const workOrder = await storage.getWorkOrdersByClient(op.clientId).then(orders => 
+          const workOrder = await storage.getWorkOrdersByClient(op.clientId, organizationId).then(orders => 
             orders.find(wo => wo.id === op.workOrderId)
           );
           

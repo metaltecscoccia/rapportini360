@@ -561,7 +561,7 @@ export class DatabaseStorage implements IStorage {
     return result.rowCount !== null && result.rowCount > 0;
   }
 
-  async getWorkOrdersStats(): Promise<Array<{
+  async getWorkOrdersStats(organizationId: string): Promise<Array<{
     workOrderId: string;
     totalOperations: number;
     totalHours: number;
@@ -569,9 +569,9 @@ export class DatabaseStorage implements IStorage {
   }>> {
     await this.ensureInitialized();
     
-    const allWorkOrders = await db.select().from(workOrders);
+    const allWorkOrders = await db.select().from(workOrders).where(eq(workOrders.organizationId, organizationId));
     const allOperations = await db.select().from(operations);
-    const allReports = await db.select().from(dailyReports);
+    const allReports = await db.select().from(dailyReports).where(eq(dailyReports.organizationId, organizationId));
     
     const approvedReportIds = new Set(
       allReports.filter(r => r.status === "Approvato").map(r => r.id)
