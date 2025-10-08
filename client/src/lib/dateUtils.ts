@@ -6,25 +6,30 @@
 
 /**
  * Convert date from YYYY-MM-DD to DD/MM/YYYY format
+ * Parses manually to avoid timezone issues
  */
 export function formatDateToItalian(dateStr: string): string {
   if (!dateStr) return '';
   
-  // Handle both Date objects and strings
-  const date = typeof dateStr === 'string' ? new Date(dateStr) : dateStr;
+  // If already in DD/MM/YYYY format, return as is
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) {
+    return dateStr;
+  }
   
-  // Validate date
-  if (isNaN(date.getTime())) return dateStr;
+  // Parse YYYY-MM-DD format manually to avoid timezone issues
+  const isoMatch = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (isoMatch) {
+    const [, year, month, day] = isoMatch;
+    return `${day}/${month}/${year}`;
+  }
   
-  const day = String(date.getDate()).padStart(2, '0');
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const year = date.getFullYear();
-  
-  return `${day}/${month}/${year}`;
+  // Fallback: return original string
+  return dateStr;
 }
 
 /**
  * Convert date from DD/MM/YYYY to YYYY-MM-DD format
+ * Validates input before conversion
  */
 export function formatDateToISO(dateStr: string): string {
   if (!dateStr) return '';
@@ -36,9 +41,18 @@ export function formatDateToISO(dateStr: string): string {
   
   // Parse DD/MM/YYYY format
   const parts = dateStr.split('/');
-  if (parts.length !== 3) return dateStr;
+  if (parts.length !== 3) return '';
   
   const [day, month, year] = parts;
+  
+  // Basic validation
+  const d = parseInt(day, 10);
+  const m = parseInt(month, 10);
+  const y = parseInt(year, 10);
+  
+  if (isNaN(d) || isNaN(m) || isNaN(y)) return '';
+  if (d < 1 || d > 31 || m < 1 || m > 12 || y < 1900) return '';
+  
   return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
 }
 
