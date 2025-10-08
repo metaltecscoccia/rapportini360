@@ -29,47 +29,47 @@ import { hashPassword } from "./auth";
 
 export interface IStorage {
   // Users
-  getAllUsers(): Promise<User[]>;
+  getAllUsers(organizationId: string): Promise<User[]>;
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  createUser(user: InsertUser, organizationId: string): Promise<User>;
   updateUser(id: string, updates: Partial<InsertUser>): Promise<User>;
   deleteUser(id: string): Promise<boolean>;
   
   // Clients
-  getAllClients(): Promise<Client[]>;
-  createClient(client: InsertClient): Promise<Client>;
+  getAllClients(organizationId: string): Promise<Client[]>;
+  createClient(client: InsertClient, organizationId: string): Promise<Client>;
   deleteClient(id: string): Promise<boolean>;
   
   // Work Types (Lavorazioni)
-  getAllWorkTypes(): Promise<WorkType[]>;
+  getAllWorkTypes(organizationId: string): Promise<WorkType[]>;
   getWorkType(id: string): Promise<WorkType | undefined>;
-  createWorkType(workType: InsertWorkType): Promise<WorkType>;
+  createWorkType(workType: InsertWorkType, organizationId: string): Promise<WorkType>;
   updateWorkType(id: string, updates: Partial<InsertWorkType>): Promise<WorkType>;
   deleteWorkType(id: string): Promise<boolean>;
   
   // Materials (Materiali)
-  getAllMaterials(): Promise<Material[]>;
+  getAllMaterials(organizationId: string): Promise<Material[]>;
   getMaterial(id: string): Promise<Material | undefined>;
-  createMaterial(material: InsertMaterial): Promise<Material>;
+  createMaterial(material: InsertMaterial, organizationId: string): Promise<Material>;
   updateMaterial(id: string, updates: Partial<InsertMaterial>): Promise<Material>;
   deleteMaterial(id: string): Promise<boolean>;
   
   // Work Orders
-  getAllWorkOrders(): Promise<WorkOrder[]>;
-  getWorkOrdersByClient(clientId: string): Promise<WorkOrder[]>;
+  getAllWorkOrders(organizationId: string): Promise<WorkOrder[]>;
+  getWorkOrdersByClient(clientId: string, organizationId: string): Promise<WorkOrder[]>;
   getWorkOrder(id: string): Promise<WorkOrder | undefined>;
-  createWorkOrder(workOrder: InsertWorkOrder): Promise<WorkOrder>;
+  createWorkOrder(workOrder: InsertWorkOrder, organizationId: string): Promise<WorkOrder>;
   updateWorkOrder(id: string, updates: Partial<InsertWorkOrder>): Promise<WorkOrder>;
   updateWorkOrderStatus(id: string, isActive: boolean): Promise<WorkOrder>;
   deleteWorkOrder(id: string): Promise<boolean>;
   
   // Daily Reports
-  getAllDailyReports(): Promise<DailyReport[]>;
-  getDailyReportsByDate(date: string): Promise<DailyReport[]>;
+  getAllDailyReports(organizationId: string): Promise<DailyReport[]>;
+  getDailyReportsByDate(date: string, organizationId: string): Promise<DailyReport[]>;
   getDailyReport(id: string): Promise<DailyReport | undefined>;
-  getDailyReportByEmployeeAndDate(employeeId: string, date: string): Promise<DailyReport | undefined>;
-  createDailyReport(report: InsertDailyReport): Promise<DailyReport>;
+  getDailyReportByEmployeeAndDate(employeeId: string, date: string, organizationId: string): Promise<DailyReport | undefined>;
+  createDailyReport(report: InsertDailyReport, organizationId: string): Promise<DailyReport>;
   updateDailyReport(id: string, updates: UpdateDailyReport): Promise<DailyReport>;
   updateDailyReportStatus(id: string, status: string): Promise<DailyReport>;
   deleteDailyReport(id: string): Promise<boolean>;
@@ -94,7 +94,7 @@ export interface IStorage {
   deleteWorkOrdersByClientId(clientId: string): Promise<boolean>;
   
   // Statistics
-  getWorkOrdersStats(): Promise<Array<{
+  getWorkOrdersStats(organizationId: string): Promise<Array<{
     workOrderId: string;
     totalOperations: number;
     totalHours: number;
