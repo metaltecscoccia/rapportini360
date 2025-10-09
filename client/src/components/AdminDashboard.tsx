@@ -1318,7 +1318,7 @@ export default function AdminDashboard() {
   };
 
   const totalPendingReports = (reports as any[]).filter((r: any) => r.status === "In attesa").length;
-  const totalApprovedReports = (reports as any[]).filter((r: any) => r.status === "Approvato").length;
+  const totalOpenWorkOrders = (workOrders as any[]).filter((wo: any) => wo.isActive === true).length;
 
   const handleViewWorkOrderReport = (operation: any) => {
     setSelectedWorkOrder({
@@ -1431,7 +1431,7 @@ export default function AdminDashboard() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">In Attesa</p>
+                <p className="text-sm font-medium text-muted-foreground">Rapportini in Attesa</p>
                 <p className="text-2xl font-bold">{totalPendingReports}</p>
               </div>
               <Clock className="h-8 w-8 text-warning" />
@@ -1443,10 +1443,10 @@ export default function AdminDashboard() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Approvati</p>
-                <p className="text-2xl font-bold">{totalApprovedReports}</p>
+                <p className="text-sm font-medium text-muted-foreground">Commesse Aperte</p>
+                <p className="text-2xl font-bold">{totalOpenWorkOrders}</p>
               </div>
-              <CheckCircle className="h-8 w-8 text-success" />
+              <Wrench className="h-8 w-8 text-success" />
             </div>
           </CardContent>
         </Card>
