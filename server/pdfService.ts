@@ -2,6 +2,8 @@ import { TDocumentDefinitions, Content } from 'pdfmake/interfaces';
 import { storage } from './storage';
 import { DailyReport, Operation, User, Client, WorkOrder } from '@shared/schema';
 import { formatDateToItalianLong } from '../shared/dateUtils';
+import { objectStorageClient } from './objectStorage';
+import sharp from 'sharp';
 import fs from 'fs';
 import path from 'path';
 
@@ -139,21 +141,6 @@ export class PDFService {
     });
   }
 
-  // Funzione per calcolare ore da startTime e endTime
-  private calculateHours(startTime: string, endTime: string): number {
-    if (!startTime || !endTime) return 0;
-    
-    const start = new Date(`2000-01-01 ${startTime}`);
-    const end = new Date(`2000-01-01 ${endTime}`);
-    
-    // Gestione passaggio mezzanotte
-    if (end < start) {
-      end.setDate(end.getDate() + 1);
-    }
-    
-    const diffMs = end.getTime() - start.getTime();
-    return Math.round((diffMs / (1000 * 60 * 60)) * 100) / 100; // Arrotonda a 2 decimali
-  }
 
   private async createEmployeeSection(
     user: User,
@@ -163,7 +150,7 @@ export class PDFService {
     workOrdersMap: Map<string, WorkOrder>
   ): Promise<Content> {
     
-    const totalHours = operations.reduce((sum, op) => sum + this.calculateHours(op.startTime, op.endTime), 0);
+    const totalHours = operations.reduce((sum, op) => sum + Number(op.hours), 0);
     
     // Operations table
     const tableBody = [
@@ -172,7 +159,6 @@ export class PDFService {
         { text: 'Cliente', style: 'tableHeader' },
         { text: 'Commessa', style: 'tableHeader' },
         { text: 'Lavorazione', style: 'tableHeader' },
-        { text: 'Orario', style: 'tableHeader' },
         { text: 'Ore', style: 'tableHeader' },
         { text: 'Note', style: 'tableHeader' }
       ]
@@ -182,13 +168,12 @@ export class PDFService {
     operations.forEach(op => {
       const client = clientsMap.get(op.clientId);
       const workOrder = workOrdersMap.get(op.workOrderId);
-      const hours = this.calculateHours(op.startTime, op.endTime);
+      const hours = Number(op.hours);
       
       tableBody.push([
         { text: client?.name || 'N/A', style: 'tableCell' },
         { text: workOrder?.name || 'N/A', style: 'tableCell' },
         { text: op.workTypes.join(', '), style: 'tableCell' },
-        { text: `${op.startTime} - ${op.endTime}`, style: 'tableCell' },
         { text: hours.toString() + 'h', style: 'tableCell' },
         { text: op.notes || '-', style: 'tableCell' }
       ]);
@@ -198,44 +183,85 @@ export class PDFService {
     tableBody.push([
       { text: '', style: 'tableCell' },
       { text: '', style: 'tableCell' },
-      { text: '', style: 'tableCell' },
       { text: 'TOTALE:', style: 'tableHeader' },
       { text: totalHours.toString() + 'h', style: 'tableHeader' },
       { text: '', style: 'tableCell' }
     ]);
 
-    return {
-      stack: [
-        // Employee header
-        {
-          columns: [
-            { text: user.fullName, style: 'employeeName' },
-            { 
-              text: report.status, 
-              style: 'statusBadge',
-              color: report.status === 'Approvato' ? '#16a34a' : '#eab308',
-              alignment: 'right'
-            }
-          ]
+    // Build stack content
+    const stackContent: Content[] = [
+      // Employee header
+      {
+        columns: [
+          { text: user.fullName, style: 'employeeName' },
+          { 
+            text: report.status, 
+            style: 'statusBadge',
+            color: report.status === 'Approvato' ? '#16a34a' : '#eab308',
+            alignment: 'right'
+          }
+        ]
+      },
+      
+      // Operations table
+      {
+        table: {
+          headerRows: 1,
+          widths: ['*', '*', 'auto', 'auto', '*'],
+          body: tableBody
         },
+        layout: 'lightHorizontalLines'
+      },
+      
+      // Summary
+      {
+        text: `Operazioni: ${operations.length} | Ore totali: ${totalHours}`,
+        style: 'sectionHeader',
+        margin: [0, 10, 0, 0]
+      }
+    ];
+
+    // Add photos for each operation that has them
+    for (let i = 0; i < operations.length; i++) {
+      const op = operations[i];
+      if (op.photos && op.photos.length > 0) {
+        const client = clientsMap.get(op.clientId);
+        const workOrder = workOrdersMap.get(op.workOrderId);
         
-        // Operations table
-        {
-          table: {
-            headerRows: 1,
-            widths: ['*', '*', 'auto', 'auto', 'auto', '*'],
-            body: tableBody
-          },
-          layout: 'lightHorizontalLines'
-        },
+        // Load photos in parallel with bounded concurrency
+        const photoPromises = op.photos.map(photoPath => this.getPhotoAsBase64(photoPath, 200));
+        const photoBase64Array = await Promise.all(photoPromises);
         
-        // Summary
-        {
-          text: `Operazioni: ${operations.length} | Ore totali: ${totalHours}`,
-          style: 'sectionHeader',
-          margin: [0, 10, 0, 0]
+        // Build photo images array (filter out null values)
+        const photoImages: any[] = photoBase64Array
+          .filter(base64 => base64 !== null)
+          .map(base64 => ({
+            image: base64,
+            width: 100,
+            margin: [0, 0, 10, 0]
+          }));
+
+        if (photoImages.length > 0) {
+          stackContent.push({
+            stack: [
+              {
+                text: `Foto Operazione ${i + 1} - ${client?.name || 'N/A'} / ${workOrder?.name || 'N/A'}`,
+                style: 'sectionHeader',
+                margin: [0, 10, 0, 5]
+              },
+              {
+                columns: photoImages,
+                columnGap: 10
+              }
+            ],
+            margin: [0, 5, 0, 10]
+          });
         }
-      ]
+      }
+    }
+
+    return {
+      stack: stackContent
     };
   }
 
@@ -254,5 +280,45 @@ export class PDFService {
 
   private formatDate(dateStr: string): string {
     return formatDateToItalianLong(dateStr);
+  }
+
+  private async getPhotoAsBase64(photoPath: string, maxWidth: number = 200): Promise<string | null> {
+    try {
+      // Parse bucket name and object path from the photo path
+      // photoPath format: "operations/photos/xxxxx.jpg"
+      const bucketId = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID;
+      if (!bucketId) {
+        console.warn('DEFAULT_OBJECT_STORAGE_BUCKET_ID not set');
+        return null;
+      }
+
+      const bucket = objectStorageClient.bucket(bucketId);
+      const file = bucket.file(photoPath);
+      
+      // Check if file exists
+      const [exists] = await file.exists();
+      if (!exists) {
+        console.warn(`Photo not found: ${photoPath}`);
+        return null;
+      }
+
+      // Download file as buffer
+      const [buffer] = await file.download();
+      
+      // Resize and compress image using Sharp
+      const resizedBuffer = await sharp(buffer)
+        .resize(maxWidth, null, { 
+          fit: 'inside',
+          withoutEnlargement: true 
+        })
+        .jpeg({ quality: 80 })
+        .toBuffer();
+      
+      // Convert to base64
+      return `data:image/jpeg;base64,${resizedBuffer.toString('base64')}`;
+    } catch (error) {
+      console.error(`Error loading photo ${photoPath}:`, error);
+      return null;
+    }
   }
 }
