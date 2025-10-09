@@ -84,6 +84,7 @@ export const operations = pgTable("operations", {
   materials: text("materials").array().notNull().default(sql`ARRAY[]::text[]`), // Multiple materials: ["Acciaio", "Alluminio"]
   hours: numeric("hours").notNull(), // Ore lavorate per questa operazione (es. 2.5)
   notes: text("notes"),
+  photos: text("photos").array().notNull().default(sql`ARRAY[]::text[]`), // Photo paths from object storage (max 5)
 });
 
 // Attendance entries (Assenze manuali gestite dall'admin)
