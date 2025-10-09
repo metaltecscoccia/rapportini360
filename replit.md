@@ -152,8 +152,14 @@ The application now supports uploading up to 5 photos per operation with full in
 - **Parallel Loading**: `Promise.all` for photo fetching eliminates sequential latency
 - **Aspect Ratio**: Word export uses `toBuffer({ resolveWithObject: true })` to get real dimensions, prevents distortion
 - **Lifecycle Cleanup**: `uppy.close()` in useEffect cleanup releases camera stream on unmount
-- **Error Handling**: Toast feedback, automatic Uppy reset, null filtering for missing photos
+- **Error Handling**: Toast feedback, `uppy.cancelAll()` for cleanup, null filtering for missing photos
 - **CSS Imports**: Uppy core, dashboard, and webcam styles imported in `main.tsx` for proper loading
+
+### Mobile Fixes (2025-10-09)
+- **Photo Thumbnails**: Fixed URL construction - server returns complete `/objects/photo.jpg` path, removed duplicate prefix
+- **Crash Prevention**: Added `onError` handler with SVG placeholder fallback to prevent white screen on failed image loads
+- **Error Loop Protection**: `onerror = null` after fallback prevents infinite retry loops
+- **Uppy API**: Fixed TypeScript error by replacing `uppy.reset()` with `uppy.cancelAll()`
 
 ## Word Export Endpoints
 
