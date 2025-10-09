@@ -134,7 +134,6 @@ export default function AdminDashboard() {
   const [deleteWorkOrderDialogOpen, setDeleteWorkOrderDialogOpen] = useState(false);
   const [selectedWorkOrderToEdit, setSelectedWorkOrderToEdit] = useState<any>(null);
   const [selectedWorkOrderToDelete, setSelectedWorkOrderToDelete] = useState<any>(null);
-  const [workOrderOperationsCount, setWorkOrderOperationsCount] = useState<number>(0);
   const [deleteReportDialogOpen, setDeleteReportDialogOpen] = useState(false);
   const [selectedReportToDelete, setSelectedReportToDelete] = useState<any>(null);
   const [addClientDialogOpen, setAddClientDialogOpen] = useState(false);
@@ -620,19 +619,8 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleDeleteWorkOrder = async (workOrder: any) => {
+  const handleDeleteWorkOrder = (workOrder: any) => {
     setSelectedWorkOrderToDelete(workOrder);
-    
-    // Fetch operations count
-    try {
-      const response = await fetch(`/api/work-orders/${workOrder.id}/operations/count`);
-      const data = await response.json();
-      setWorkOrderOperationsCount(data.count || 0);
-    } catch (error) {
-      console.error("Error fetching operations count:", error);
-      setWorkOrderOperationsCount(0);
-    }
-    
     setDeleteWorkOrderDialogOpen(true);
   };
 
@@ -1939,7 +1927,6 @@ export default function AdminDashboard() {
                               <TableRow>
                                 <TableHead>Nome</TableHead>
                                 <TableHead>Stato</TableHead>
-                                <TableHead>Operazioni</TableHead>
                                 <TableHead>Ore Totali</TableHead>
                                 <TableHead>Ultima Attività</TableHead>
                                 <TableHead>Azioni</TableHead>
@@ -1973,9 +1960,6 @@ export default function AdminDashboard() {
                                         <SelectItem value="completato">Completato</SelectItem>
                                       </SelectContent>
                                     </Select>
-                                  </TableCell>
-                                  <TableCell>
-                                    <Badge variant="outline">{workOrder.totalOperations} operazioni</Badge>
                                   </TableCell>
                                   <TableCell className="font-medium">{workOrder.totalHours}h</TableCell>
                                   <TableCell>{workOrder.lastActivity}</TableCell>
@@ -3494,11 +3478,6 @@ export default function AdminDashboard() {
             <DialogTitle>Elimina Commessa</DialogTitle>
             <DialogDescription>
               Sei sicuro di voler eliminare la commessa "{selectedWorkOrderToDelete?.name}"?
-              {workOrderOperationsCount > 0 && (
-                <span className="block mt-2 font-semibold text-destructive">
-                  Questa operazione eliminerà anche {workOrderOperationsCount} {workOrderOperationsCount === 1 ? 'operazione associata' : 'operazioni associate'}.
-                </span>
-              )}
               <span className="block mt-2">
                 Questa azione non può essere annullata.
               </span>
