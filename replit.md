@@ -79,9 +79,9 @@ Date format: DD/MM/YYYY (Italian format) for all date displays in the applicatio
 - **ESBuild**: Fast JavaScript bundler for production builds
 - **PostCSS**: CSS processing with Tailwind and Autoprefixer
 
-### PDF Generation
-- **PDFMake**: Client-side PDF generation library
-- **VFS Fonts**: Virtual file system for PDF font management
+### Document Generation
+- **Docx**: Word document generation library with ImageRun support for embedded photos
+- **Sharp**: High-performance image processing for photo resizing and compression
 
 ### Session Management
 - **Connect PG Simple**: PostgreSQL session store for Express sessions
@@ -128,3 +128,30 @@ The application implements strict multi-tenant data isolation with organizationI
 - Updated `getWorkOrder(id, organizationId)` to enforce organization scoping with `AND` clause
 - Updated `getOperationsByWorkOrderId(workOrderId, organizationId)` to join with workOrders table for organization filtering
 - All export routes now extract organizationId from session and pass to services
+
+## Photo Upload Feature (2025-10-09)
+
+### Implementation Complete
+The application now supports uploading up to 5 photos per operation with full integration in Word exports:
+
+- **Database Schema**: `operations.photos` field (text[]) stores array of object paths
+- **Object Storage**: Replit object storage with ACL-based multi-tenant isolation
+- **Upload Component**: `ObjectUploader` with Uppy integration, max 5 photos, comprehensive error handling
+- **Display**: 80×80px thumbnails in operation cards and form, always-visible delete buttons for mobile
+- **Word Export**: Photos embedded with preserved aspect ratio (300px max width, 80% quality) using ImageRun
+
+### Technical Details
+- **Sharp Integration**: Server-side image resizing prevents Word bloat (photos compressed from multi-MB to ~50KB)
+- **Parallel Loading**: `Promise.all` for photo fetching eliminates sequential latency
+- **Aspect Ratio**: Word export uses `toBuffer({ resolveWithObject: true })` to get real dimensions, prevents distortion
+- **Error Handling**: Toast feedback, automatic Uppy reset, null filtering for missing photos
+- **CSS Imports**: Uppy styles imported in `main.tsx` (not component-level) for proper loading
+
+## Word Export Endpoints
+
+### Export Routes
+- **Daily Reports**: `GET /api/export/daily-reports/:date` - Word export by date
+- **Date Range**: `GET /api/export/daily-reports-range?from=&to=&status=&search=` - Filtered export with photos
+- **Work Order**: `GET /api/export/work-order/:workOrderId` - Work order-specific export
+- **Authentication**: `requireAdmin` middleware for all export endpoints
+- **Service**: `WordService` with photo integration via Sharp resizing
