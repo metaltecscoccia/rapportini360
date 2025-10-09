@@ -1,7 +1,9 @@
-import { Document, Packer, Paragraph, Table, TableCell, TableRow, TextRun, HeadingLevel, AlignmentType, WidthType, BorderStyle } from 'docx';
+import { Document, Packer, Paragraph, Table, TableCell, TableRow, TextRun, ImageRun, HeadingLevel, AlignmentType, WidthType, BorderStyle } from 'docx';
 import { storage } from './storage';
 import { DailyReport, Operation, User, Client, WorkOrder } from '@shared/schema';
 import { formatDateToItalianLong } from '../shared/dateUtils';
+import { objectStorageClient } from './objectStorage';
+import sharp from 'sharp';
 import fs from 'fs';
 import path from 'path';
 
@@ -248,11 +250,113 @@ export class WordService {
       })
     );
 
+    // Add photos for each operation that has them
+    for (let i = 0; i < operations.length; i++) {
+      const op = operations[i];
+      if (op.photos && op.photos.length > 0) {
+        const client = clientsMap.get(op.clientId);
+        const workOrder = workOrdersMap.get(op.workOrderId);
+        
+        // Load photos in parallel
+        const photoPromises = op.photos.map(photoPath => this.getPhotoAsBuffer(photoPath, 300));
+        const photoData = await Promise.all(photoPromises);
+        
+        // Filter out null values
+        const validPhotos = photoData.filter(data => data !== null) as { buffer: Buffer; width: number; height: number }[];
+        
+        if (validPhotos.length > 0) {
+          // Add section header for photos
+          sections.push(
+            new Paragraph({
+              children: [new TextRun({
+                text: `Foto Operazione ${i + 1} - ${client?.name || 'N/A'} / ${workOrder?.name || 'N/A'}`,
+                bold: true
+              })],
+              spacing: { before: 300, after: 100 }
+            })
+          );
+          
+          // Add images in a paragraph (horizontal layout) with preserved aspect ratio
+          const imageRuns: ImageRun[] = validPhotos.map(photo => 
+            new ImageRun({
+              type: 'jpg',
+              data: photo.buffer,
+              transformation: {
+                width: photo.width,
+                height: photo.height
+              }
+            })
+          );
+          
+          // Create paragraph with images (with spacing between them using TextRun spacers)
+          const imageChildren: (ImageRun | TextRun)[] = [];
+          imageRuns.forEach((img, idx) => {
+            imageChildren.push(img);
+            if (idx < imageRuns.length - 1) {
+              // Add spacing between images
+              imageChildren.push(new TextRun({ text: '  ' }));
+            }
+          });
+          
+          sections.push(
+            new Paragraph({
+              children: imageChildren,
+              spacing: { after: 200 }
+            })
+          );
+        }
+      }
+    }
+
     return sections;
   }
 
   private formatDate(dateStr: string): string {
     return formatDateToItalianLong(dateStr);
+  }
+
+  private async getPhotoAsBuffer(photoPath: string, maxWidth: number = 300): Promise<{ buffer: Buffer; width: number; height: number } | null> {
+    try {
+      // Parse bucket name and object path from the photo path
+      // photoPath format: "operations/photos/xxxxx.jpg"
+      const bucketId = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID;
+      if (!bucketId) {
+        console.warn('DEFAULT_OBJECT_STORAGE_BUCKET_ID not set');
+        return null;
+      }
+
+      const bucket = objectStorageClient.bucket(bucketId);
+      const file = bucket.file(photoPath);
+      
+      // Check if file exists
+      const [exists] = await file.exists();
+      if (!exists) {
+        console.warn(`Photo not found: ${photoPath}`);
+        return null;
+      }
+
+      // Download file as buffer
+      const [buffer] = await file.download();
+      
+      // Resize and compress image using Sharp
+      const resizedBuffer = await sharp(buffer)
+        .resize(maxWidth, null, { 
+          fit: 'inside',
+          withoutEnlargement: true 
+        })
+        .jpeg({ quality: 80 })
+        .toBuffer({ resolveWithObject: true });
+      
+      // Return buffer with actual dimensions
+      return {
+        buffer: resizedBuffer.data,
+        width: resizedBuffer.info.width,
+        height: resizedBuffer.info.height
+      };
+    } catch (error) {
+      console.error(`Error loading photo ${photoPath}:`, error);
+      return null;
+    }
   }
 
   async generateWorkOrderReportWord(workOrderId: string, organizationId: string): Promise<Buffer> {
