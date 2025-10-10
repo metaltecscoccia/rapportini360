@@ -287,7 +287,7 @@ export default function AttendanceSheet() {
                       <>
                         {/* Row 1: Ordinarie */}
                         <TableRow key={`${employee.userId}-ordinary`}>
-                          <TableCell className="sticky left-0 bg-background z-10 font-medium">
+                          <TableCell rowSpan={2} className="sticky left-0 bg-background z-10 font-medium align-middle">
                             {employee.fullName}
                           </TableCell>
                           <TableCell className="text-center text-xs bg-muted/50">O</TableCell>
@@ -314,7 +314,6 @@ export default function AttendanceSheet() {
 
                         {/* Row 2: Straordinari/Assenze */}
                         <TableRow key={`${employee.userId}-overtime`} className="border-b-2">
-                          <TableCell className="sticky left-0 bg-background/50 z-10"></TableCell>
                           <TableCell className="text-center text-xs bg-muted/30">S</TableCell>
                           {Array.from({ length: daysInMonth }, (_, i) => {
                             const day = i + 1;
