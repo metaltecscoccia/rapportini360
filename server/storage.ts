@@ -316,6 +316,13 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(workOrders).where(eq(workOrders.organizationId, organizationId));
   }
 
+  async getAllActiveWorkOrders(organizationId: string): Promise<WorkOrder[]> {
+    await this.ensureInitialized();
+    return await db.select().from(workOrders).where(
+      and(eq(workOrders.organizationId, organizationId), eq(workOrders.isActive, true))
+    );
+  }
+
   async getWorkOrdersByClient(clientId: string, organizationId: string): Promise<WorkOrder[]> {
     await this.ensureInitialized();
     return await db.select().from(workOrders).where(

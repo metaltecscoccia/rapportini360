@@ -532,6 +532,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all active work orders (for employees)
+  app.get("/api/work-orders/active", requireAuth, async (req, res) => {
+    try {
+      const organizationId = (req as any).session.organizationId;
+      const workOrders = await storage.getAllActiveWorkOrders(organizationId);
+      res.json(workOrders);
+    } catch (error: any) {
+      console.error("Error fetching active work orders:", error);
+      res.status(500).json({ error: "Failed to fetch active work orders" });
+    }
+  });
+
   // Get work orders statistics (admin only)
   app.get("/api/work-orders/stats", requireAdmin, async (req, res) => {
     try {
