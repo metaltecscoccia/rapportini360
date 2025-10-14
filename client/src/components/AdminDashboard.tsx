@@ -1050,36 +1050,56 @@ export default function AdminDashboard() {
     }
   };
 
-  const filteredReports = (reports as any[]).filter((report: any) => {
-    const employeeName = report.employeeName || report.employee || "";
-    const matchesSearch = employeeName.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === "all" || report.status === statusFilter;
-    
-    // Filtro intervallo date
-    let matchesDate = true;
-    if (fromDate || toDate) {
-      const reportDate = new Date(report.date);
-      reportDate.setHours(0, 0, 0, 0);
+  const filteredReports = (reports as any[])
+    .filter((report: any) => {
+      const employeeName = report.employeeName || report.employee || "";
+      const matchesSearch = employeeName.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesStatus = statusFilter === "all" || report.status === statusFilter;
       
-      if (fromDate && toDate) {
-        const from = new Date(fromDate);
-        const to = new Date(toDate);
-        from.setHours(0, 0, 0, 0);
-        to.setHours(23, 59, 59, 999);
-        matchesDate = reportDate >= from && reportDate <= to;
-      } else if (fromDate) {
-        const from = new Date(fromDate);
-        from.setHours(0, 0, 0, 0);
-        matchesDate = reportDate >= from;
-      } else if (toDate) {
-        const to = new Date(toDate);
-        to.setHours(23, 59, 59, 999);
-        matchesDate = reportDate <= to;
+      // Filtro intervallo date
+      let matchesDate = true;
+      if (fromDate || toDate) {
+        const reportDate = new Date(report.date);
+        reportDate.setHours(0, 0, 0, 0);
+        
+        if (fromDate && toDate) {
+          const from = new Date(fromDate);
+          const to = new Date(toDate);
+          from.setHours(0, 0, 0, 0);
+          to.setHours(23, 59, 59, 999);
+          matchesDate = reportDate >= from && reportDate <= to;
+        } else if (fromDate) {
+          const from = new Date(fromDate);
+          from.setHours(0, 0, 0, 0);
+          matchesDate = reportDate >= from;
+        } else if (toDate) {
+          const to = new Date(toDate);
+          to.setHours(23, 59, 59, 999);
+          matchesDate = reportDate <= to;
+        }
       }
-    }
-    
-    return matchesSearch && matchesStatus && matchesDate;
-  });
+      
+      return matchesSearch && matchesStatus && matchesDate;
+    })
+    .sort((a: any, b: any) => {
+      // Prima ordina per data (più recente prima)
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      
+      if (dateA !== dateB) {
+        return dateB - dateA; // Data più recente prima
+      }
+      
+      // A parità di data, ordina per stato (In attesa prima di Approvato)
+      if (a.status === "In attesa" && b.status === "Approvato") {
+        return -1; // a viene prima
+      }
+      if (a.status === "Approvato" && b.status === "In attesa") {
+        return 1; // b viene prima
+      }
+      
+      return 0; // Stesso stato
+    });
 
   // Mutation per approvare rapportino
   const approveReportMutation = useMutation({
