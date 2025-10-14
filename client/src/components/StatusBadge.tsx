@@ -11,8 +11,12 @@ export default function StatusBadge({ status }: StatusBadgeProps) {
   
   return (
     <Badge 
-      variant={isPending ? "secondary" : "default"}
-      className={`flex items-center gap-1 ${isPending ? 'bg-warning/10 text-warning-foreground border-warning/20' : 'bg-success/10 text-success-foreground border-success/20'}`}
+      variant="outline"
+      className={`flex items-center gap-1 border-0 ${
+        isPending 
+          ? 'bg-orange-500 text-white dark:bg-orange-500 dark:text-white' 
+          : 'bg-green-500 text-black dark:bg-green-500 dark:text-black'
+      }`}
       data-testid={`badge-status-${status.toLowerCase().replace(' ', '-')}`}
     >
       {isPending ? (
