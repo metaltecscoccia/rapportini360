@@ -28,7 +28,7 @@ import {
   type UpdateOperation
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { hashPassword } from "./auth";
 
 export interface IStorage {
@@ -384,7 +384,9 @@ export class DatabaseStorage implements IStorage {
   // Daily Reports
   async getAllDailyReports(organizationId: string): Promise<DailyReport[]> {
     await this.ensureInitialized();
-    return await db.select().from(dailyReports).where(eq(dailyReports.organizationId, organizationId));
+    return await db.select().from(dailyReports)
+      .where(eq(dailyReports.organizationId, organizationId))
+      .orderBy(desc(dailyReports.date));
   }
 
   async getDailyReportsByDate(date: string, organizationId: string): Promise<DailyReport[]> {
