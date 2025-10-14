@@ -87,9 +87,9 @@ function OperationCard({
   const availableMaterials = selectedWorkOrder?.availableMaterials || [];
   
   return (
-    <Card className="p-4">
+    <Card className={`p-4 ${index % 2 === 0 ? 'bg-blue-50 dark:bg-blue-950/20' : 'bg-amber-50 dark:bg-amber-950/20'}`}>
       <div className="flex items-start justify-between mb-4">
-        <h4 className="font-medium">Operazione {index + 1}</h4>
+        <h4 className="font-medium text-base">Operazione {index + 1}</h4>
         {operationsLength > 1 && (
           <Button
             type="button"
