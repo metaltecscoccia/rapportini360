@@ -5,6 +5,7 @@ import { WordService } from "./wordService";
 import { generateAttendanceExcel } from "./excelService";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission, ObjectAccessGroupType } from "./objectAcl";
+import { getTodayISO } from "@shared/dateUtils";
 import { 
   insertUserSchema,
   updateUserSchema,
@@ -618,7 +619,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = (req as any).session.userId;
       const organizationId = (req as any).session.organizationId;
-      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+      const today = getTodayISO(); // YYYY-MM-DD format (local timezone)
       
       const report = await storage.getDailyReportByEmployeeAndDate(userId, today, organizationId);
       
@@ -667,6 +668,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching daily reports:", error);
       res.status(500).json({ error: "Failed to fetch daily reports" });
+    }
+  });
+
+  // Get employees who haven't submitted daily report for a specific date
+  app.get("/api/daily-reports/missing-employees", requireAdmin, async (req, res) => {
+    try {
+      const organizationId = (req as any).session.organizationId;
+      const date = (req.query.date as string) || getTodayISO(); // Default to today (local timezone)
+      
+      // Get all employees (users with role='employee')
+      const allUsers = await storage.getAllUsers(organizationId);
+      const employees = allUsers.filter(user => user.role === 'employee');
+      
+      // Get all daily reports for the specified date
+      const reportsForDate = await storage.getDailyReportsByDate(date, organizationId);
+      const employeeIdsWithReports = new Set(reportsForDate.map(report => report.employeeId));
+      
+      // Find employees who haven't submitted a report
+      const missingEmployees = employees
+        .filter(employee => !employeeIdsWithReports.has(employee.id))
+        .map(employee => ({
+          id: employee.id,
+          fullName: employee.fullName,
+          username: employee.username
+        }));
+      
+      res.json({
+        date,
+        missingCount: missingEmployees.length,
+        missingEmployees
+      });
+    } catch (error) {
+      console.error("Error fetching missing employees:", error);
+      res.status(500).json({ error: "Failed to fetch missing employees" });
     }
   });
 

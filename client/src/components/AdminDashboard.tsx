@@ -171,6 +171,9 @@ export default function AdminDashboard() {
   // State for expandable report rows
   const [expandedReportId, setExpandedReportId] = useState<string | null>(null);
   const [expandedReportData, setExpandedReportData] = useState<any>(null);
+  
+  // State for missing employees dialog
+  const [missingEmployeesDialogOpen, setMissingEmployeesDialogOpen] = useState(false);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -283,6 +286,12 @@ export default function AdminDashboard() {
   // Query per recuperare i materiali
   const { data: materials = [], isLoading: isLoadingMaterials } = useQuery<any[]>({
     queryKey: ['/api/materials'],
+  });
+
+  // Query per dipendenti mancanti (solo quando il dialog è aperto)
+  const { data: missingEmployeesData, isLoading: isLoadingMissingEmployees } = useQuery<any>({
+    queryKey: ['/api/daily-reports/missing-employees'],
+    enabled: missingEmployeesDialogOpen,
   });
 
   // Mutation per creare nuovo dipendente
@@ -1530,7 +1539,7 @@ export default function AdminDashboard() {
           <Card>
             <CardHeader>
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <CardTitle>Rapportini Giornalieri</CardTitle>
                   <Button 
                     variant="outline"
@@ -1540,6 +1549,15 @@ export default function AdminDashboard() {
                   >
                     <FileText className="h-4 w-4 mr-2" />
                     Esporta
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setMissingEmployeesDialogOpen(true)}
+                    data-testid="button-missing-employees"
+                  >
+                    <Users className="h-4 w-4 mr-2" />
+                    Dipendenti Mancanti
                   </Button>
                 </div>
                 <Button 
@@ -4113,6 +4131,65 @@ export default function AdminDashboard() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Dialog per dipendenti mancanti */}
+      <Dialog open={missingEmployeesDialogOpen} onOpenChange={setMissingEmployeesDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Dipendenti Mancanti - {missingEmployeesData?.date ? formatDateToItalian(missingEmployeesData.date) : ''}</DialogTitle>
+            <DialogDescription>
+              Dipendenti che non hanno ancora inviato il rapportino per oggi
+            </DialogDescription>
+          </DialogHeader>
+          
+          {isLoadingMissingEmployees ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+                <p className="text-muted-foreground">Caricamento...</p>
+              </div>
+            </div>
+          ) : missingEmployeesData?.missingCount === 0 ? (
+            <div className="text-center py-8">
+              <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-2" />
+              <p className="text-muted-foreground">
+                Tutti i dipendenti hanno inviato il rapportino!
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground mb-2">
+                {missingEmployeesData?.missingCount} dipendente/i mancante/i:
+              </p>
+              <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                {missingEmployeesData?.missingEmployees?.map((employee: any) => (
+                  <div 
+                    key={employee.id} 
+                    className="flex items-center gap-2 p-2 rounded-md bg-muted"
+                    data-testid={`missing-employee-${employee.id}`}
+                  >
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                    <div className="flex-1">
+                      <p className="font-medium">{employee.fullName}</p>
+                      <p className="text-xs text-muted-foreground">@{employee.username}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setMissingEmployeesDialogOpen(false)}
+              data-testid="button-close-missing-employees"
+            >
+              Chiudi
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
