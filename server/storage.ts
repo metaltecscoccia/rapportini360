@@ -118,7 +118,7 @@ export interface IStorage {
   
   // Hours adjustments
   getHoursAdjustment(dailyReportId: string, organizationId: string): Promise<HoursAdjustment | undefined>;
-  createHoursAdjustment(adjustment: InsertHoursAdjustment, organizationId: string): Promise<HoursAdjustment>;
+  createHoursAdjustment(adjustment: InsertHoursAdjustment, organizationId: string, createdBy: string): Promise<HoursAdjustment>;
   updateHoursAdjustment(id: string, updates: UpdateHoursAdjustment): Promise<HoursAdjustment>;
   deleteHoursAdjustment(id: string): Promise<boolean>;
   
@@ -726,11 +726,12 @@ export class DatabaseStorage implements IStorage {
     return adjustments[0];
   }
 
-  async createHoursAdjustment(adjustment: InsertHoursAdjustment, organizationId: string): Promise<HoursAdjustment> {
+  async createHoursAdjustment(adjustment: InsertHoursAdjustment, organizationId: string, createdBy: string): Promise<HoursAdjustment> {
     await this.ensureInitialized();
     const result = await db.insert(hoursAdjustments).values({
       ...adjustment,
-      organizationId
+      organizationId,
+      createdBy
     }).returning();
     return result[0];
   }

@@ -1297,9 +1297,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const adjustment = await storage.createHoursAdjustment({
-        ...result.data,
-        createdBy: userId
-      }, organizationId);
+        dailyReportId: result.data.dailyReportId,
+        adjustment: result.data.adjustment,
+        reason: result.data.reason
+      }, organizationId, userId);
       res.json(adjustment);
     } catch (error) {
       console.error("Error creating hours adjustment:", error);

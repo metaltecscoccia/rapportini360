@@ -177,6 +177,7 @@ export const insertAttendanceEntrySchema = createInsertSchema(attendanceEntries)
 export const insertHoursAdjustmentSchema = createInsertSchema(hoursAdjustments).omit({
   id: true,
   organizationId: true, // Will be set automatically from session
+  createdBy: true, // Will be set automatically from session
   createdAt: true,
   updatedAt: true,
 }).extend({
