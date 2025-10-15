@@ -91,12 +91,6 @@ export default function AttendanceSheet() {
     day: number;
   } | null>(null);
   const [selectedAbsenceType, setSelectedAbsenceType] = useState<string>("");
-  const [editingCell, setEditingCell] = useState<{
-    userId: string;
-    date: string;
-    type: 'ordinary' | 'overtime';
-    value: string;
-  } | null>(null);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -167,28 +161,6 @@ export default function AttendanceSheet() {
     },
   });
 
-  // Update hours mutation
-  const updateHoursMutation = useMutation({
-    mutationFn: async (data: { userId: string; date: string; ordinary: number; overtime: number }) => {
-      return apiRequest("PATCH", "/api/daily-reports/hours", data);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/attendance/monthly"] });
-      toast({
-        title: "Ore aggiornate",
-        description: "Le ore sono state aggiornate con successo",
-      });
-      setEditingCell(null);
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Errore",
-        description: error.message || "Errore durante l'aggiornamento delle ore",
-        variant: "destructive",
-      });
-    },
-  });
-
   const daysInMonth = new Date(
     parseInt(selectedYear),
     parseInt(selectedMonth),
@@ -213,38 +185,6 @@ export default function AttendanceSheet() {
 
   const handleDeleteAbsence = (entryId: string) => {
     deleteAbsenceMutation.mutate(entryId);
-  };
-
-  const handleStartEdit = (userId: string, date: string, type: 'ordinary' | 'overtime', currentValue: number) => {
-    setEditingCell({
-      userId,
-      date,
-      type,
-      value: currentValue > 0 ? currentValue.toString() : ''
-    });
-  };
-
-  const handleSaveHours = (userId: string, date: string, employeeData: any) => {
-    if (!editingCell) return;
-
-    const newValue = parseFloat(editingCell.value) || 0;
-    const dayData = employeeData.dailyData[date] || { ordinary: 0, overtime: 0 };
-
-    let ordinary = dayData.ordinary || 0;
-    let overtime = dayData.overtime || 0;
-
-    if (editingCell.type === 'ordinary') {
-      ordinary = newValue;
-    } else {
-      overtime = newValue;
-    }
-
-    updateHoursMutation.mutate({
-      userId,
-      date,
-      ordinary,
-      overtime
-    });
   };
 
   const handleExportExcel = () => {
@@ -358,37 +298,12 @@ export default function AttendanceSheet() {
                             const ordinary = dayData?.ordinary || 0;
                             totalOrdinary += ordinary;
 
-                            const isEditing = editingCell?.userId === employee.userId && 
-                                             editingCell?.date === date && 
-                                             editingCell?.type === 'ordinary';
-
                             return (
                               <TableCell 
                                 key={day} 
                                 className={`text-center p-0.5 text-xs ${getCellBgColor(selectedYear, selectedMonth, day)}`}
-                                onDoubleClick={() => handleStartEdit(employee.userId, date, 'ordinary', ordinary)}
                               >
-                                {isEditing ? (
-                                  <input
-                                    type="number"
-                                    step="0.5"
-                                    className="w-full text-center text-xs bg-transparent border border-primary rounded px-0.5"
-                                    value={editingCell.value}
-                                    onChange={(e) => setEditingCell({ ...editingCell, value: e.target.value })}
-                                    onKeyDown={(e) => {
-                                      if (e.key === 'Enter') {
-                                        handleSaveHours(employee.userId, date, employee);
-                                      } else if (e.key === 'Escape') {
-                                        setEditingCell(null);
-                                      }
-                                    }}
-                                    onBlur={() => handleSaveHours(employee.userId, date, employee)}
-                                    autoFocus
-                                    data-testid={`input-ordinary-${employee.userId}-${day}`}
-                                  />
-                                ) : (
-                                  ordinary > 0 ? (ordinary === Math.floor(ordinary) ? ordinary : ordinary.toFixed(1)) : '-'
-                                )}
+                                {ordinary > 0 ? (ordinary === Math.floor(ordinary) ? ordinary : ordinary.toFixed(1)) : '-'}
                               </TableCell>
                             );
                           })}
@@ -409,16 +324,11 @@ export default function AttendanceSheet() {
                             const absenceEntry = findAbsenceEntry(employee.userId, date);
                             totalOvertime += overtime;
 
-                            const isEditingOvertime = editingCell?.userId === employee.userId && 
-                                                      editingCell?.date === date && 
-                                                      editingCell?.type === 'overtime';
-
                             return (
                               <TableCell 
                                 key={day} 
                                 className={`text-center p-0.5 text-xs ${!absence ? 'cursor-pointer hover-elevate' : ''} relative group ${getCellBgColor(selectedYear, selectedMonth, day)}`}
                                 onClick={() => !absence && !dayData?.ordinary && !overtime && handleCellClick(employee.userId, employee.fullName, day)}
-                                onDoubleClick={() => !absence && handleStartEdit(employee.userId, date, 'overtime', overtime)}
                                 data-testid={`cell-absence-${employee.userId}-${day}`}
                               >
                                 {absence ? (
@@ -437,24 +347,6 @@ export default function AttendanceSheet() {
                                       </button>
                                     )}
                                   </div>
-                                ) : isEditingOvertime ? (
-                                  <input
-                                    type="number"
-                                    step="0.5"
-                                    className="w-full text-center text-xs bg-transparent border border-primary rounded px-0.5"
-                                    value={editingCell.value}
-                                    onChange={(e) => setEditingCell({ ...editingCell, value: e.target.value })}
-                                    onKeyDown={(e) => {
-                                      if (e.key === 'Enter') {
-                                        handleSaveHours(employee.userId, date, employee);
-                                      } else if (e.key === 'Escape') {
-                                        setEditingCell(null);
-                                      }
-                                    }}
-                                    onBlur={() => handleSaveHours(employee.userId, date, employee)}
-                                    autoFocus
-                                    data-testid={`input-overtime-${employee.userId}-${day}`}
-                                  />
                                 ) : overtime > 0 ? (
                                   overtime === Math.floor(overtime) ? overtime : overtime.toFixed(1)
                                 ) : '-'}
