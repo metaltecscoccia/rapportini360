@@ -31,6 +31,15 @@ export class WordService {
     }
     const workOrdersMap = new Map(allWorkOrders.map(wo => [wo.id, wo]));
 
+    // Get all hours adjustments for these reports
+    const adjustmentsPromises = reports.map(r => storage.getHoursAdjustment(r.id, organizationId));
+    const adjustments = await Promise.all(adjustmentsPromises);
+    const adjustmentsMap = new Map(
+      adjustments
+        .filter((adj): adj is NonNullable<typeof adj> => adj !== undefined && adj !== null)
+        .map(adj => [adj.dailyReportId, adj])
+    );
+
     // Build document sections
     const documentSections: Paragraph[] = [];
     
@@ -54,6 +63,7 @@ export class WordService {
       const report = reports[i];
       const user = await storage.getUser(report.employeeId);
       const operations = await storage.getOperationsByReportId(report.id);
+      const adjustment = adjustmentsMap.get(report.id);
       
       if (user && operations.length > 0) {
         const employeeSection = await this.createEmployeeSection(
@@ -61,7 +71,8 @@ export class WordService {
           report,
           operations,
           clientsMap,
-          workOrdersMap
+          workOrdersMap,
+          adjustment
         );
         documentSections.push(...employeeSection);
         
@@ -99,10 +110,20 @@ export class WordService {
     report: DailyReport,
     operations: Operation[],
     clientsMap: Map<string, Client>,
-    workOrdersMap: Map<string, WorkOrder>
+    workOrdersMap: Map<string, WorkOrder>,
+    adjustment?: any
   ): Promise<Paragraph[]> {
     
-    const totalHours = operations.reduce((sum, op) => sum + this.parseHours(op.hours), 0);
+    let totalHours = operations.reduce((sum, op) => sum + this.parseHours(op.hours), 0);
+    const originalHours = totalHours;
+    
+    // Apply hours adjustment if exists
+    if (adjustment) {
+      const adjustmentValue = parseFloat(adjustment.adjustment);
+      if (!isNaN(adjustmentValue)) {
+        totalHours += adjustmentValue;
+      }
+    }
     
     const sections: Paragraph[] = [];
     
@@ -207,7 +228,16 @@ export class WordService {
           }),
           new TableCell({
             children: [new Paragraph({
-              children: [new TextRun({ text: totalHours.toFixed(1) + 'h', bold: true })],
+              children: adjustment ? [
+                new TextRun({ text: originalHours.toFixed(1) + 'h ', bold: true }),
+                new TextRun({ 
+                  text: `(aggiustamento: ${parseFloat(adjustment.adjustment) >= 0 ? '+' : ''}${parseFloat(adjustment.adjustment).toFixed(1)}h) `,
+                  size: 20
+                }),
+                new TextRun({ text: '= ' + totalHours.toFixed(1) + 'h', bold: true })
+              ] : [
+                new TextRun({ text: totalHours.toFixed(1) + 'h', bold: true })
+              ],
               alignment: AlignmentType.CENTER
             })],
             shading: { fill: 'F3F4F6' }
@@ -613,6 +643,15 @@ export class WordService {
     }
     const workOrdersMap = new Map(allWorkOrders.map(wo => [wo.id, wo]));
 
+    // Get all hours adjustments for these reports
+    const adjustmentsPromises = filteredReports.map(r => storage.getHoursAdjustment(r.id, organizationId));
+    const adjustments = await Promise.all(adjustmentsPromises);
+    const adjustmentsMap = new Map(
+      adjustments
+        .filter((adj): adj is NonNullable<typeof adj> => adj !== undefined && adj !== null)
+        .map(adj => [adj.dailyReportId, adj])
+    );
+
     // Build document sections
     const documentSections: Paragraph[] = [];
     
@@ -647,6 +686,7 @@ export class WordService {
       const report = filteredReports[i];
       const user = await storage.getUser(report.employeeId);
       const operations = await storage.getOperationsByReportId(report.id);
+      const adjustment = adjustmentsMap.get(report.id);
       
       if (user && operations.length > 0) {
         const employeeSection = await this.createEmployeeSection(
@@ -654,7 +694,8 @@ export class WordService {
           report,
           operations,
           clientsMap,
-          workOrdersMap
+          workOrdersMap,
+          adjustment
         );
         documentSections.push(...employeeSection);
         
