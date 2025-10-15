@@ -41,12 +41,14 @@ import {
   ChevronUp,
   MapPin,
   ClipboardList,
-  Camera
+  Camera,
+  Calculator
 } from "lucide-react";
 import StatusBadge from "./StatusBadge";
 import WorkOrderReport from "./WorkOrderReport";
 import DailyReportForm from "./DailyReportForm";
 import AttendanceSheet from "./AttendanceSheet";
+import { HoursAdjustmentDialog } from "./HoursAdjustmentDialog";
 
 // Schema per form aggiunta dipendente
 const addEmployeeSchema = z.object({
@@ -171,6 +173,11 @@ export default function AdminDashboard() {
   // State for expandable report rows
   const [expandedReportId, setExpandedReportId] = useState<string | null>(null);
   const [expandedReportData, setExpandedReportData] = useState<any>(null);
+  
+  // State for hours adjustment dialog
+  const [hoursAdjustmentDialogOpen, setHoursAdjustmentDialogOpen] = useState(false);
+  const [selectedReportForAdjustment, setSelectedReportForAdjustment] = useState<string | null>(null);
+  const [currentHoursAdjustment, setCurrentHoursAdjustment] = useState<any>(null);
   
   // State for missing employees dialog
   const [missingEmployeesDialogOpen, setMissingEmployeesDialogOpen] = useState(false);
@@ -1812,7 +1819,29 @@ export default function AdminDashboard() {
                                             <Clock className="h-4 w-4 text-muted-foreground" />
                                             <span className="text-muted-foreground">Ore totali:</span>
                                           </div>
-                                          <div className="font-medium">{report.totalHours || 0}h</div>
+                                          <div className="font-medium flex items-center gap-2">
+                                            {report.totalHours || 0}h
+                                            <Button
+                                              size="icon"
+                                              variant="ghost"
+                                              className="h-6 w-6"
+                                              onClick={async () => {
+                                                setSelectedReportForAdjustment(report.id);
+                                                // Load existing adjustment if any
+                                                try {
+                                                  const response = await fetch(`/api/hours-adjustment/${report.id}`);
+                                                  const data = await response.json();
+                                                  setCurrentHoursAdjustment(data);
+                                                } catch (error) {
+                                                  setCurrentHoursAdjustment(null);
+                                                }
+                                                setHoursAdjustmentDialogOpen(true);
+                                              }}
+                                              data-testid={`button-hours-adjustment-${report.id}`}
+                                            >
+                                              <Calculator className="h-4 w-4" />
+                                            </Button>
+                                          </div>
                                         </div>
                                       </div>
                                       
@@ -4210,6 +4239,14 @@ export default function AdminDashboard() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Dialog per aggiustamento ore */}
+      <HoursAdjustmentDialog
+        open={hoursAdjustmentDialogOpen}
+        onOpenChange={setHoursAdjustmentDialogOpen}
+        dailyReportId={selectedReportForAdjustment || ""}
+        currentAdjustment={currentHoursAdjustment}
+      />
     </div>
   );
 }
