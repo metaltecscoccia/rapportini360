@@ -126,20 +126,41 @@ export default function PushNotificationToggle() {
     }
   };
 
-  if (!isSupported) {
-    return null; // Don't show button if push notifications are not supported
-  }
+  const handleClick = () => {
+    if (!isSupported) {
+      toast({
+        title: "Notifiche non supportate",
+        description: "Il tuo browser non supporta le notifiche push. Prova ad usare Safari su iOS 16.4+ o un browser desktop.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (isSubscribed) {
+      unsubscribeFromPush();
+    } else {
+      subscribeToPush();
+    }
+  };
 
   return (
     <Button
       variant="outline"
       size="icon"
-      onClick={isSubscribed ? unsubscribeFromPush : subscribeToPush}
+      onClick={handleClick}
       disabled={isLoading}
       data-testid="button-push-notifications"
-      title={isSubscribed ? "Disattiva notifiche promemoria" : "Attiva notifiche promemoria"}
+      title={
+        !isSupported
+          ? "Notifiche non supportate su questo browser"
+          : isSubscribed
+          ? "Disattiva notifiche promemoria"
+          : "Attiva notifiche promemoria"
+      }
     >
-      {isSubscribed ? (
+      {!isSupported ? (
+        <BellOff className="h-4 w-4 opacity-50" />
+      ) : isSubscribed ? (
         <Bell className="h-4 w-4" />
       ) : (
         <BellOff className="h-4 w-4" />
