@@ -1492,6 +1492,81 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Push Notification Routes
+  
+  // Get VAPID public key
+  app.get("/api/push-subscription/vapid-public-key", (req, res) => {
+    const publicKey = process.env.VAPID_PUBLIC_KEY;
+    
+    if (!publicKey) {
+      return res.status(500).json({ error: "VAPID public key not configured" });
+    }
+    
+    res.json({ publicKey });
+  });
+
+  // Subscribe to push notifications
+  app.post("/api/push-subscription", requireAuth, async (req, res) => {
+    try {
+      const userId = (req as any).session.userId;
+      const organizationId = (req as any).session.organizationId;
+      const { subscription } = req.body;
+
+      if (!subscription) {
+        return res.status(400).json({ error: "Subscription is required" });
+      }
+
+      const pushSubscription = await storage.createPushSubscription(
+        { subscription },
+        userId,
+        organizationId
+      );
+
+      res.json({ success: true, subscription: pushSubscription });
+    } catch (error) {
+      console.error("Error creating push subscription:", error);
+      res.status(500).json({ error: "Failed to create push subscription" });
+    }
+  });
+
+  // Unsubscribe from push notifications
+  app.delete("/api/push-subscription", requireAuth, async (req, res) => {
+    try {
+      const userId = (req as any).session.userId;
+      const organizationId = (req as any).session.organizationId;
+
+      const deleted = await storage.deletePushSubscription(userId, organizationId);
+
+      if (deleted) {
+        res.json({ success: true });
+      } else {
+        res.status(404).json({ error: "Subscription not found" });
+      }
+    } catch (error) {
+      console.error("Error deleting push subscription:", error);
+      res.status(500).json({ error: "Failed to delete push subscription" });
+    }
+  });
+
+  // Test push notification (admin only) - for manual testing
+  app.post("/api/push-subscription/test", requireAdmin, async (req, res) => {
+    try {
+      const organizationId = (req as any).session.organizationId;
+      const { schedulerService } = await import("./schedulerService");
+      
+      // Manually trigger the reminder check
+      await schedulerService.triggerManualCheck();
+      
+      res.json({ 
+        success: true, 
+        message: "Manual reminder check triggered. Check logs for results." 
+      });
+    } catch (error) {
+      console.error("Error triggering manual check:", error);
+      res.status(500).json({ error: "Failed to trigger manual check" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
