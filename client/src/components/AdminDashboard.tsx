@@ -39,6 +39,8 @@ import {
   Package,
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
+  ChevronRight,
   MapPin,
   ClipboardList,
   Camera,
@@ -181,6 +183,10 @@ export default function AdminDashboard() {
   
   // State for missing employees dialog
   const [missingEmployeesDialogOpen, setMissingEmployeesDialogOpen] = useState(false);
+  const [missingEmployeesDate, setMissingEmployeesDate] = useState<string>(() => {
+    const today = new Date();
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  });
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -297,7 +303,14 @@ export default function AdminDashboard() {
 
   // Query per dipendenti mancanti (solo quando il dialog è aperto)
   const { data: missingEmployeesData, isLoading: isLoadingMissingEmployees } = useQuery<any>({
-    queryKey: ['/api/daily-reports/missing-employees'],
+    queryKey: ['/api/daily-reports/missing-employees', missingEmployeesDate],
+    queryFn: async () => {
+      const res = await fetch(`/api/daily-reports/missing-employees?date=${missingEmployeesDate}`, {
+        credentials: 'include'
+      });
+      if (!res.ok) throw new Error('Failed to fetch missing employees');
+      return res.json();
+    },
     enabled: missingEmployeesDialogOpen,
   });
 
@@ -4185,10 +4198,40 @@ export default function AdminDashboard() {
       <Dialog open={missingEmployeesDialogOpen} onOpenChange={setMissingEmployeesDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Dipendenti Mancanti - {missingEmployeesData?.date ? formatDateToItalian(missingEmployeesData.date) : ''}</DialogTitle>
-            <DialogDescription>
-              Dipendenti che non hanno ancora inviato il rapportino per oggi
-            </DialogDescription>
+            <div className="flex items-center justify-between gap-2">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => {
+                  const date = new Date(missingEmployeesDate);
+                  date.setDate(date.getDate() - 1);
+                  setMissingEmployeesDate(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`);
+                }}
+                data-testid="button-previous-day"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              
+              <div className="flex-1 text-center">
+                <DialogTitle>Dipendenti Mancanti</DialogTitle>
+                <DialogDescription className="mt-1">
+                  {missingEmployeesData?.date ? formatDateToItalian(missingEmployeesData.date) : ''}
+                </DialogDescription>
+              </div>
+              
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => {
+                  const date = new Date(missingEmployeesDate);
+                  date.setDate(date.getDate() + 1);
+                  setMissingEmployeesDate(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`);
+                }}
+                data-testid="button-next-day"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
           </DialogHeader>
           
           {isLoadingMissingEmployees ? (
