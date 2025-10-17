@@ -44,7 +44,8 @@ import {
   MapPin,
   ClipboardList,
   Camera,
-  Calculator
+  Calculator,
+  Bell
 } from "lucide-react";
 import StatusBadge from "./StatusBadge";
 import WorkOrderReport from "./WorkOrderReport";
@@ -1277,6 +1278,28 @@ export default function AdminDashboard() {
       });
     },
   });
+
+  // Mutation per testare le notifiche push
+  const testPushNotificationMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest('POST', '/api/push-subscription/test', {});
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Notifica inviata",
+        description: `Notifica di test inviata a ${data.sentCount || 0} dipendente/i con notifiche attive.`,
+      });
+    },
+    onError: (error: any) => {
+      console.error("Error sending test notification:", error);
+      toast({
+        title: "Errore",
+        description: "Impossibile inviare la notifica di test",
+        variant: "destructive",
+      });
+    },
+  });
   
   const handleToggleReportExpansion = (reportId: string) => {
     if (expandedReportId === reportId) {
@@ -1492,6 +1515,15 @@ export default function AdminDashboard() {
         </div>
         
         <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            onClick={() => testPushNotificationMutation.mutate()}
+            disabled={testPushNotificationMutation.isPending}
+            data-testid="button-test-push-notifications"
+          >
+            <Bell className="h-4 w-4 mr-2" />
+            {testPushNotificationMutation.isPending ? "Invio..." : "Testa Notifiche"}
+          </Button>
           <Button 
             variant="outline" 
             onClick={() => handleExportReports()}
