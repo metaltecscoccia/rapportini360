@@ -63,13 +63,8 @@ function AuthenticatedApp({ currentUser, onLogout }: { currentUser: User; onLogo
     mutationFn: async (operations: any[]) => {
       if (!currentUser) throw new Error("User not logged in");
       
-      // Ottieni i dati dell'utente corrente
-      const userResponse = await apiRequest('GET', '/api/me');
-      const userData = await userResponse.json();
-      
+      // Il backend prenderà employeeId dalla sessione
       const response = await apiRequest('POST', '/api/daily-reports', {
-        employeeId: userData.id,
-        date: new Date().toISOString().split('T')[0], // YYYY-MM-DD format
         operations
       });
       
@@ -177,6 +172,7 @@ function AuthenticatedApp({ currentUser, onLogout }: { currentUser: User; onLogo
                 onSubmit={handleReportSubmit}
                 initialOperations={todayReport?.operations}
                 isEditing={!!todayReport}
+                isSubmitting={createReportMutation.isPending || updateReportMutation.isPending}
               />
             )}
           </div>

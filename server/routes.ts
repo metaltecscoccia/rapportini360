@@ -710,7 +710,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create new daily report
   app.post("/api/daily-reports", requireAuth, async (req, res) => {
     try {
-      const { operations, ...reportData } = req.body;
+      const { operations, date } = req.body;
+      
+      // Get user info from session
+      const userId = (req as any).session.userId;
+      const organizationId = (req as any).session.organizationId;
+      
+      // Build report data with employeeId from session
+      const reportData = {
+        employeeId: userId,
+        date: date || new Date().toISOString().split('T')[0], // Use provided date or today
+        status: "In attesa"
+      };
       
       // Validate report data
       const reportResult = insertDailyReportSchema.safeParse(reportData);
@@ -719,7 +730,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Create the report
-      const organizationId = (req as any).session.organizationId;
       const newReport = await storage.createDailyReport(reportResult.data, organizationId);
       
       // Create operations if provided
@@ -1047,20 +1057,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (operations.length === 1) {
         // Single operation: simply update the hours
-        await storage.updateOperation(operations[0].id, { hours: targetTotal });
+        await storage.updateOperation(operations[0].id, { hours: String(targetTotal) });
       } else {
         // Multiple operations: distribute proportionally to preserve relative allocation
         if (currentTotal > 0) {
           const scaleFactor = targetTotal / currentTotal;
           for (const op of operations) {
             const newHours = Number(op.hours) * scaleFactor;
-            await storage.updateOperation(op.id, { hours: newHours });
+            await storage.updateOperation(op.id, { hours: String(newHours) });
           }
         } else {
           // If all operations were 0, put all hours in first operation
-          await storage.updateOperation(operations[0].id, { hours: targetTotal });
+          await storage.updateOperation(operations[0].id, { hours: String(targetTotal) });
           for (let i = 1; i < operations.length; i++) {
-            await storage.updateOperation(operations[i].id, { hours: 0 });
+            await storage.updateOperation(operations[i].id, { hours: "0" });
           }
         }
       }

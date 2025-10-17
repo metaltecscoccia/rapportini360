@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, integer, boolean, numeric } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, integer, boolean, numeric, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -61,7 +61,10 @@ export const workOrders = pgTable("work_orders", {
   isActive: boolean("is_active").notNull().default(true),
   availableWorkTypes: text("available_work_types").array().notNull().default(sql`ARRAY[]::text[]`),
   availableMaterials: text("available_materials").array().notNull().default(sql`ARRAY[]::text[]`),
-});
+}, (table) => ({
+  orgActiveIdx: index("work_orders_org_active_idx").on(table.organizationId, table.isActive),
+  clientIdx: index("work_orders_client_idx").on(table.clientId),
+}));
 
 // Daily reports table
 export const dailyReports = pgTable("daily_reports", {
@@ -72,7 +75,10 @@ export const dailyReports = pgTable("daily_reports", {
   status: text("status").notNull().default("In attesa"), // "In attesa" or "Approvato"
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
-});
+}, (table) => ({
+  orgDateIdx: index("daily_reports_org_date_idx").on(table.organizationId, table.date),
+  employeeDateIdx: index("daily_reports_employee_date_idx").on(table.employeeId, table.date),
+}));
 
 // Operations table (multiple operations per daily report)
 export const operations = pgTable("operations", {
@@ -85,7 +91,9 @@ export const operations = pgTable("operations", {
   hours: numeric("hours").notNull(), // Ore lavorate per questa operazione (es. 2.5)
   notes: text("notes"),
   photos: text("photos").array().notNull().default(sql`ARRAY[]::text[]`), // Photo paths from object storage (max 5)
-});
+}, (table) => ({
+  dailyReportIdx: index("operations_daily_report_idx").on(table.dailyReportId),
+}));
 
 // Attendance entries (Assenze manuali gestite dall'admin)
 export const attendanceEntries = pgTable("attendance_entries", {
