@@ -1,4 +1,4 @@
-import { useState, useRef, Fragment } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -1712,7 +1712,7 @@ export default function AdminDashboard() {
                         const reportDetails = isExpanded ? expandedReportData : null;
                         
                         return (
-                          <Fragment key={report.id}>
+                          <>
                             <TableRow 
                               key={report.id}
                               className="cursor-pointer hover-elevate"
@@ -1964,7 +1964,7 @@ export default function AdminDashboard() {
                                 </TableCell>
                               </TableRow>
                             )}
-                          </Fragment>
+                          </>
                         );
                       })
                     )}
