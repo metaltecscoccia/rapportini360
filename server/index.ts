@@ -7,6 +7,18 @@ import { schedulerService } from "./schedulerService";
 
 const app = express();
 
+// Global error handlers to prevent server crashes
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  // Log the error but don't crash the server
+});
+
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+  // Log the error but don't crash the server
+  // In production, you might want to restart the process gracefully
+});
+
 // Trust proxy when in production (for secure cookies behind HTTPS proxy)
 if (process.env.NODE_ENV === 'production') {
   app.set('trust proxy', 1);
@@ -94,8 +106,13 @@ app.use((req, res, next) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
 
+    // Log the error for debugging
+    console.error('Express error handler:', err);
+
+    // Send error response to client
     res.status(status).json({ message });
-    throw err;
+    
+    // Don't throw the error - just log it to prevent server crashes
   });
 
   // importantly only setup vite in development and after
