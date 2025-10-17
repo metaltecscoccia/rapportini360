@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, Fragment } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -284,7 +284,7 @@ export default function AttendanceSheet() {
                     let totalOvertime = 0;
 
                     return (
-                      <>
+                      <Fragment key={employee.userId}>
                         {/* Row 1: Ordinarie */}
                         <TableRow key={`${employee.userId}-ordinary`}>
                           <TableCell rowSpan={2} className="sticky left-0 bg-background z-10 font-medium align-middle">
@@ -357,7 +357,7 @@ export default function AttendanceSheet() {
                             {totalOvertime === Math.floor(totalOvertime) ? totalOvertime : totalOvertime.toFixed(1)}
                           </TableCell>
                         </TableRow>
-                      </>
+                      </Fragment>
                     );
                   })}
                 </TableBody>
