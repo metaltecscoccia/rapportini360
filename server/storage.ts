@@ -8,6 +8,7 @@ import {
   operations,
   attendanceEntries,
   hoursAdjustments,
+  pushSubscriptions,
   type User, 
   type InsertUser,
   type Client,
@@ -28,6 +29,8 @@ import {
   type HoursAdjustment,
   type InsertHoursAdjustment,
   type UpdateHoursAdjustment,
+  type PushSubscription,
+  type InsertPushSubscription,
   type UpdateDailyReport,
   type UpdateOperation
 } from "@shared/schema";
@@ -121,6 +124,12 @@ export interface IStorage {
   createHoursAdjustment(adjustment: InsertHoursAdjustment, organizationId: string, createdBy: string): Promise<HoursAdjustment>;
   updateHoursAdjustment(id: string, updates: UpdateHoursAdjustment): Promise<HoursAdjustment>;
   deleteHoursAdjustment(id: string): Promise<boolean>;
+  
+  // Push Subscriptions
+  getPushSubscription(userId: string, organizationId: string): Promise<PushSubscription | undefined>;
+  getAllPushSubscriptions(organizationId: string): Promise<PushSubscription[]>;
+  createPushSubscription(subscription: InsertPushSubscription, userId: string, organizationId: string): Promise<PushSubscription>;
+  deletePushSubscription(userId: string, organizationId: string): Promise<boolean>;
   
   // Monthly Attendance (Foglio Presenze)
   getMonthlyAttendance(organizationId: string, year: string, month: string): Promise<any>;
@@ -752,6 +761,59 @@ export class DatabaseStorage implements IStorage {
     await this.ensureInitialized();
     await db.delete(hoursAdjustments).where(eq(hoursAdjustments.id, id));
     return true;
+  }
+
+  // Push Subscriptions
+  async getPushSubscription(userId: string, organizationId: string): Promise<PushSubscription | undefined> {
+    await this.ensureInitialized();
+    const [subscription] = await db.select()
+      .from(pushSubscriptions)
+      .where(
+        and(
+          eq(pushSubscriptions.userId, userId),
+          eq(pushSubscriptions.organizationId, organizationId)
+        )
+      );
+    return subscription || undefined;
+  }
+
+  async getAllPushSubscriptions(organizationId: string): Promise<PushSubscription[]> {
+    await this.ensureInitialized();
+    return await db.select()
+      .from(pushSubscriptions)
+      .where(eq(pushSubscriptions.organizationId, organizationId));
+  }
+
+  async createPushSubscription(subscription: InsertPushSubscription, userId: string, organizationId: string): Promise<PushSubscription> {
+    await this.ensureInitialized();
+    
+    // Delete existing subscription for this user if exists
+    await db.delete(pushSubscriptions)
+      .where(
+        and(
+          eq(pushSubscriptions.userId, userId),
+          eq(pushSubscriptions.organizationId, organizationId)
+        )
+      );
+    
+    const [created] = await db.insert(pushSubscriptions).values({
+      ...subscription,
+      userId,
+      organizationId,
+    }).returning();
+    return created;
+  }
+
+  async deletePushSubscription(userId: string, organizationId: string): Promise<boolean> {
+    await this.ensureInitialized();
+    const result = await db.delete(pushSubscriptions)
+      .where(
+        and(
+          eq(pushSubscriptions.userId, userId),
+          eq(pushSubscriptions.organizationId, organizationId)
+        )
+      );
+    return result.rowCount ? result.rowCount > 0 : false;
   }
 
   async getMonthlyAttendance(organizationId: string, year: string, month: string): Promise<any> {

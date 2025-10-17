@@ -118,6 +118,17 @@ export const hoursAdjustments = pgTable("hours_adjustments", {
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
 });
 
+// Push subscriptions (Per notifiche push browser)
+export const pushSubscriptions = pgTable("push_subscriptions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  subscription: text("subscription").notNull(), // JSON stringified subscription object
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+}, (table) => ({
+  userIdx: index("push_subscriptions_user_idx").on(table.userId),
+}));
+
 // Insert schemas
 export const insertOrganizationSchema = createInsertSchema(organizations).omit({
   id: true,
@@ -192,6 +203,13 @@ export const insertHoursAdjustmentSchema = createInsertSchema(hoursAdjustments).
   adjustment: z.union([z.string(), z.number()]).transform(val => String(val))
 });
 
+export const insertPushSubscriptionSchema = createInsertSchema(pushSubscriptions).omit({
+  id: true,
+  organizationId: true, // Will be set automatically from session
+  userId: true, // Will be set automatically from session
+  createdAt: true,
+});
+
 // Update schemas for editing
 export const updateDailyReportSchema = insertDailyReportSchema.partial().extend({
   id: z.string().optional()
@@ -242,6 +260,9 @@ export type UpdateAttendanceEntry = z.infer<typeof updateAttendanceEntrySchema>;
 export type InsertHoursAdjustment = z.infer<typeof insertHoursAdjustmentSchema>;
 export type HoursAdjustment = typeof hoursAdjustments.$inferSelect;
 export type UpdateHoursAdjustment = z.infer<typeof updateHoursAdjustmentSchema>;
+
+export type InsertPushSubscription = z.infer<typeof insertPushSubscriptionSchema>;
+export type PushSubscription = typeof pushSubscriptions.$inferSelect;
 
 export type UpdateDailyReport = z.infer<typeof updateDailyReportSchema>;
 export type UpdateOperation = z.infer<typeof updateOperationSchema>;
