@@ -32,6 +32,7 @@ interface DailyReportFormProps {
   onSubmit: (operations: Operation[]) => void;
   initialOperations?: Operation[]; // For editing existing reports
   isEditing?: boolean; // To show different UI for editing
+  isSubmitting?: boolean; // To disable submit button during submission
 }
 
 // Load data from backend
@@ -403,7 +404,8 @@ export default function DailyReportForm({
   date, 
   onSubmit, 
   initialOperations, 
-  isEditing = false 
+  isEditing = false,
+  isSubmitting = false
 }: DailyReportFormProps) {
   // Initialize with provided operations or default empty operation
   const [operations, setOperations] = useState<Operation[]>(
@@ -601,9 +603,17 @@ export default function DailyReportForm({
                   <Plus className="h-4 w-4 mr-2" />
                   Aggiungi Operazione
                 </Button>
-                <Button type="submit" data-testid="button-submit-report" className="w-full sm:w-auto">
+                <Button 
+                  type="submit" 
+                  data-testid="button-submit-report" 
+                  className="w-full sm:w-auto"
+                  disabled={isSubmitting}
+                >
                   <Send className="h-4 w-4 mr-2" />
-                  {isEditing ? "Aggiorna Rapportino" : "Invia Rapportino"}
+                  {isSubmitting 
+                    ? "Invio in corso..." 
+                    : isEditing ? "Aggiorna Rapportino" : "Invia Rapportino"
+                  }
                 </Button>
               </div>
             </div>
