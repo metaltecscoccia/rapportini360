@@ -175,3 +175,31 @@ The application now supports uploading up to 5 photos per operation with full in
 - **Work Order**: `GET /api/export/work-order/:workOrderId` - Work order-specific export
 - **Authentication**: `requireAdmin` middleware for all export endpoints
 - **Service**: `WordService` with photo integration via Sharp resizing
+
+## Performance Optimization (2025-10-17)
+
+### Database Indexes
+Added composite and covering indexes to optimize frequent query patterns:
+
+- **work_orders**: `(organization_id, is_active)` - For getAllActiveWorkOrders queries
+- **work_orders**: `(client_id)` - For getWorkOrdersByClient queries  
+- **daily_reports**: `(organization_id, date)` - For date-filtered organization queries
+- **daily_reports**: `(employee_id, date)` - For employee-specific date lookups
+- **operations**: `(daily_report_id)` - For operation fetching by report
+
+These indexes significantly improve load times for work orders, daily report lists, and operation queries.
+
+### API Request Optimization
+Eliminated redundant API calls in daily report submission flow:
+
+- **Before**: Client made GET `/api/me` to fetch user ID, then POST `/api/daily-reports` with employeeId in body
+- **After**: POST `/api/daily-reports` derives employeeId directly from session, eliminating extra round-trip
+- **Result**: 50% reduction in API calls for report submission, faster user experience
+
+### Duplicate Submission Prevention
+Implemented UI-level protection against accidental duplicate submissions:
+
+- **Submit Button State**: Disabled during mutation with `isPending` state from TanStack Query
+- **Visual Feedback**: Button shows "Invio in corso..." during submission
+- **Prevention**: Blocks multiple rapid clicks that could create duplicate reports
+- **Implementation**: `isSubmitting` prop passed to DailyReportForm, combined state from create/update mutations
