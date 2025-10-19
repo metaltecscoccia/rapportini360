@@ -710,15 +710,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create new daily report
   app.post("/api/daily-reports", requireAuth, async (req, res) => {
     try {
-      const { operations, date } = req.body;
+      const { operations, date, employeeId } = req.body;
       
       // Get user info from session
       const userId = (req as any).session.userId;
       const organizationId = (req as any).session.organizationId;
       
-      // Build report data with employeeId from session
+      // Build report data with employeeId from request body (if admin creating for employee)
+      // or from session (if employee creating for themselves)
       const reportData = {
-        employeeId: userId,
+        employeeId: employeeId || userId,
         date: date || new Date().toISOString().split('T')[0], // Use provided date or today
         status: "In attesa"
       };
