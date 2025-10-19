@@ -714,12 +714,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get user info from session
       const userId = (req as any).session.userId;
+      const userRole = (req as any).session.userRole;
       const organizationId = (req as any).session.organizationId;
       
-      // Build report data with employeeId from request body (if admin creating for employee)
-      // or from session (if employee creating for themselves)
+      // Determine the actual employeeId to use
+      let actualEmployeeId = userId;
+      
+      // Only admins can create reports for other employees
+      if (employeeId && employeeId !== userId) {
+        if (userRole !== 'admin') {
+          return res.status(403).json({ 
+            error: "Solo gli amministratori possono creare rapportini per altri dipendenti" 
+          });
+        }
+        
+        // Verify the target employee exists and belongs to the same organization
+        const targetEmployee = await storage.getUser(employeeId);
+        if (!targetEmployee) {
+          return res.status(404).json({ error: "Dipendente non trovato" });
+        }
+        if (targetEmployee.organizationId !== organizationId) {
+          return res.status(403).json({ error: "Accesso negato" });
+        }
+        
+        actualEmployeeId = employeeId;
+      }
+      
+      // Build report data with validated employeeId
       const reportData = {
-        employeeId: employeeId || userId,
+        employeeId: actualEmployeeId,
         date: date || new Date().toISOString().split('T')[0], // Use provided date or today
         status: "In attesa"
       };
