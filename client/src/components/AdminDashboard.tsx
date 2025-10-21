@@ -188,6 +188,9 @@ export default function AdminDashboard() {
     const today = new Date();
     return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   });
+  
+  // State for reports time filter (7 days or all)
+  const [showAllReports, setShowAllReports] = useState(false);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -274,7 +277,15 @@ export default function AdminDashboard() {
 
   // Query per recuperare tutti i rapportini
   const { data: reports = [], isLoading: isLoadingReports } = useQuery<any[]>({
-    queryKey: ['/api/daily-reports'],
+    queryKey: ['/api/daily-reports', showAllReports ? 'all' : '7'],
+    queryFn: async () => {
+      const daysParam = showAllReports ? 'all' : '7';
+      const res = await fetch(`/api/daily-reports?days=${daysParam}`, {
+        credentials: 'include'
+      });
+      if (!res.ok) throw new Error('Failed to fetch daily reports');
+      return res.json();
+    },
   });
 
   // Query per recuperare tutti i clienti
@@ -1665,6 +1676,18 @@ export default function AdminDashboard() {
                     <SelectItem value="Approvato">Approvato</SelectItem>
                   </SelectContent>
                 </Select>
+                
+                <div className="flex items-center gap-2 px-3 py-2 border rounded-md bg-background">
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">
+                    {showAllReports ? 'Tutti i rapportini' : 'Ultimi 7 giorni'}
+                  </span>
+                  <Switch
+                    checked={showAllReports}
+                    onCheckedChange={setShowAllReports}
+                    data-testid="switch-show-all-reports"
+                  />
+                </div>
 
                 <div className="flex gap-2 items-center">
                   <div className="flex items-center gap-2">

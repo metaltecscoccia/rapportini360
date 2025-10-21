@@ -646,7 +646,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/daily-reports", requireAuth, async (req, res) => {
     try {
       const organizationId = (req as any).session.organizationId;
-      const reports = await storage.getAllDailyReports(organizationId);
+      const daysParam = req.query.days as string;
+      
+      // Default to 7 days if not specified
+      let days: number | null = null;
+      
+      if (daysParam === 'all') {
+        days = null; // Show all reports
+      } else {
+        const parsedDays = parseInt(daysParam || '7', 10);
+        
+        // Validate input - must be a positive number
+        if (isNaN(parsedDays) || parsedDays < 0) {
+          return res.status(400).json({ 
+            error: "Il parametro 'days' deve essere un numero positivo o 'all'" 
+          });
+        }
+        
+        days = parsedDays;
+      }
+      
+      let reports = await storage.getAllDailyReports(organizationId);
+      
+      // Filter by date if days is specified
+      if (days !== null) {
+        const cutoffDate = new Date();
+        // Subtract (days - 1) to get exactly N days including today
+        // For example: days=7 means today + 6 previous days = 7 total days
+        cutoffDate.setDate(cutoffDate.getDate() - (days - 1));
+        const cutoffDateStr = cutoffDate.toISOString().split('T')[0];
+        
+        reports = reports.filter(report => report.date >= cutoffDateStr);
+      }
       
       // Enrich reports with employee names and operation counts
       const enrichedReports = await Promise.all(reports.map(async (report) => {
