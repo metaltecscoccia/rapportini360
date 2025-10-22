@@ -4,10 +4,15 @@ import { Status } from "@shared/schema";
 
 interface StatusBadgeProps {
   status: Status;
+  viewMode?: 'employee' | 'admin';
 }
 
-export default function StatusBadge({ status }: StatusBadgeProps) {
+export default function StatusBadge({ status, viewMode = 'admin' }: StatusBadgeProps) {
   const isPending = status === "In attesa";
+  
+  // Testi diversi per dipendente vs admin
+  const pendingText = viewMode === 'employee' ? 'Non inviato' : 'In attesa';
+  const approvedText = viewMode === 'employee' ? 'Inviato' : 'Confermato';
   
   return (
     <Badge 
@@ -22,12 +27,12 @@ export default function StatusBadge({ status }: StatusBadgeProps) {
       {isPending ? (
         <>
           <Clock className="h-3 w-3" />
-          In attesa
+          {pendingText}
         </>
       ) : (
         <>
           <CheckCircle className="h-3 w-3" />
-          Approvato
+          {approvedText}
         </>
       )}
     </Badge>

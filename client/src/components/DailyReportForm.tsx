@@ -559,7 +559,7 @@ export default function DailyReportForm({
               {employeeName} - {date}
             </p>
           </div>
-          <StatusBadge status="In attesa" />
+          <StatusBadge status="In attesa" viewMode="employee" />
         </CardHeader>
         
         <CardContent>

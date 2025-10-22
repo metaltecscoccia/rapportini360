@@ -1673,7 +1673,7 @@ export default function AdminDashboard() {
                   <SelectContent>
                     <SelectItem value="all">Tutti gli stati</SelectItem>
                     <SelectItem value="In attesa">In attesa</SelectItem>
-                    <SelectItem value="Approvato">Approvato</SelectItem>
+                    <SelectItem value="Approvato">Confermato</SelectItem>
                   </SelectContent>
                 </Select>
                 
