@@ -118,12 +118,14 @@ export interface IStorage {
   createAttendanceEntry(entry: InsertAttendanceEntry, organizationId: string): Promise<AttendanceEntry>;
   updateAttendanceEntry(id: string, updates: UpdateAttendanceEntry): Promise<AttendanceEntry>;
   deleteAttendanceEntry(id: string): Promise<boolean>;
+  deleteAttendanceEntriesByUserId(userId: string, organizationId: string): Promise<boolean>;
   
   // Hours adjustments
   getHoursAdjustment(dailyReportId: string, organizationId: string): Promise<HoursAdjustment | undefined>;
   createHoursAdjustment(adjustment: InsertHoursAdjustment, organizationId: string, createdBy: string): Promise<HoursAdjustment>;
   updateHoursAdjustment(id: string, updates: UpdateHoursAdjustment): Promise<HoursAdjustment>;
   deleteHoursAdjustment(id: string): Promise<boolean>;
+  deleteHoursAdjustmentsByReportId(reportId: string): Promise<boolean>;
   
   // Push Subscriptions
   getPushSubscription(userId: string, organizationId: string): Promise<PushSubscription | undefined>;
@@ -222,6 +224,15 @@ export class DatabaseStorage implements IStorage {
 
   async deleteUser(id: string): Promise<boolean> {
     await this.ensureInitialized();
+    const user = await this.getUser(id);
+    if (!user) {
+      return false;
+    }
+    await this.deleteDailyReportsByEmployeeId(id);
+    if (user.organizationId) {
+      await this.deleteAttendanceEntriesByUserId(id, user.organizationId);
+      await this.deletePushSubscription(id, user.organizationId);
+    }
     const result = await db.delete(users).where(eq(users.id, id));
     return result.rowCount !== null && result.rowCount > 0;
   }
@@ -243,6 +254,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteClient(id: string): Promise<boolean> {
     await this.ensureInitialized();
+    await this.deleteWorkOrdersByClientId(id);
     const result = await db.delete(clients).where(eq(clients.id, id));
     return result.rowCount !== null && result.rowCount > 0;
   }
@@ -396,6 +408,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteWorkOrder(id: string): Promise<boolean> {
     await this.ensureInitialized();
+    await this.deleteOperationsByWorkOrderId(id);
     const result = await db.delete(workOrders).where(eq(workOrders.id, id));
     return result.rowCount !== null && result.rowCount > 0;
   }
@@ -472,6 +485,8 @@ export class DatabaseStorage implements IStorage {
 
   async deleteDailyReport(id: string): Promise<boolean> {
     await this.ensureInitialized();
+    await this.deleteOperationsByReportId(id);
+    await this.deleteHoursAdjustmentsByReportId(id);
     const result = await db.delete(dailyReports).where(eq(dailyReports.id, id));
     return result.rowCount !== null && result.rowCount > 0;
   }
@@ -597,6 +612,7 @@ export class DatabaseStorage implements IStorage {
     
     for (const report of employeeReports) {
       await this.deleteOperationsByReportId(report.id);
+      await this.deleteHoursAdjustmentsByReportId(report.id);
     }
     
     const result = await db.delete(dailyReports).where(eq(dailyReports.employeeId, employeeId));
@@ -722,6 +738,17 @@ export class DatabaseStorage implements IStorage {
     return true;
   }
 
+  async deleteAttendanceEntriesByUserId(userId: string, organizationId: string): Promise<boolean> {
+    await this.ensureInitialized();
+    const result = await db.delete(attendanceEntries).where(
+      and(
+        eq(attendanceEntries.userId, userId),
+        eq(attendanceEntries.organizationId, organizationId)
+      )
+    );
+    return result.rowCount !== null && result.rowCount > 0;
+  }
+
   async getHoursAdjustment(dailyReportId: string, organizationId: string): Promise<HoursAdjustment | undefined> {
     await this.ensureInitialized();
     const adjustments = await db.select()
@@ -761,6 +788,12 @@ export class DatabaseStorage implements IStorage {
     await this.ensureInitialized();
     await db.delete(hoursAdjustments).where(eq(hoursAdjustments.id, id));
     return true;
+  }
+
+  async deleteHoursAdjustmentsByReportId(reportId: string): Promise<boolean> {
+    await this.ensureInitialized();
+    const result = await db.delete(hoursAdjustments).where(eq(hoursAdjustments.dailyReportId, reportId));
+    return result.rowCount !== null && result.rowCount > 0;
   }
 
   // Push Subscriptions
