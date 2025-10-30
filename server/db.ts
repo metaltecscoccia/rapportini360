@@ -14,8 +14,8 @@ if (!process.env.DATABASE_URL) {
 // Configure pool with error handling and connection management
 export const pool = new Pool({ 
   connectionString: process.env.DATABASE_URL,
-  max: 10, // Maximum number of clients in the pool
-  idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
+  max: 3, // Maximum number of clients in the pool (reduced for Neon free tier)
+  idleTimeoutMillis: 10000, // Close idle clients after 10 seconds
   connectionTimeoutMillis: 10000, // Return error after 10 seconds if connection cannot be established
 });
 
