@@ -436,6 +436,11 @@ export default function DailyReportForm({
   const { data: clients = [], isLoading: clientsLoading } = useClients();
   const { data: allWorkOrders = [], isLoading: workOrdersLoading } = useAllActiveWorkOrders();
 
+  // Filter clients to show only those with active work orders
+  const clientsWithWorkOrders = clients.filter(client => 
+    allWorkOrders.some(wo => wo.clientId === client.id)
+  );
+
   const addOperation = () => {
     const newOperation: Operation = {
       id: Date.now().toString(),
@@ -573,7 +578,7 @@ export default function DailyReportForm({
                   operation={operation}
                   index={index}
                   operationsLength={operations.length}
-                  clients={clients}
+                  clients={clientsWithWorkOrders}
                   clientsLoading={clientsLoading}
                   allWorkOrders={allWorkOrders}
                   workOrdersLoading={workOrdersLoading}
