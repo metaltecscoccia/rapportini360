@@ -34,8 +34,8 @@ type FuelRefillForm = z.infer<typeof fuelRefillSchema>;
 export default function FuelRefillsManagement() {
   const { toast } = useToast();
   const [vehicleFilter, setVehicleFilter] = useState("all");
-  const [monthFilter, setMonthFilter] = useState("");
-  const [yearFilter, setYearFilter] = useState("");
+  const [monthFilter, setMonthFilter] = useState("all");
+  const [yearFilter, setYearFilter] = useState("all");
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -219,8 +219,8 @@ export default function FuelRefillsManagement() {
     const refillYear = refillDate.getFullYear().toString();
     
     if (vehicleFilter !== "all" && refill.vehicleId !== vehicleFilter) return false;
-    if (monthFilter && refillMonth !== monthFilter) return false;
-    if (yearFilter && refillYear !== yearFilter) return false;
+    if (monthFilter !== "all" && refillMonth !== monthFilter) return false;
+    if (yearFilter !== "all" && refillYear !== yearFilter) return false;
     
     return true;
   });
@@ -246,8 +246,8 @@ export default function FuelRefillsManagement() {
     try {
       const params = new URLSearchParams();
       if (vehicleFilter !== "all") params.append("vehicleId", vehicleFilter);
-      if (monthFilter) params.append("month", monthFilter);
-      if (yearFilter) params.append("year", yearFilter);
+      if (monthFilter !== "all") params.append("month", monthFilter);
+      if (yearFilter !== "all") params.append("year", yearFilter);
 
       const response = await fetch(`/api/fuel-refills/export?${params.toString()}`, {
         method: "GET",
@@ -484,7 +484,7 @@ export default function FuelRefillsManagement() {
                     <SelectValue placeholder="Tutti i mesi" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Tutti i mesi</SelectItem>
+                    <SelectItem value="all">Tutti i mesi</SelectItem>
                     <SelectItem value="1">Gennaio</SelectItem>
                     <SelectItem value="2">Febbraio</SelectItem>
                     <SelectItem value="3">Marzo</SelectItem>
@@ -505,7 +505,7 @@ export default function FuelRefillsManagement() {
                     <SelectValue placeholder="Anno" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Tutti gli anni</SelectItem>
+                    <SelectItem value="all">Tutti gli anni</SelectItem>
                     <SelectItem value="2024">2024</SelectItem>
                     <SelectItem value="2025">2025</SelectItem>
                     <SelectItem value="2026">2026</SelectItem>
