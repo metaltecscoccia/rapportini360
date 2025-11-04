@@ -1520,33 +1520,11 @@ export default function AdminDashboard() {
   return (
     <div className="p-6 space-y-6">
       {/* Dashboard Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-semibold">Dashboard Amministratore</h1>
-          <p className="text-muted-foreground">
-            Gestisci rapportini e commesse
-          </p>
-        </div>
-        
-        <div className="flex gap-2">
-          <Button 
-            variant="outline" 
-            onClick={() => testPushNotificationMutation.mutate()}
-            disabled={testPushNotificationMutation.isPending}
-            data-testid="button-test-push-notifications"
-          >
-            <Bell className="h-4 w-4 mr-2" />
-            {testPushNotificationMutation.isPending ? "Invio..." : "Testa Notifiche"}
-          </Button>
-          <Button 
-            variant="outline" 
-            onClick={() => handleExportReports()}
-            data-testid="button-export-reports"
-          >
-            <FileText className="h-4 w-4 mr-2" />
-            Esporta Word Oggi
-          </Button>
-        </div>
+      <div>
+        <h1 className="text-3xl font-semibold">Dashboard Amministratore</h1>
+        <p className="text-muted-foreground">
+          Gestisci rapportini e commesse
+        </p>
       </div>
 
       {/* Main Navigation */}
