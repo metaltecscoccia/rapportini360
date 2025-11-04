@@ -92,9 +92,9 @@ export default function FuelRefillsManagement() {
         litersBefore: parseFloat(data.litersBefore),
         litersAfter: parseFloat(data.litersAfter),
         litersRefilled: parseFloat(data.litersAfter) - parseFloat(data.litersBefore),
-        km: data.km ? parseFloat(data.km) : null,
-        hours: data.hours ? parseFloat(data.hours) : null,
-        cost: data.cost ? parseFloat(data.cost) : null,
+        kmReading: data.km ? parseFloat(data.km) : null,
+        engineHoursReading: data.hours ? parseFloat(data.hours) : null,
+        totalCost: data.cost ? parseFloat(data.cost) : null,
         notes: data.notes || null,
       };
       const response = await fetch("/api/fuel-refills", {
@@ -133,9 +133,9 @@ export default function FuelRefillsManagement() {
         litersBefore: parseFloat(data.litersBefore),
         litersAfter: parseFloat(data.litersAfter),
         litersRefilled: parseFloat(data.litersAfter) - parseFloat(data.litersBefore),
-        km: data.km ? parseFloat(data.km) : null,
-        hours: data.hours ? parseFloat(data.hours) : null,
-        cost: data.cost ? parseFloat(data.cost) : null,
+        kmReading: data.km ? parseFloat(data.km) : null,
+        engineHoursReading: data.hours ? parseFloat(data.hours) : null,
+        totalCost: data.cost ? parseFloat(data.cost) : null,
         notes: data.notes || null,
       };
       const response = await fetch(`/api/fuel-refills/${id}`, {
