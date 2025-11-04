@@ -54,6 +54,7 @@ import AttendanceSheet from "./AttendanceSheet";
 import { HoursAdjustmentDialog } from "./HoursAdjustmentDialog";
 import VehiclesManagement from "./VehiclesManagement";
 import FuelRefillsManagement from "./FuelRefillsManagement";
+import FuelStatistics from "./FuelStatistics";
 
 // Schema per form aggiunta dipendente
 const addEmployeeSchema = z.object({
@@ -4340,12 +4341,18 @@ export default function AdminDashboard() {
               <TabsTrigger value="refills" data-testid="tab-refills">
                 Rifornimenti
               </TabsTrigger>
+              <TabsTrigger value="statistics" data-testid="tab-statistics">
+                Statistiche
+              </TabsTrigger>
             </TabsList>
             <TabsContent value="vehicles" className="mt-6">
               <VehiclesManagement />
             </TabsContent>
             <TabsContent value="refills" className="mt-6">
               <FuelRefillsManagement />
+            </TabsContent>
+            <TabsContent value="statistics" className="mt-6">
+              <FuelStatistics />
             </TabsContent>
           </Tabs>
         </TabsContent>
