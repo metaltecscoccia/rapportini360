@@ -52,6 +52,7 @@ export default function FuelRefillsManagement() {
   const [selectedRefill, setSelectedRefill] = useState<any | null>(null);
   const [addLoadDialogOpen, setAddLoadDialogOpen] = useState(false);
 
+
   const addForm = useForm<FuelRefillForm>({
     resolver: zodResolver(fuelRefillSchema),
     defaultValues: {
@@ -112,7 +113,21 @@ export default function FuelRefillsManagement() {
     queryKey: ["/api/fuel-tank-loads"],
   });
 
-  const remainingLiters = fuelRemainingData?.remaining || 0;
+  const remainingLiters = (fuelRemainingData as any)?.remaining || 0;
+
+  // Effect to precompile "Litri Prima" when opening the add refill dialog
+  useEffect(() => {
+    if (addDialogOpen && refills && (refills as any[]).length > 0) {
+      // Get the most recent refill by date
+      const sortedRefills = [...(refills as any[])].sort((a, b) => 
+        new Date(b.refillDate).getTime() - new Date(a.refillDate).getTime()
+      );
+      const lastRefill = sortedRefills[0];
+      if (lastRefill?.litersAfter) {
+        addForm.setValue('litersBefore', lastRefill.litersAfter.toString());
+      }
+    }
+  }, [addDialogOpen, refills, addForm]);
 
   const createRefillMutation = useMutation({
     mutationFn: async (data: FuelRefillForm) => {
@@ -1032,10 +1047,9 @@ export default function FuelRefillsManagement() {
                 </TableHeader>
                 <TableBody>
                   {(tankLoads as any[]).map((load: any) => {
-                    const loadDateTime = new Date(load.loadDate);
                     return (
                       <TableRow key={load.id} data-testid={`row-tank-load-${load.id}`}>
-                        <TableCell>{formatDateToItalian(loadDateTime)}</TableCell>
+                        <TableCell>{formatDateToItalian(load.loadDate)}</TableCell>
                         <TableCell className="font-medium">{load.liters.toFixed(2)} L</TableCell>
                         <TableCell>{load.totalCost ? `€ ${load.totalCost.toFixed(2)}` : "-"}</TableCell>
                         <TableCell>{load.supplier || "-"}</TableCell>
