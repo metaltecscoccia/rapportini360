@@ -24,7 +24,9 @@ import {
   insertVehicleSchema,
   updateVehicleSchema,
   insertFuelRefillSchema,
-  updateFuelRefillSchema
+  updateFuelRefillSchema,
+  insertFuelTankLoadSchema,
+  updateFuelTankLoadSchema
 } from "@shared/schema";
 import { validatePassword, verifyPassword, hashPassword } from "./auth";
 
@@ -1764,6 +1766,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const year = req.query.year as string | undefined;
       
       const allRefills = await storage.getAllFuelRefills(organizationId);
+      const allTankLoads = await storage.getAllFuelTankLoads(organizationId);
       const allVehicles = await storage.getAllVehicles(organizationId);
       
       const filteredRefills = allRefills.filter((refill: any) => {
@@ -1778,11 +1781,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return true;
       });
 
+      const filteredTankLoads = allTankLoads.filter((load: any) => {
+        const loadDate = new Date(load.loadDate);
+        const loadMonth = (loadDate.getMonth() + 1).toString();
+        const loadYear = loadDate.getFullYear().toString();
+        
+        if (month && loadMonth !== month) return false;
+        if (year && loadYear !== year) return false;
+        
+        return true;
+      });
+
       const ExcelJS = require('exceljs');
       const workbook = new ExcelJS.Workbook();
-      const worksheet = workbook.addWorksheet('Rifornimenti');
+      
+      // Sheet 1: Rifornimenti (Scarichi)
+      const refillsSheet = workbook.addWorksheet('Rifornimenti (Scarichi)');
 
-      worksheet.columns = [
+      refillsSheet.columns = [
         { header: 'Data/Ora', key: 'date', width: 18 },
         { header: 'Mezzo', key: 'vehicle', width: 30 },
         { header: 'Litri Prima', key: 'litersBefore', width: 12 },
@@ -1793,8 +1809,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         { header: 'Note', key: 'notes', width: 30 },
       ];
 
-      worksheet.getRow(1).font = { bold: true };
-      worksheet.getRow(1).fill = {
+      refillsSheet.getRow(1).font = { bold: true };
+      refillsSheet.getRow(1).fill = {
         type: 'pattern',
         pattern: 'solid',
         fgColor: { argb: 'FFE0E0E0' }
@@ -1814,7 +1830,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           minute: '2-digit'
         });
 
-        worksheet.addRow({
+        refillsSheet.addRow({
           date: `${dateStr} ${timeStr}`,
           vehicle: vehicleName,
           litersBefore: refill.litersBefore?.toFixed(2) || '-',
@@ -1826,17 +1842,110 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       });
 
+      // Sheet 2: Carichi Cisterna
+      const loadsSheet = workbook.addWorksheet('Carichi Cisterna');
+
+      loadsSheet.columns = [
+        { header: 'Data/Ora', key: 'date', width: 18 },
+        { header: 'Litri Caricati', key: 'liters', width: 15 },
+        { header: 'Costo Totale', key: 'cost', width: 12 },
+        { header: 'Fornitore', key: 'supplier', width: 30 },
+        { header: 'Note', key: 'notes', width: 40 },
+      ];
+
+      loadsSheet.getRow(1).font = { bold: true };
+      loadsSheet.getRow(1).fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFE0E0E0' }
+      };
+
+      filteredTankLoads.forEach((load: any) => {
+        const loadDate = new Date(load.loadDate);
+        const dateStr = loadDate.toLocaleDateString('it-IT', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric'
+        });
+        const timeStr = loadDate.toLocaleTimeString('it-IT', {
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+
+        loadsSheet.addRow({
+          date: `${dateStr} ${timeStr}`,
+          liters: load.liters?.toFixed(2) || '-',
+          cost: load.totalCost ? `€${load.totalCost}` : '-',
+          supplier: load.supplier || '',
+          notes: load.notes || '',
+        });
+      });
+
       const buffer = await workbook.xlsx.writeBuffer();
 
       const monthName = month ? ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'][parseInt(month) - 1] : '';
-      const fileName = `rifornimenti${monthName ? `_${monthName}` : ''}${year ? `_${year}` : ''}.xlsx`;
+      const fileName = `gestione_carburante${monthName ? `_${monthName}` : ''}${year ? `_${year}` : ''}.xlsx`;
 
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
       res.send(buffer);
     } catch (error) {
-      console.error("Error exporting fuel refills:", error);
-      res.status(500).json({ error: "Failed to export fuel refills" });
+      console.error("Error exporting fuel data:", error);
+      res.status(500).json({ error: "Failed to export fuel data" });
+    }
+  });
+
+  // Fuel Tank Loads (Carichi cisterna) - Admin only
+  app.get("/api/fuel-tank-loads", requireAdmin, async (req, res) => {
+    try {
+      const organizationId = (req as any).session.organizationId;
+      const loads = await storage.getAllFuelTankLoads(organizationId);
+      res.json(loads);
+    } catch (error) {
+      console.error("Error fetching fuel tank loads:", error);
+      res.status(500).json({ error: "Failed to fetch fuel tank loads" });
+    }
+  });
+
+  app.post("/api/fuel-tank-loads", requireAdmin, async (req, res) => {
+    try {
+      const organizationId = (req as any).session.organizationId;
+      const parsed = insertFuelTankLoadSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid fuel tank load data", details: parsed.error });
+      }
+      const load = await storage.createFuelTankLoad(parsed.data, organizationId);
+      res.json(load);
+    } catch (error) {
+      console.error("Error creating fuel tank load:", error);
+      res.status(500).json({ error: "Failed to create fuel tank load" });
+    }
+  });
+
+  app.delete("/api/fuel-tank-loads/:id", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const organizationId = (req as any).session.organizationId;
+      const deleted = await storage.deleteFuelTankLoad(id, organizationId);
+      if (deleted) {
+        res.json({ success: true });
+      } else {
+        res.status(404).json({ error: "Fuel tank load not found" });
+      }
+    } catch (error) {
+      console.error("Error deleting fuel tank load:", error);
+      res.status(500).json({ error: "Failed to delete fuel tank load" });
+    }
+  });
+
+  app.get("/api/fuel-remaining", requireAdmin, async (req, res) => {
+    try {
+      const organizationId = (req as any).session.organizationId;
+      const remaining = await storage.getRemainingFuelLiters(organizationId);
+      res.json({ remaining });
+    } catch (error) {
+      console.error("Error fetching remaining fuel:", error);
+      res.status(500).json({ error: "Failed to fetch remaining fuel" });
     }
   });
 
