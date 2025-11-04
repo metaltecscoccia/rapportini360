@@ -1756,6 +1756,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/fuel-refills/export", requireAdmin, async (req, res) => {
+    try {
+      const organizationId = (req as any).session.organizationId;
+      const { vehicleId, month, year } = req.query;
+      
+      const allRefills = await storage.getAllFuelRefills(organizationId);
+      const allVehicles = await storage.getAllVehicles(organizationId);
+      
+      const filteredRefills = allRefills.filter((refill: any) => {
+        const refillDate = new Date(refill.refillDate);
+        const refillMonth = (refillDate.getMonth() + 1).toString();
+        const refillYear = refillDate.getFullYear().toString();
+        
+        if (vehicleId && vehicleId !== "all" && refill.vehicleId !== vehicleId) return false;
+        if (month && refillMonth !== month) return false;
+        if (year && refillYear !== year) return false;
+        
+        return true;
+      });
+
+      const ExcelJS = require('exceljs');
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('Rifornimenti');
+
+      worksheet.columns = [
+        { header: 'Data/Ora', key: 'date', width: 18 },
+        { header: 'Mezzo', key: 'vehicle', width: 30 },
+        { header: 'Litri Prima', key: 'litersBefore', width: 12 },
+        { header: 'Litri Dopo', key: 'litersAfter', width: 12 },
+        { header: 'Litri Erogati', key: 'litersRefilled', width: 14 },
+        { header: 'Km', key: 'km', width: 10 },
+        { header: 'Ore Motore', key: 'hours', width: 12 },
+        { header: 'Note', key: 'notes', width: 30 },
+      ];
+
+      worksheet.getRow(1).font = { bold: true };
+      worksheet.getRow(1).fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFE0E0E0' }
+      };
+
+      filteredRefills.forEach((refill: any) => {
+        const vehicle = allVehicles.find((v: any) => v.id === refill.vehicleId);
+        const vehicleName = vehicle ? `${vehicle.name} (${vehicle.licensePlate})` : "Sconosciuto";
+        const refillDate = new Date(refill.refillDate);
+        const dateStr = refillDate.toLocaleDateString('it-IT', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric'
+        });
+        const timeStr = refillDate.toLocaleTimeString('it-IT', {
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+
+        worksheet.addRow({
+          date: `${dateStr} ${timeStr}`,
+          vehicle: vehicleName,
+          litersBefore: refill.litersBefore?.toFixed(2) || '-',
+          litersAfter: refill.litersAfter?.toFixed(2) || '-',
+          litersRefilled: refill.litersRefilled?.toFixed(2) || '-',
+          km: refill.kmReading?.toFixed(0) || '-',
+          hours: refill.engineHoursReading?.toFixed(1) || '-',
+          notes: refill.notes || '',
+        });
+      });
+
+      const buffer = await workbook.xlsx.writeBuffer();
+
+      const monthName = month ? ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'][parseInt(month) - 1] : '';
+      const fileName = `rifornimenti${monthName ? `_${monthName}` : ''}${year ? `_${year}` : ''}.xlsx`;
+
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+      res.send(buffer);
+    } catch (error) {
+      console.error("Error exporting fuel refills:", error);
+      res.status(500).json({ error: "Failed to export fuel refills" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
