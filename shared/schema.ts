@@ -144,7 +144,7 @@ export const vehicles = pgTable("vehicles", {
   orgIdx: index("vehicles_org_idx").on(table.organizationId),
 }));
 
-// Fuel refills table (Rifornimenti carburante)
+// Fuel refills table (Rifornimenti carburante - scarichi dalla cisterna)
 export const fuelRefills = pgTable("fuel_refills", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   organizationId: varchar("organization_id").notNull().references(() => organizations.id),
@@ -162,6 +162,20 @@ export const fuelRefills = pgTable("fuel_refills", {
 }, (table) => ({
   vehicleIdx: index("fuel_refills_vehicle_idx").on(table.vehicleId),
   orgDateIdx: index("fuel_refills_org_date_idx").on(table.organizationId, table.refillDate),
+}));
+
+// Fuel tank loads table (Carichi cisterna carburante)
+export const fuelTankLoads = pgTable("fuel_tank_loads", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
+  loadDate: timestamp("load_date").notNull().default(sql`now()`), // Data e ora carico
+  liters: numeric("liters").notNull(), // Litri caricati nella cisterna
+  totalCost: numeric("total_cost"), // Costo totale del carico (opzionale)
+  supplier: text("supplier"), // Fornitore (opzionale)
+  notes: text("notes"), // Note aggiuntive
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+}, (table) => ({
+  orgDateIdx: index("fuel_tank_loads_org_date_idx").on(table.organizationId, table.loadDate),
 }));
 
 // Insert schemas
@@ -267,6 +281,15 @@ export const insertFuelRefillSchema = createInsertSchema(fuelRefills).omit({
   totalCost: z.union([z.string(), z.number(), z.null()]).optional().transform(val => val ? String(val) : null),
 });
 
+export const insertFuelTankLoadSchema = createInsertSchema(fuelTankLoads).omit({
+  id: true,
+  organizationId: true, // Will be set automatically from session
+  createdAt: true,
+}).extend({
+  liters: z.union([z.string(), z.number()]).transform(val => String(val)),
+  totalCost: z.union([z.string(), z.number(), z.null()]).optional().transform(val => val ? String(val) : null),
+});
+
 // Update schemas for editing
 export const updateDailyReportSchema = insertDailyReportSchema.partial().extend({
   id: z.string().optional()
@@ -289,6 +312,10 @@ export const updateVehicleSchema = insertVehicleSchema.partial().extend({
 });
 
 export const updateFuelRefillSchema = insertFuelRefillSchema.partial().extend({
+  id: z.string().optional()
+});
+
+export const updateFuelTankLoadSchema = insertFuelTankLoadSchema.partial().extend({
   id: z.string().optional()
 });
 
@@ -336,6 +363,10 @@ export type UpdateVehicle = z.infer<typeof updateVehicleSchema>;
 export type InsertFuelRefill = z.infer<typeof insertFuelRefillSchema>;
 export type FuelRefill = typeof fuelRefills.$inferSelect;
 export type UpdateFuelRefill = z.infer<typeof updateFuelRefillSchema>;
+
+export type InsertFuelTankLoad = z.infer<typeof insertFuelTankLoadSchema>;
+export type FuelTankLoad = typeof fuelTankLoads.$inferSelect;
+export type UpdateFuelTankLoad = z.infer<typeof updateFuelTankLoadSchema>;
 
 export type UpdateDailyReport = z.infer<typeof updateDailyReportSchema>;
 export type UpdateOperation = z.infer<typeof updateOperationSchema>;
