@@ -1519,14 +1519,6 @@ export default function AdminDashboard() {
 
   return (
     <div className="p-6 space-y-6">
-      {/* Dashboard Header */}
-      <div>
-        <h1 className="text-3xl font-semibold">Dashboard Amministratore</h1>
-        <p className="text-muted-foreground">
-          Gestisci rapportini e commesse
-        </p>
-      </div>
-
       {/* Main Navigation */}
       <Tabs value={mainSection} onValueChange={setMainSection}>
         <TabsList className="grid w-full max-w-md grid-cols-2">
@@ -1590,10 +1582,6 @@ export default function AdminDashboard() {
           <TabsTrigger value="reports" data-testid="tab-reports">
             <FileText className="h-4 w-4 mr-2" />
             Rapportini
-          </TabsTrigger>
-          <TabsTrigger value="work-orders" data-testid="tab-work-orders">
-            <Wrench className="h-4 w-4 mr-2" />
-            Commesse
           </TabsTrigger>
           <TabsTrigger value="clients" data-testid="tab-clients">
             <Building2 className="h-4 w-4 mr-2" />
