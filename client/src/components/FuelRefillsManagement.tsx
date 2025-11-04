@@ -34,6 +34,8 @@ type FuelRefillForm = z.infer<typeof fuelRefillSchema>;
 export default function FuelRefillsManagement() {
   const { toast } = useToast();
   const [vehicleFilter, setVehicleFilter] = useState("all");
+  const [monthFilter, setMonthFilter] = useState("");
+  const [yearFilter, setYearFilter] = useState("");
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -212,8 +214,15 @@ export default function FuelRefillsManagement() {
   };
 
   const filteredRefills = (refills as any[]).filter((refill: any) => {
-    if (vehicleFilter === "all") return true;
-    return refill.vehicleId === vehicleFilter;
+    const refillDate = new Date(refill.refillDate);
+    const refillMonth = (refillDate.getMonth() + 1).toString();
+    const refillYear = refillDate.getFullYear().toString();
+    
+    if (vehicleFilter !== "all" && refill.vehicleId !== vehicleFilter) return false;
+    if (monthFilter && refillMonth !== monthFilter) return false;
+    if (yearFilter && refillYear !== yearFilter) return false;
+    
+    return true;
   });
 
   const getVehicleName = (vehicleId: string) => {
@@ -407,22 +416,59 @@ export default function FuelRefillsManagement() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="mb-4">
-            <div className="flex items-center gap-2">
-              <Filter className="h-4 w-4 text-muted-foreground" />
-              <Select value={vehicleFilter} onValueChange={setVehicleFilter}>
-                <SelectTrigger className="w-64" data-testid="select-filter-vehicle">
-                  <SelectValue placeholder="Tutti i mezzi" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tutti i mezzi</SelectItem>
-                  {(vehicles as any[]).map((vehicle: any) => (
-                    <SelectItem key={vehicle.id} value={vehicle.id}>
-                      {vehicle.name} ({vehicle.licensePlate})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          <div className="mb-4 space-y-3">
+            <div className="flex flex-col md:flex-row items-start md:items-center gap-3">
+              <div className="flex items-center gap-2 w-full md:w-auto">
+                <Filter className="h-4 w-4 text-muted-foreground" />
+                <Select value={vehicleFilter} onValueChange={setVehicleFilter}>
+                  <SelectTrigger className="w-full md:w-64" data-testid="select-filter-vehicle">
+                    <SelectValue placeholder="Tutti i mezzi" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tutti i mezzi</SelectItem>
+                    {(vehicles as any[]).map((vehicle: any) => (
+                      <SelectItem key={vehicle.id} value={vehicle.id}>
+                        {vehicle.name} ({vehicle.licensePlate})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="flex items-center gap-2 w-full md:w-auto">
+                <Select value={monthFilter} onValueChange={setMonthFilter}>
+                  <SelectTrigger className="w-full md:w-40" data-testid="select-filter-month">
+                    <SelectValue placeholder="Tutti i mesi" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Tutti i mesi</SelectItem>
+                    <SelectItem value="1">Gennaio</SelectItem>
+                    <SelectItem value="2">Febbraio</SelectItem>
+                    <SelectItem value="3">Marzo</SelectItem>
+                    <SelectItem value="4">Aprile</SelectItem>
+                    <SelectItem value="5">Maggio</SelectItem>
+                    <SelectItem value="6">Giugno</SelectItem>
+                    <SelectItem value="7">Luglio</SelectItem>
+                    <SelectItem value="8">Agosto</SelectItem>
+                    <SelectItem value="9">Settembre</SelectItem>
+                    <SelectItem value="10">Ottobre</SelectItem>
+                    <SelectItem value="11">Novembre</SelectItem>
+                    <SelectItem value="12">Dicembre</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                <Select value={yearFilter} onValueChange={setYearFilter}>
+                  <SelectTrigger className="w-full md:w-32" data-testid="select-filter-year">
+                    <SelectValue placeholder="Anno" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Tutti gli anni</SelectItem>
+                    <SelectItem value="2024">2024</SelectItem>
+                    <SelectItem value="2025">2025</SelectItem>
+                    <SelectItem value="2026">2026</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
 
