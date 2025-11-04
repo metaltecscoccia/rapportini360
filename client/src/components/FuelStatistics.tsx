@@ -200,11 +200,11 @@ export default function FuelStatistics() {
                       {statistics.byVehicle.map((vehicle: any) => (
                         <tr key={vehicle.vehicleId} className="border-b" data-testid={`row-stats-vehicle-${vehicle.vehicleId}`}>
                           <td className="p-3">{vehicle.vehicleName}</td>
-                          <td className="p-3 text-right font-medium">{vehicle.totalLiters.toFixed(2)} L</td>
+                          <td className="p-3 text-right font-medium">{parseFloat(vehicle.totalLiters).toFixed(2)} L</td>
                           <td className="p-3 text-right">{vehicle.refillCount}</td>
                           <td className="p-3 text-right">
                             {vehicle.refillCount > 0 
-                              ? (vehicle.totalLiters / vehicle.refillCount).toFixed(2) 
+                              ? (parseFloat(vehicle.totalLiters) / vehicle.refillCount).toFixed(2) 
                               : "0.00"} L
                           </td>
                         </tr>
