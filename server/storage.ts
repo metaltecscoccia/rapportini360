@@ -1114,14 +1114,14 @@ export class DatabaseStorage implements IStorage {
       .where(eq(fuelRefills.organizationId, organizationId))
       .orderBy(desc(fuelRefills.refillDate));
     
-    // Filter by year and month if provided
-    if (year) {
+    // Filter by year and month if provided (skip if "all")
+    if (year && year !== 'all') {
       refills = refills.filter(r => {
         const refillDate = new Date(r.refillDate);
         return refillDate.getFullYear().toString() === year;
       });
     }
-    if (month) {
+    if (month && month !== 'all') {
       refills = refills.filter(r => {
         const refillDate = new Date(r.refillDate);
         return (refillDate.getMonth() + 1).toString().padStart(2, '0') === month.padStart(2, '0');
