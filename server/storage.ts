@@ -11,6 +11,7 @@ import {
   pushSubscriptions,
   vehicles,
   fuelRefills,
+  fuelTankLoads,
   type User, 
   type InsertUser,
   type Client,
@@ -39,6 +40,9 @@ import {
   type FuelRefill,
   type InsertFuelRefill,
   type UpdateFuelRefill,
+  type FuelTankLoad,
+  type InsertFuelTankLoad,
+  type UpdateFuelTankLoad,
   type UpdateDailyReport,
   type UpdateOperation
 } from "@shared/schema";
@@ -156,6 +160,14 @@ export interface IStorage {
   updateFuelRefill(id: string, updates: UpdateFuelRefill, organizationId: string): Promise<FuelRefill>;
   deleteFuelRefill(id: string, organizationId: string): Promise<boolean>;
   deleteFuelRefillsByVehicleId(vehicleId: string): Promise<boolean>;
+  
+  // Fuel Tank Loads (Carichi cisterna)
+  getAllFuelTankLoads(organizationId: string): Promise<FuelTankLoad[]>;
+  getFuelTankLoad(id: string): Promise<FuelTankLoad | undefined>;
+  createFuelTankLoad(load: InsertFuelTankLoad, organizationId: string): Promise<FuelTankLoad>;
+  updateFuelTankLoad(id: string, updates: UpdateFuelTankLoad, organizationId: string): Promise<FuelTankLoad>;
+  deleteFuelTankLoad(id: string, organizationId: string): Promise<boolean>;
+  getRemainingFuelLiters(organizationId: string): Promise<number>;
   
   // Monthly Attendance (Foglio Presenze)
   getMonthlyAttendance(organizationId: string, year: string, month: string): Promise<any>;
@@ -999,6 +1011,82 @@ export class DatabaseStorage implements IStorage {
     await this.ensureInitialized();
     const result = await db.delete(fuelRefills).where(eq(fuelRefills.vehicleId, vehicleId));
     return result.rowCount !== null && result.rowCount > 0;
+  }
+
+  // Fuel Tank Loads (Carichi cisterna)
+  async getAllFuelTankLoads(organizationId: string): Promise<FuelTankLoad[]> {
+    await this.ensureInitialized();
+    return await db.select()
+      .from(fuelTankLoads)
+      .where(eq(fuelTankLoads.organizationId, organizationId))
+      .orderBy(desc(fuelTankLoads.loadDate));
+  }
+
+  async getFuelTankLoad(id: string): Promise<FuelTankLoad | undefined> {
+    await this.ensureInitialized();
+    const [load] = await db.select().from(fuelTankLoads).where(eq(fuelTankLoads.id, id));
+    return load || undefined;
+  }
+
+  async createFuelTankLoad(load: InsertFuelTankLoad, organizationId: string): Promise<FuelTankLoad> {
+    await this.ensureInitialized();
+    const [created] = await db.insert(fuelTankLoads).values({
+      ...load,
+      organizationId
+    }).returning();
+    return created;
+  }
+
+  async updateFuelTankLoad(id: string, updates: UpdateFuelTankLoad, organizationId: string): Promise<FuelTankLoad> {
+    await this.ensureInitialized();
+    const [updated] = await db.update(fuelTankLoads)
+      .set(updates)
+      .where(
+        and(
+          eq(fuelTankLoads.id, id),
+          eq(fuelTankLoads.organizationId, organizationId)
+        )
+      )
+      .returning();
+    if (!updated) {
+      throw new Error("Fuel tank load not found or access denied");
+    }
+    return updated;
+  }
+
+  async deleteFuelTankLoad(id: string, organizationId: string): Promise<boolean> {
+    await this.ensureInitialized();
+    const result = await db.delete(fuelTankLoads).where(
+      and(
+        eq(fuelTankLoads.id, id),
+        eq(fuelTankLoads.organizationId, organizationId)
+      )
+    );
+    return result.rowCount !== null && result.rowCount > 0;
+  }
+
+  async getRemainingFuelLiters(organizationId: string): Promise<number> {
+    await this.ensureInitialized();
+    
+    // Get all tank loads (carichi)
+    const loads = await db.select()
+      .from(fuelTankLoads)
+      .where(eq(fuelTankLoads.organizationId, organizationId));
+    
+    const totalLoads = loads.reduce((sum, load) => {
+      return sum + parseFloat(load.liters || '0');
+    }, 0);
+    
+    // Get all fuel refills (scarichi)
+    const refills = await db.select()
+      .from(fuelRefills)
+      .where(eq(fuelRefills.organizationId, organizationId));
+    
+    const totalRefills = refills.reduce((sum, refill) => {
+      return sum + parseFloat(refill.litersRefilled || '0');
+    }, 0);
+    
+    return totalLoads - totalRefills;
   }
 
   async getMonthlyAttendance(organizationId: string, year: string, month: string): Promise<any> {
