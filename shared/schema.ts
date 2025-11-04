@@ -129,6 +129,41 @@ export const pushSubscriptions = pgTable("push_subscriptions", {
   userIdx: index("push_subscriptions_user_idx").on(table.userId),
 }));
 
+// Vehicles table (Mezzi aziendali per gestione carburante)
+export const vehicles = pgTable("vehicles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
+  name: text("name").notNull(), // Nome del mezzo (es. "Furgone 1", "Camion rosso")
+  licensePlate: text("license_plate").notNull(), // Targa
+  fuelType: text("fuel_type").notNull(), // Benzina, Diesel, GPL, Metano, Elettrico
+  currentKm: numeric("current_km"), // Km attuali (opzionale)
+  currentEngineHours: numeric("current_engine_hours"), // Ore motore attuali (opzionale, per mezzi da lavoro)
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+}, (table) => ({
+  orgIdx: index("vehicles_org_idx").on(table.organizationId),
+}));
+
+// Fuel refills table (Rifornimenti carburante)
+export const fuelRefills = pgTable("fuel_refills", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
+  vehicleId: varchar("vehicle_id").notNull().references(() => vehicles.id),
+  refillDate: timestamp("refill_date").notNull().default(sql`now()`), // Data e ora rifornimento
+  operatorId: varchar("operator_id").references(() => users.id), // Chi ha fatto il rifornimento (opzionale)
+  litersBefore: numeric("liters_before").notNull(), // Litri nel serbatoio prima del rifornimento
+  litersAfter: numeric("liters_after").notNull(), // Litri nel serbatoio dopo il rifornimento
+  litersRefilled: numeric("liters_refilled").notNull(), // Litri erogati (after - before)
+  kmReading: numeric("km_reading"), // Lettura km al momento del rifornimento
+  engineHoursReading: numeric("engine_hours_reading"), // Lettura ore motore (opzionale)
+  totalCost: numeric("total_cost"), // Costo totale rifornimento (opzionale)
+  notes: text("notes"), // Note aggiuntive
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+}, (table) => ({
+  vehicleIdx: index("fuel_refills_vehicle_idx").on(table.vehicleId),
+  orgDateIdx: index("fuel_refills_org_date_idx").on(table.organizationId, table.refillDate),
+}));
+
 // Insert schemas
 export const insertOrganizationSchema = createInsertSchema(organizations).omit({
   id: true,
@@ -210,6 +245,28 @@ export const insertPushSubscriptionSchema = createInsertSchema(pushSubscriptions
   createdAt: true,
 });
 
+export const insertVehicleSchema = createInsertSchema(vehicles).omit({
+  id: true,
+  organizationId: true, // Will be set automatically from session
+  createdAt: true,
+}).extend({
+  currentKm: z.union([z.string(), z.number(), z.null()]).optional().transform(val => val ? String(val) : null),
+  currentEngineHours: z.union([z.string(), z.number(), z.null()]).optional().transform(val => val ? String(val) : null),
+});
+
+export const insertFuelRefillSchema = createInsertSchema(fuelRefills).omit({
+  id: true,
+  organizationId: true, // Will be set automatically from session
+  createdAt: true,
+}).extend({
+  litersBefore: z.union([z.string(), z.number()]).transform(val => String(val)),
+  litersAfter: z.union([z.string(), z.number()]).transform(val => String(val)),
+  litersRefilled: z.union([z.string(), z.number()]).transform(val => String(val)),
+  kmReading: z.union([z.string(), z.number(), z.null()]).optional().transform(val => val ? String(val) : null),
+  engineHoursReading: z.union([z.string(), z.number(), z.null()]).optional().transform(val => val ? String(val) : null),
+  totalCost: z.union([z.string(), z.number(), z.null()]).optional().transform(val => val ? String(val) : null),
+});
+
 // Update schemas for editing
 export const updateDailyReportSchema = insertDailyReportSchema.partial().extend({
   id: z.string().optional()
@@ -224,6 +281,14 @@ export const updateAttendanceEntrySchema = insertAttendanceEntrySchema.partial()
 });
 
 export const updateHoursAdjustmentSchema = insertHoursAdjustmentSchema.partial().extend({
+  id: z.string().optional()
+});
+
+export const updateVehicleSchema = insertVehicleSchema.partial().extend({
+  id: z.string().optional()
+});
+
+export const updateFuelRefillSchema = insertFuelRefillSchema.partial().extend({
   id: z.string().optional()
 });
 
@@ -263,6 +328,14 @@ export type UpdateHoursAdjustment = z.infer<typeof updateHoursAdjustmentSchema>;
 
 export type InsertPushSubscription = z.infer<typeof insertPushSubscriptionSchema>;
 export type PushSubscription = typeof pushSubscriptions.$inferSelect;
+
+export type InsertVehicle = z.infer<typeof insertVehicleSchema>;
+export type Vehicle = typeof vehicles.$inferSelect;
+export type UpdateVehicle = z.infer<typeof updateVehicleSchema>;
+
+export type InsertFuelRefill = z.infer<typeof insertFuelRefillSchema>;
+export type FuelRefill = typeof fuelRefills.$inferSelect;
+export type UpdateFuelRefill = z.infer<typeof updateFuelRefillSchema>;
 
 export type UpdateDailyReport = z.infer<typeof updateDailyReportSchema>;
 export type UpdateOperation = z.infer<typeof updateOperationSchema>;

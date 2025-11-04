@@ -9,6 +9,8 @@ import {
   attendanceEntries,
   hoursAdjustments,
   pushSubscriptions,
+  vehicles,
+  fuelRefills,
   type User, 
   type InsertUser,
   type Client,
@@ -31,6 +33,12 @@ import {
   type UpdateHoursAdjustment,
   type PushSubscription,
   type InsertPushSubscription,
+  type Vehicle,
+  type InsertVehicle,
+  type UpdateVehicle,
+  type FuelRefill,
+  type InsertFuelRefill,
+  type UpdateFuelRefill,
   type UpdateDailyReport,
   type UpdateOperation
 } from "@shared/schema";
@@ -132,6 +140,22 @@ export interface IStorage {
   getAllPushSubscriptions(organizationId: string): Promise<PushSubscription[]>;
   createPushSubscription(subscription: InsertPushSubscription, userId: string, organizationId: string): Promise<PushSubscription>;
   deletePushSubscription(userId: string, organizationId: string): Promise<boolean>;
+  
+  // Vehicles (Mezzi)
+  getAllVehicles(organizationId: string): Promise<Vehicle[]>;
+  getVehicle(id: string): Promise<Vehicle | undefined>;
+  createVehicle(vehicle: InsertVehicle, organizationId: string): Promise<Vehicle>;
+  updateVehicle(id: string, updates: UpdateVehicle, organizationId: string): Promise<Vehicle>;
+  deleteVehicle(id: string, organizationId: string): Promise<boolean>;
+  
+  // Fuel Refills (Rifornimenti)
+  getAllFuelRefills(organizationId: string): Promise<FuelRefill[]>;
+  getFuelRefillsByVehicle(vehicleId: string, organizationId: string): Promise<FuelRefill[]>;
+  getFuelRefill(id: string): Promise<FuelRefill | undefined>;
+  createFuelRefill(refill: InsertFuelRefill, organizationId: string): Promise<FuelRefill>;
+  updateFuelRefill(id: string, updates: UpdateFuelRefill, organizationId: string): Promise<FuelRefill>;
+  deleteFuelRefill(id: string, organizationId: string): Promise<boolean>;
+  deleteFuelRefillsByVehicleId(vehicleId: string): Promise<boolean>;
   
   // Monthly Attendance (Foglio Presenze)
   getMonthlyAttendance(organizationId: string, year: string, month: string): Promise<any>;
@@ -847,6 +871,134 @@ export class DatabaseStorage implements IStorage {
         )
       );
     return result.rowCount ? result.rowCount > 0 : false;
+  }
+
+  // Vehicles (Mezzi)
+  async getAllVehicles(organizationId: string): Promise<Vehicle[]> {
+    await this.ensureInitialized();
+    return await db.select().from(vehicles).where(eq(vehicles.organizationId, organizationId));
+  }
+
+  async getVehicle(id: string): Promise<Vehicle | undefined> {
+    await this.ensureInitialized();
+    const [vehicle] = await db.select().from(vehicles).where(eq(vehicles.id, id));
+    return vehicle || undefined;
+  }
+
+  async createVehicle(vehicle: InsertVehicle, organizationId: string): Promise<Vehicle> {
+    await this.ensureInitialized();
+    const [created] = await db.insert(vehicles).values({
+      ...vehicle,
+      organizationId
+    }).returning();
+    return created;
+  }
+
+  async updateVehicle(id: string, updates: UpdateVehicle, organizationId: string): Promise<Vehicle> {
+    await this.ensureInitialized();
+    const [updated] = await db.update(vehicles)
+      .set(updates)
+      .where(
+        and(
+          eq(vehicles.id, id),
+          eq(vehicles.organizationId, organizationId)
+        )
+      )
+      .returning();
+    if (!updated) {
+      throw new Error("Vehicle not found or access denied");
+    }
+    return updated;
+  }
+
+  async deleteVehicle(id: string, organizationId: string): Promise<boolean> {
+    await this.ensureInitialized();
+    // First verify vehicle exists and belongs to the organization
+    const [existing] = await db.select().from(vehicles).where(
+      and(
+        eq(vehicles.id, id),
+        eq(vehicles.organizationId, organizationId)
+      )
+    );
+    if (!existing) {
+      return false; // Vehicle not found or access denied
+    }
+    // Now safe to delete fuel refills (we know vehicle belongs to this org)
+    await this.deleteFuelRefillsByVehicleId(id);
+    // Finally delete the vehicle
+    const result = await db.delete(vehicles).where(eq(vehicles.id, id));
+    return result.rowCount !== null && result.rowCount > 0;
+  }
+
+  // Fuel Refills (Rifornimenti)
+  async getAllFuelRefills(organizationId: string): Promise<FuelRefill[]> {
+    await this.ensureInitialized();
+    return await db.select()
+      .from(fuelRefills)
+      .where(eq(fuelRefills.organizationId, organizationId))
+      .orderBy(desc(fuelRefills.refillDate));
+  }
+
+  async getFuelRefillsByVehicle(vehicleId: string, organizationId: string): Promise<FuelRefill[]> {
+    await this.ensureInitialized();
+    return await db.select()
+      .from(fuelRefills)
+      .where(
+        and(
+          eq(fuelRefills.vehicleId, vehicleId),
+          eq(fuelRefills.organizationId, organizationId)
+        )
+      )
+      .orderBy(desc(fuelRefills.refillDate));
+  }
+
+  async getFuelRefill(id: string): Promise<FuelRefill | undefined> {
+    await this.ensureInitialized();
+    const [refill] = await db.select().from(fuelRefills).where(eq(fuelRefills.id, id));
+    return refill || undefined;
+  }
+
+  async createFuelRefill(refill: InsertFuelRefill, organizationId: string): Promise<FuelRefill> {
+    await this.ensureInitialized();
+    const [created] = await db.insert(fuelRefills).values({
+      ...refill,
+      organizationId
+    }).returning();
+    return created;
+  }
+
+  async updateFuelRefill(id: string, updates: UpdateFuelRefill, organizationId: string): Promise<FuelRefill> {
+    await this.ensureInitialized();
+    const [updated] = await db.update(fuelRefills)
+      .set(updates)
+      .where(
+        and(
+          eq(fuelRefills.id, id),
+          eq(fuelRefills.organizationId, organizationId)
+        )
+      )
+      .returning();
+    if (!updated) {
+      throw new Error("Fuel refill not found or access denied");
+    }
+    return updated;
+  }
+
+  async deleteFuelRefill(id: string, organizationId: string): Promise<boolean> {
+    await this.ensureInitialized();
+    const result = await db.delete(fuelRefills).where(
+      and(
+        eq(fuelRefills.id, id),
+        eq(fuelRefills.organizationId, organizationId)
+      )
+    );
+    return result.rowCount !== null && result.rowCount > 0;
+  }
+
+  async deleteFuelRefillsByVehicleId(vehicleId: string): Promise<boolean> {
+    await this.ensureInitialized();
+    const result = await db.delete(fuelRefills).where(eq(fuelRefills.vehicleId, vehicleId));
+    return result.rowCount !== null && result.rowCount > 0;
   }
 
   async getMonthlyAttendance(organizationId: string, year: string, month: string): Promise<any> {

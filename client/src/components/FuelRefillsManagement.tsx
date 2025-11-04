@@ -1,0 +1,720 @@
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Textarea } from "@/components/ui/textarea";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { formatDateToItalian } from "@/lib/dateUtils";
+import { Plus, Edit, Trash, Fuel, Filter } from "lucide-react";
+import type { FuelRefill, Vehicle } from "@shared/schema";
+
+const fuelRefillSchema = z.object({
+  vehicleId: z.string().min(1, "Mezzo è richiesto"),
+  refillDate: z.string().min(1, "Data è richiesta"),
+  refillTime: z.string().min(1, "Ora è richiesta"),
+  litersBefore: z.string().min(1, "Litri prima è richiesto"),
+  litersAfter: z.string().min(1, "Litri dopo è richiesto"),
+  km: z.string().optional(),
+  hours: z.string().optional(),
+  cost: z.string().optional(),
+  notes: z.string().optional(),
+});
+
+type FuelRefillForm = z.infer<typeof fuelRefillSchema>;
+
+export default function FuelRefillsManagement() {
+  const { toast } = useToast();
+  const [vehicleFilter, setVehicleFilter] = useState("all");
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [selectedRefill, setSelectedRefill] = useState<any | null>(null);
+
+  const addForm = useForm<FuelRefillForm>({
+    resolver: zodResolver(fuelRefillSchema),
+    defaultValues: {
+      vehicleId: "",
+      refillDate: new Date().toISOString().split('T')[0],
+      refillTime: new Date().toTimeString().slice(0,5),
+      litersBefore: "",
+      litersAfter: "",
+      km: "",
+      hours: "",
+      cost: "",
+      notes: "",
+    },
+  });
+
+  const editForm = useForm<FuelRefillForm>({
+    resolver: zodResolver(fuelRefillSchema),
+    defaultValues: {
+      vehicleId: "",
+      refillDate: "",
+      refillTime: "",
+      litersBefore: "",
+      litersAfter: "",
+      km: "",
+      hours: "",
+      cost: "",
+      notes: "",
+    },
+  });
+
+  const { data: vehicles = [], isLoading: isLoadingVehicles } = useQuery({
+    queryKey: ["/api/vehicles"],
+  });
+
+  const { data: refills = [], isLoading: isLoadingRefills } = useQuery({
+    queryKey: ["/api/fuel-refills"],
+  });
+
+  const { data: currentUser } = useQuery({
+    queryKey: ["/api/me"],
+  });
+
+  const createRefillMutation = useMutation({
+    mutationFn: async (data: FuelRefillForm) => {
+      const refillDateTime = `${data.refillDate}T${data.refillTime}:00`;
+      const payload = {
+        vehicleId: data.vehicleId,
+        refillDate: refillDateTime,
+        operatorId: (currentUser as any)?.id,
+        litersBefore: parseFloat(data.litersBefore),
+        litersAfter: parseFloat(data.litersAfter),
+        litersRefilled: parseFloat(data.litersAfter) - parseFloat(data.litersBefore),
+        km: data.km ? parseFloat(data.km) : null,
+        hours: data.hours ? parseFloat(data.hours) : null,
+        cost: data.cost ? parseFloat(data.cost) : null,
+        notes: data.notes || null,
+      };
+      const response = await fetch("/api/fuel-refills", {
+        method: "POST",
+        body: JSON.stringify(payload),
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("Failed to create fuel refill");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/fuel-refills"] });
+      toast({
+        title: "Rifornimento registrato",
+        description: "Il rifornimento è stato registrato con successo",
+      });
+      setAddDialogOpen(false);
+      addForm.reset();
+    },
+    onError: () => {
+      toast({
+        title: "Errore",
+        description: "Impossibile registrare il rifornimento",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateRefillMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: FuelRefillForm }) => {
+      const refillDateTime = `${data.refillDate}T${data.refillTime}:00`;
+      const payload = {
+        vehicleId: data.vehicleId,
+        refillDate: refillDateTime,
+        litersBefore: parseFloat(data.litersBefore),
+        litersAfter: parseFloat(data.litersAfter),
+        litersRefilled: parseFloat(data.litersAfter) - parseFloat(data.litersBefore),
+        km: data.km ? parseFloat(data.km) : null,
+        hours: data.hours ? parseFloat(data.hours) : null,
+        cost: data.cost ? parseFloat(data.cost) : null,
+        notes: data.notes || null,
+      };
+      const response = await fetch(`/api/fuel-refills/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("Failed to update fuel refill");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/fuel-refills"] });
+      toast({
+        title: "Rifornimento aggiornato",
+        description: "Il rifornimento è stato aggiornato con successo",
+      });
+      setEditDialogOpen(false);
+      editForm.reset();
+      setSelectedRefill(null);
+    },
+    onError: () => {
+      toast({
+        title: "Errore",
+        description: "Impossibile aggiornare il rifornimento",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteRefillMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await fetch(`/api/fuel-refills/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("Failed to delete fuel refill");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/fuel-refills"] });
+      toast({
+        title: "Rifornimento eliminato",
+        description: "Il rifornimento è stato eliminato con successo",
+      });
+      setDeleteDialogOpen(false);
+      setSelectedRefill(null);
+    },
+    onError: () => {
+      toast({
+        title: "Errore",
+        description: "Impossibile eliminare il rifornimento",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleEdit = (refill: any) => {
+    setSelectedRefill(refill);
+    const refillDateTime = new Date(refill.refillDate);
+    const date = refillDateTime.toISOString().split('T')[0];
+    const time = refillDateTime.toTimeString().slice(0,5);
+    editForm.reset({
+      vehicleId: refill.vehicleId,
+      refillDate: date,
+      refillTime: time,
+      litersBefore: refill.litersBefore?.toString() || "",
+      litersAfter: refill.litersAfter?.toString() || "",
+      km: refill.km?.toString() || "",
+      hours: refill.hours?.toString() || "",
+      cost: refill.cost?.toString() || "",
+      notes: refill.notes || "",
+    });
+    setEditDialogOpen(true);
+  };
+
+  const handleDelete = (refill: any) => {
+    setSelectedRefill(refill);
+    setDeleteDialogOpen(true);
+  };
+
+  const filteredRefills = (refills as any[]).filter((refill: any) => {
+    if (vehicleFilter === "all") return true;
+    return refill.vehicleId === vehicleFilter;
+  });
+
+  const getVehicleName = (vehicleId: string) => {
+    const vehicle = (vehicles as any[]).find((v: any) => v.id === vehicleId);
+    return vehicle ? `${vehicle.name} (${vehicle.licensePlate})` : "Sconosciuto";
+  };
+
+  const litersBefore = addForm.watch("litersBefore");
+  const litersAfter = addForm.watch("litersAfter");
+  const editLitersBefore = editForm.watch("litersBefore");
+  const editLitersAfter = editForm.watch("litersAfter");
+
+  const calculateDispensed = (before: string, after: string) => {
+    const b = parseFloat(before);
+    const a = parseFloat(after);
+    if (isNaN(b) || isNaN(a)) return "-";
+    return (a - b).toFixed(2);
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Fuel className="h-5 w-5" />
+                Gestione Rifornimenti
+              </CardTitle>
+            </div>
+            <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+              <DialogTrigger asChild>
+                <Button data-testid="button-add-refill">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Registra Rifornimento
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Registra Nuovo Rifornimento</DialogTitle>
+                  <DialogDescription>
+                    Inserisci i dettagli del rifornimento
+                  </DialogDescription>
+                </DialogHeader>
+                <Form {...addForm}>
+                  <form onSubmit={addForm.handleSubmit((data) => createRefillMutation.mutate(data))} className="space-y-4">
+                    <FormField
+                      control={addForm.control}
+                      name="vehicleId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Mezzo</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger data-testid="select-refill-vehicle">
+                                <SelectValue placeholder="Seleziona mezzo" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {(vehicles as any[])
+                                .filter((v: any) => v.isActive)
+                                .map((vehicle: any) => (
+                                  <SelectItem key={vehicle.id} value={vehicle.id}>
+                                    {vehicle.name} ({vehicle.licensePlate})
+                                  </SelectItem>
+                                ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={addForm.control}
+                        name="refillDate"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Data</FormLabel>
+                            <FormControl>
+                              <Input {...field} type="date" data-testid="input-refill-date" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={addForm.control}
+                        name="refillTime"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Ora</FormLabel>
+                            <FormControl>
+                              <Input {...field} type="time" data-testid="input-refill-time" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={addForm.control}
+                        name="litersBefore"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Litri Prima</FormLabel>
+                            <FormControl>
+                              <Input {...field} type="number" step="0.01" placeholder="0.00" data-testid="input-refill-liters-before" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={addForm.control}
+                        name="litersAfter"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Litri Dopo</FormLabel>
+                            <FormControl>
+                              <Input {...field} type="number" step="0.01" placeholder="0.00" data-testid="input-refill-liters-after" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <div className="p-3 bg-muted rounded-md">
+                      <p className="text-sm font-medium">Litri Erogati: {calculateDispensed(litersBefore, litersAfter)}</p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={addForm.control}
+                        name="km"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Km (opzionale)</FormLabel>
+                            <FormControl>
+                              <Input {...field} type="number" step="0.01" placeholder="0.00" data-testid="input-refill-km" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={addForm.control}
+                        name="hours"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Ore Motore (opzionale)</FormLabel>
+                            <FormControl>
+                              <Input {...field} type="number" step="0.01" placeholder="0.00" data-testid="input-refill-hours" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <FormField
+                      control={addForm.control}
+                      name="cost"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Costo € (opzionale)</FormLabel>
+                          <FormControl>
+                            <Input {...field} type="number" step="0.01" placeholder="0.00" data-testid="input-refill-cost" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={addForm.control}
+                      name="notes"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Note (opzionale)</FormLabel>
+                          <FormControl>
+                            <Textarea {...field} placeholder="Note aggiuntive..." rows={3} data-testid="input-refill-notes" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <DialogFooter>
+                      <Button type="button" variant="outline" onClick={() => setAddDialogOpen(false)}>
+                        Annulla
+                      </Button>
+                      <Button type="submit" disabled={createRefillMutation.isPending} data-testid="button-save-refill">
+                        {createRefillMutation.isPending ? "Salvataggio..." : "Salva"}
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </Form>
+              </DialogContent>
+            </Dialog>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="mb-4">
+            <div className="flex items-center gap-2">
+              <Filter className="h-4 w-4 text-muted-foreground" />
+              <Select value={vehicleFilter} onValueChange={setVehicleFilter}>
+                <SelectTrigger className="w-64" data-testid="select-filter-vehicle">
+                  <SelectValue placeholder="Tutti i mezzi" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tutti i mezzi</SelectItem>
+                  {(vehicles as any[]).map((vehicle: any) => (
+                    <SelectItem key={vehicle.id} value={vehicle.id}>
+                      {vehicle.name} ({vehicle.licensePlate})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {isLoadingRefills || isLoadingVehicles ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+                <p className="text-muted-foreground">Caricamento rifornimenti...</p>
+              </div>
+            </div>
+          ) : filteredRefills.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">
+                {vehicleFilter !== "all" ? "Nessun rifornimento per questo mezzo" : "Nessun rifornimento registrato"}
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Data/Ora</TableHead>
+                    <TableHead>Mezzo</TableHead>
+                    <TableHead className="text-right">Prima (L)</TableHead>
+                    <TableHead className="text-right">Dopo (L)</TableHead>
+                    <TableHead className="text-right">Erogati (L)</TableHead>
+                    <TableHead className="text-right">Km</TableHead>
+                    <TableHead className="text-right">Costo €</TableHead>
+                    <TableHead className="text-right">Azioni</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredRefills.map((refill: any) => (
+                    <TableRow key={refill.id} data-testid={`row-refill-${refill.id}`}>
+                      <TableCell>
+                        {formatDateToItalian(refill.refillDate)} {new Date(refill.refillDate).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}
+                      </TableCell>
+                      <TableCell>{getVehicleName(refill.vehicleId)}</TableCell>
+                      <TableCell className="text-right">{refill.litersBefore?.toFixed(2)}</TableCell>
+                      <TableCell className="text-right">{refill.litersAfter?.toFixed(2)}</TableCell>
+                      <TableCell className="text-right font-medium">{refill.litersRefilled?.toFixed(2)}</TableCell>
+                      <TableCell className="text-right">{refill.km?.toFixed(0) || "-"}</TableCell>
+                      <TableCell className="text-right">{refill.cost ? `€${refill.cost.toFixed(2)}` : "-"}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEdit(refill)}
+                            data-testid={`button-edit-refill-${refill.id}`}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDelete(refill)}
+                            data-testid={`button-delete-refill-${refill.id}`}
+                          >
+                            <Trash className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Edit Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Modifica Rifornimento</DialogTitle>
+            <DialogDescription>
+              Modifica i dettagli del rifornimento
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...editForm}>
+            <form onSubmit={editForm.handleSubmit((data) => {
+              if (selectedRefill) {
+                updateRefillMutation.mutate({ id: selectedRefill.id, data });
+              }
+            })} className="space-y-4">
+              <FormField
+                control={editForm.control}
+                name="vehicleId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Mezzo</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-edit-refill-vehicle">
+                          <SelectValue placeholder="Seleziona mezzo" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {(vehicles as any[])
+                          .filter((v: any) => v.isActive)
+                          .map((vehicle: any) => (
+                            <SelectItem key={vehicle.id} value={vehicle.id}>
+                              {vehicle.name} ({vehicle.licensePlate})
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={editForm.control}
+                  name="refillDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Data</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="date" data-testid="input-edit-refill-date" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={editForm.control}
+                  name="refillTime"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Ora</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="time" data-testid="input-edit-refill-time" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={editForm.control}
+                  name="litersBefore"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Litri Prima</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="number" step="0.01" placeholder="0.00" data-testid="input-edit-refill-liters-before" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={editForm.control}
+                  name="litersAfter"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Litri Dopo</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="number" step="0.01" placeholder="0.00" data-testid="input-edit-refill-liters-after" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="p-3 bg-muted rounded-md">
+                <p className="text-sm font-medium">Litri Erogati: {calculateDispensed(editLitersBefore, editLitersAfter)}</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={editForm.control}
+                  name="km"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Km (opzionale)</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="number" step="0.01" placeholder="0.00" data-testid="input-edit-refill-km" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={editForm.control}
+                  name="hours"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Ore Motore (opzionale)</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="number" step="0.01" placeholder="0.00" data-testid="input-edit-refill-hours" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={editForm.control}
+                name="cost"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Costo € (opzionale)</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="number" step="0.01" placeholder="0.00" data-testid="input-edit-refill-cost" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={editForm.control}
+                name="notes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Note (opzionale)</FormLabel>
+                    <FormControl>
+                      <Textarea {...field} placeholder="Note aggiuntive..." rows={3} data-testid="input-edit-refill-notes" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setEditDialogOpen(false)}>
+                  Annulla
+                </Button>
+                <Button type="submit" disabled={updateRefillMutation.isPending} data-testid="button-update-refill">
+                  {updateRefillMutation.isPending ? "Salvataggio..." : "Salva Modifiche"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Conferma Eliminazione</AlertDialogTitle>
+            <AlertDialogDescription>
+              Sei sicuro di voler eliminare questo rifornimento?
+              Questa azione non può essere annullata.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete-refill">Annulla</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (selectedRefill) {
+                  deleteRefillMutation.mutate(selectedRefill.id);
+                }
+              }}
+              disabled={deleteRefillMutation.isPending}
+              data-testid="button-confirm-delete-refill"
+            >
+              {deleteRefillMutation.isPending ? "Eliminazione..." : "Elimina"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}

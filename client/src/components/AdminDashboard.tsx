@@ -52,6 +52,8 @@ import WorkOrderReport from "./WorkOrderReport";
 import DailyReportForm from "./DailyReportForm";
 import AttendanceSheet from "./AttendanceSheet";
 import { HoursAdjustmentDialog } from "./HoursAdjustmentDialog";
+import VehiclesManagement from "./VehiclesManagement";
+import FuelRefillsManagement from "./FuelRefillsManagement";
 
 // Schema per form aggiunta dipendente
 const addEmployeeSchema = z.object({
@@ -113,6 +115,7 @@ export default function AdminDashboard() {
   const [fromDate, setFromDate] = useState<string>("");
   const [toDate, setToDate] = useState<string>("");
   const [employeeStatusFilter, setEmployeeStatusFilter] = useState("all"); // all, active, inactive
+  const [mainSection, setMainSection] = useState("rapportini"); // rapportini or rifornimenti
   const [selectedTab, setSelectedTab] = useState("reports");
   const [selectedWorkOrder, setSelectedWorkOrder] = useState<{
     id: string;
@@ -1545,6 +1548,21 @@ export default function AdminDashboard() {
           </Button>
         </div>
       </div>
+
+      {/* Main Navigation */}
+      <Tabs value={mainSection} onValueChange={setMainSection}>
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="rapportini" data-testid="tab-main-rapportini">
+            <FileText className="h-4 w-4 mr-2" />
+            Rapportini
+          </TabsTrigger>
+          <TabsTrigger value="rifornimenti" data-testid="tab-main-rifornimenti">
+            <Package className="h-4 w-4 mr-2" />
+            Rifornimenti
+          </TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="rapportini" className="space-y-6 mt-6">
 
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
@@ -4345,6 +4363,27 @@ export default function AdminDashboard() {
         dailyReportId={selectedReportForAdjustment || ""}
         currentAdjustment={currentHoursAdjustment}
       />
+        </TabsContent>
+
+        <TabsContent value="rifornimenti" className="space-y-6 mt-6">
+          <Tabs defaultValue="vehicles">
+            <TabsList>
+              <TabsTrigger value="vehicles" data-testid="tab-vehicles">
+                Mezzi
+              </TabsTrigger>
+              <TabsTrigger value="refills" data-testid="tab-refills">
+                Rifornimenti
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="vehicles" className="mt-6">
+              <VehiclesManagement />
+            </TabsContent>
+            <TabsContent value="refills" className="mt-6">
+              <FuelRefillsManagement />
+            </TabsContent>
+          </Tabs>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

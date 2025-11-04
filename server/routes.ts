@@ -20,7 +20,11 @@ import {
   insertAttendanceEntrySchema,
   updateAttendanceEntrySchema,
   insertHoursAdjustmentSchema,
-  updateHoursAdjustmentSchema
+  updateHoursAdjustmentSchema,
+  insertVehicleSchema,
+  updateVehicleSchema,
+  insertFuelRefillSchema,
+  updateFuelRefillSchema
 } from "@shared/schema";
 import { validatePassword, verifyPassword, hashPassword } from "./auth";
 
@@ -1619,6 +1623,136 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error triggering manual check:", error);
       res.status(500).json({ error: "Failed to trigger manual check" });
+    }
+  });
+
+  // Vehicles (Mezzi) - Admin only
+  app.get("/api/vehicles", requireAdmin, async (req, res) => {
+    try {
+      const organizationId = (req as any).session.organizationId;
+      const vehiclesList = await storage.getAllVehicles(organizationId);
+      res.json(vehiclesList);
+    } catch (error) {
+      console.error("Error fetching vehicles:", error);
+      res.status(500).json({ error: "Failed to fetch vehicles" });
+    }
+  });
+
+  app.post("/api/vehicles", requireAdmin, async (req, res) => {
+    try {
+      const organizationId = (req as any).session.organizationId;
+      const parsed = insertVehicleSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid vehicle data", details: parsed.error });
+      }
+      const vehicle = await storage.createVehicle(parsed.data, organizationId);
+      res.json(vehicle);
+    } catch (error) {
+      console.error("Error creating vehicle:", error);
+      res.status(500).json({ error: "Failed to create vehicle" });
+    }
+  });
+
+  app.patch("/api/vehicles/:id", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const organizationId = (req as any).session.organizationId;
+      const parsed = updateVehicleSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid vehicle data", details: parsed.error });
+      }
+      const vehicle = await storage.updateVehicle(id, parsed.data, organizationId);
+      res.json(vehicle);
+    } catch (error) {
+      console.error("Error updating vehicle:", error);
+      res.status(500).json({ error: "Failed to update vehicle" });
+    }
+  });
+
+  app.delete("/api/vehicles/:id", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const organizationId = (req as any).session.organizationId;
+      const deleted = await storage.deleteVehicle(id, organizationId);
+      if (deleted) {
+        res.json({ success: true });
+      } else {
+        res.status(404).json({ error: "Vehicle not found" });
+      }
+    } catch (error) {
+      console.error("Error deleting vehicle:", error);
+      res.status(500).json({ error: "Failed to delete vehicle" });
+    }
+  });
+
+  // Fuel Refills (Rifornimenti) - Admin only
+  app.get("/api/fuel-refills", requireAdmin, async (req, res) => {
+    try {
+      const organizationId = (req as any).session.organizationId;
+      const refills = await storage.getAllFuelRefills(organizationId);
+      res.json(refills);
+    } catch (error) {
+      console.error("Error fetching fuel refills:", error);
+      res.status(500).json({ error: "Failed to fetch fuel refills" });
+    }
+  });
+
+  app.get("/api/fuel-refills/vehicle/:vehicleId", requireAdmin, async (req, res) => {
+    try {
+      const organizationId = (req as any).session.organizationId;
+      const { vehicleId } = req.params;
+      const refills = await storage.getFuelRefillsByVehicle(vehicleId, organizationId);
+      res.json(refills);
+    } catch (error) {
+      console.error("Error fetching fuel refills for vehicle:", error);
+      res.status(500).json({ error: "Failed to fetch fuel refills" });
+    }
+  });
+
+  app.post("/api/fuel-refills", requireAdmin, async (req, res) => {
+    try {
+      const organizationId = (req as any).session.organizationId;
+      const parsed = insertFuelRefillSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid fuel refill data", details: parsed.error });
+      }
+      const refill = await storage.createFuelRefill(parsed.data, organizationId);
+      res.json(refill);
+    } catch (error) {
+      console.error("Error creating fuel refill:", error);
+      res.status(500).json({ error: "Failed to create fuel refill" });
+    }
+  });
+
+  app.patch("/api/fuel-refills/:id", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const organizationId = (req as any).session.organizationId;
+      const parsed = updateFuelRefillSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid fuel refill data", details: parsed.error });
+      }
+      const refill = await storage.updateFuelRefill(id, parsed.data, organizationId);
+      res.json(refill);
+    } catch (error) {
+      console.error("Error updating fuel refill:", error);
+      res.status(500).json({ error: "Failed to update fuel refill" });
+    }
+  });
+
+  app.delete("/api/fuel-refills/:id", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const organizationId = (req as any).session.organizationId;
+      const deleted = await storage.deleteFuelRefill(id, organizationId);
+      if (deleted) {
+        res.json({ success: true });
+      } else {
+        res.status(404).json({ error: "Fuel refill not found" });
+      }
+    } catch (error) {
+      console.error("Error deleting fuel refill:", error);
+      res.status(500).json({ error: "Failed to delete fuel refill" });
     }
   });
 
