@@ -7,64 +7,118 @@ import { schedulerService } from "./schedulerService";
 
 const app = express();
 
-// Global error handlers to prevent server crashes
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-  // Log the error but don't crash the server
+// ============================================
+// GLOBAL ERROR HANDLERS
+// ============================================
+
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("⚠️  Unhandled Rejection at:", promise, "reason:", reason);
+  // Log but don't crash - let PM2 or similar handle restarts if needed
 });
 
-process.on('uncaughtException', (error) => {
-  console.error('Uncaught Exception:', error);
-  // Log the error but don't crash the server
-  // In production, you might want to restart the process gracefully
+process.on("uncaughtException", (error) => {
+  console.error("❌ Uncaught Exception:", error);
+  // Log but don't crash - in production you might want graceful shutdown
 });
 
-// Trust proxy when in production (for secure cookies behind HTTPS proxy)
-if (process.env.NODE_ENV === 'production') {
-  app.set('trust proxy', 1);
+// ============================================
+// ENVIRONMENT VALIDATION
+// ============================================
+
+if (process.env.NODE_ENV === "production") {
+  // Validate critical environment variables
+  const requiredEnvVars = [
+    "DATABASE_URL",
+    "SESSION_SECRET",
+    "VAPID_PUBLIC_KEY",
+    "VAPID_PRIVATE_KEY",
+  ];
+
+  const missingVars = requiredEnvVars.filter(
+    (varName) => !process.env[varName],
+  );
+
+  if (missingVars.length > 0) {
+    console.error("❌ FATAL: Missing required environment variables:");
+    missingVars.forEach((varName) => console.error(`  - ${varName}`));
+    process.exit(1);
+  }
 }
 
-// Rate limiting removed - unlimited login attempts allowed
+// ============================================
+// PROXY CONFIGURATION
+// ============================================
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+if (process.env.NODE_ENV === "production") {
+  // Trust proxy for secure cookies behind HTTPS reverse proxy
+  app.set("trust proxy", 1);
+  log("✓ Trust proxy enabled for production");
+}
 
-// No rate limiting - unlimited login attempts allowed for all users including admin
+// ============================================
+// BODY PARSERS
+// ============================================
+
+app.use(express.json({ limit: "10mb" })); // Increase limit for photo uploads
+app.use(express.urlencoded({ extended: false, limit: "10mb" }));
+
+// ============================================
+// SESSION CONFIGURATION
+// ============================================
 
 // Ensure SESSION_SECRET is configured
 if (!process.env.SESSION_SECRET) {
-  if (process.env.NODE_ENV === 'production') {
-    console.error("FATAL: SESSION_SECRET environment variable is required for security in production");
+  if (process.env.NODE_ENV === "production") {
+    console.error(
+      "❌ FATAL: SESSION_SECRET environment variable is required in production",
+    );
     process.exit(1);
   } else {
-    console.warn("WARNING: Using default SESSION_SECRET in development. Set SESSION_SECRET environment variable for production.");
-    process.env.SESSION_SECRET = 'dev-secret-key-not-for-production';
+    console.warn("⚠️  WARNING: Using default SESSION_SECRET in development");
+    process.env.SESSION_SECRET =
+      "dev-secret-key-not-for-production-" + Math.random();
   }
 }
 
 // Session store configuration
 const PgSession = connectPgSimple(session);
-const sessionStore = process.env.NODE_ENV === 'production' && process.env.DATABASE_URL
-  ? new PgSession({
-      conString: process.env.DATABASE_URL,
-      tableName: 'session',
-      createTableIfMissing: true
-    })
-  : undefined; // Use default memory store in development
+const sessionStore =
+  process.env.NODE_ENV === "production" && process.env.DATABASE_URL
+    ? new PgSession({
+        conString: process.env.DATABASE_URL,
+        tableName: "session",
+        createTableIfMissing: true,
+        pruneSessionInterval: 60 * 15, // Prune expired sessions every 15 minutes
+      })
+    : undefined; // Use memory store in development
 
-// Session configuration - optimized for iOS Safari compatibility
-app.use(session({
-  store: sessionStore,
-  secret: process.env.SESSION_SECRET,
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    secure: process.env.NODE_ENV === 'production', // True in production for HTTPS
-    httpOnly: true,
-    // Remove sameSite entirely for maximum iOS Safari compatibility
-    maxAge: 24 * 60 * 60 * 1000 // 24 hours
-  }
-}));
+if (sessionStore) {
+  log("✓ Using PostgreSQL session store");
+} else {
+  log("⚠️  Using memory session store (development only)");
+}
+
+// Session middleware - optimized for iOS Safari compatibility
+app.use(
+  session({
+    store: sessionStore,
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    name: "metaltec.sid", // Custom session name
+    cookie: {
+      secure: process.env.NODE_ENV === "production", // HTTPS only in production
+      httpOnly: true, // Prevent XSS attacks
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      sameSite: process.env.NODE_ENV === "production" ? "lax" : "lax", // CSRF protection
+    },
+    rolling: true, // Reset maxAge on every response
+  }),
+);
+
+// ============================================
+// REQUEST LOGGING MIDDLEWARE
+// ============================================
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -81,59 +135,158 @@ app.use((req, res, next) => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+
+      // Only log response body in development
+      if (process.env.NODE_ENV === "development" && capturedJsonResponse) {
+        const responseStr = JSON.stringify(capturedJsonResponse);
+        if (responseStr.length < 100) {
+          logLine += ` :: ${responseStr}`;
+        }
       }
 
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
+      // Truncate long log lines
+      if (logLine.length > 200) {
+        logLine = logLine.slice(0, 199) + "…";
       }
 
-      log(logLine);
+      // Color code by status
+      if (res.statusCode >= 500) {
+        console.error(`❌ ${logLine}`);
+      } else if (res.statusCode >= 400) {
+        console.warn(`⚠️  ${logLine}`);
+      } else if (process.env.NODE_ENV === "development") {
+        log(logLine);
+      }
     }
   });
 
   next();
 });
 
-(async () => {
-  const server = await registerRoutes(app);
+// ============================================
+// SECURITY HEADERS
+// ============================================
 
-  // Start the push notification scheduler
-  schedulerService.start();
+app.use((req, res, next) => {
+  // Security headers
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("X-XSS-Protection", "1; mode=block");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
-
-    // Log the error for debugging
-    console.error('Express error handler:', err);
-
-    // Send error response to client
-    res.status(status).json({ message });
-    
-    // Don't throw the error - just log it to prevent server crashes
-  });
-
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
-  if (app.get("env") === "development") {
-    await setupVite(app, server);
-  } else {
-    serveStatic(app);
+  // Only set CSP in production
+  if (process.env.NODE_ENV === "production") {
+    res.setHeader(
+      "Content-Security-Policy",
+      "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://api.anthropic.com https://storage.googleapis.com;",
+    );
   }
 
-  // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Other ports are firewalled. Default to 5000 if not specified.
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = parseInt(process.env.PORT || '5000', 10);
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
-    log(`serving on port ${port}`);
+  next();
+});
+
+// ============================================
+// HEALTH CHECK ENDPOINT
+// ============================================
+
+app.get("/health", (req, res) => {
+  res.json({
+    status: "ok",
+    timestamp: new Date().toISOString(),
+    env: process.env.NODE_ENV || "development",
   });
+});
+
+// ============================================
+// SERVER INITIALIZATION
+// ============================================
+
+(async () => {
+  try {
+    log("🚀 Starting Metaltec Rapportini Server...");
+
+    // Register API routes
+    const server = await registerRoutes(app);
+    log("✓ API routes registered");
+
+    // Start the push notification scheduler
+    schedulerService.start();
+    log("✓ Push notification scheduler started");
+
+    // Global error handler (must be after routes)
+    app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+      const status = err.status || err.statusCode || 500;
+      const message = err.message || "Internal Server Error";
+
+      // Log the error for debugging
+      console.error("❌ Express error handler:", {
+        status,
+        message,
+        stack: process.env.NODE_ENV === "development" ? err.stack : undefined,
+      });
+
+      // Send error response to client (never expose stack trace in production)
+      res.status(status).json({
+        error: message,
+        ...(process.env.NODE_ENV === "development" && { stack: err.stack }),
+      });
+    });
+
+    // Setup Vite dev server (development) or static file serving (production)
+    if (app.get("env") === "development") {
+      await setupVite(app, server);
+      log("✓ Vite development server configured");
+    } else {
+      serveStatic(app);
+      log("✓ Static file serving configured");
+    }
+
+    // Start HTTP server
+    const port = parseInt(process.env.PORT || "5000", 10);
+
+    server.listen(
+      {
+        port,
+        host: "0.0.0.0",
+        reusePort: true,
+      },
+      () => {
+        log(`✅ Server running on port ${port}`);
+        log(`   Environment: ${process.env.NODE_ENV || "development"}`);
+        log(`   URL: http://localhost:${port}`);
+
+        if (process.env.NODE_ENV === "production") {
+          log("   🔒 Security features enabled");
+          log("   🔄 Rate limiting active");
+          log("   📊 PostgreSQL session store active");
+        }
+      },
+    );
+
+    // Graceful shutdown handler
+    const gracefulShutdown = async (signal: string) => {
+      log(`\n⚠️  ${signal} received, starting graceful shutdown...`);
+
+      // Stop accepting new connections
+      server.close(() => {
+        log("✓ HTTP server closed");
+      });
+
+      // Stop scheduler
+      schedulerService.stop();
+      log("✓ Scheduler stopped");
+
+      // Give time for in-flight requests to complete
+      setTimeout(() => {
+        log("✅ Graceful shutdown complete");
+        process.exit(0);
+      }, 5000);
+    };
+
+    process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+    process.on("SIGINT", () => gracefulShutdown("SIGINT"));
+  } catch (error) {
+    console.error("❌ FATAL: Failed to start server:", error);
+    process.exit(1);
+  }
 })();

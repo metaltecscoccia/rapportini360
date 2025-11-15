@@ -1,7 +1,11 @@
 import { useState } from "react";
 import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
-import { QueryClientProvider, useMutation, useQuery } from "@tanstack/react-query";
+import {
+  QueryClientProvider,
+  useMutation,
+  useQuery,
+} from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/ThemeProvider";
@@ -31,53 +35,68 @@ function Router() {
   );
 }
 
-// Component for authenticated users that uses React Query
-function AuthenticatedApp({ currentUser, onLogout }: { currentUser: User; onLogout: () => void }) {
+// ============================================
+// AUTHENTICATED APP COMPONENT
+// ============================================
+
+function AuthenticatedApp({
+  currentUser,
+  onLogout,
+}: {
+  currentUser: User;
+  onLogout: () => void;
+}) {
   const { toast } = useToast();
 
   const handleLogout = async () => {
     try {
       // Call logout API to destroy session
-      await fetch('/api/logout', {
-        method: 'POST',
-        credentials: 'include'
+      await fetch("/api/logout", {
+        method: "POST",
+        credentials: "include",
       });
     } catch (error) {
       console.error("Error during logout:", error);
     } finally {
       // Always clear frontend state regardless of API call result
       onLogout();
-      console.log("User logged out");
+      toast({
+        title: "Logout effettuato",
+        description: "Sei stato disconnesso con successo.",
+      });
     }
   };
 
-  // Carica il rapportino di oggi se esiste (solo per dipendenti)
-  const { data: todayReport, isLoading: loadingTodayReport } = useQuery<any>({
-    queryKey: ['/api/daily-reports/today'],
-    enabled: currentUser.role === 'employee',
+  // Load today's report if exists (only for employees)
+  const {
+    data: todayReport,
+    isLoading: loadingTodayReport,
+    error: reportError,
+  } = useQuery<any>({
+    queryKey: ["/api/daily-reports/today"],
+    enabled: currentUser.role === "employee",
     retry: false,
-    staleTime: 0
+    staleTime: 0,
   });
 
-  // Mutation per creare nuovo rapportino
+  // Mutation to create new daily report
   const createReportMutation = useMutation({
     mutationFn: async (operations: any[]) => {
       if (!currentUser) throw new Error("User not logged in");
-      
-      // Il backend prenderà employeeId dalla sessione
-      const response = await apiRequest('POST', '/api/daily-reports', {
-        operations
+
+      const response = await apiRequest("POST", "/api/daily-reports", {
+        operations,
       });
-      
+
       return response.json();
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/daily-reports/today'] });
+      queryClient.invalidateQueries({ queryKey: ["/api/daily-reports/today"] });
       toast({
         title: "Rapportino creato",
-        description: "Il rapportino è stato inviato con successo e è in attesa di approvazione.",
+        description:
+          "Il rapportino è stato inviato con successo e è in attesa di approvazione.",
       });
-      console.log("Report created successfully:", data);
     },
     onError: (error: any) => {
       console.error("Error creating report:", error);
@@ -89,22 +108,31 @@ function AuthenticatedApp({ currentUser, onLogout }: { currentUser: User; onLogo
     },
   });
 
-  // Mutation per aggiornare rapportino esistente
+  // Mutation to update existing daily report
   const updateReportMutation = useMutation({
-    mutationFn: async ({ reportId, operations }: { reportId: string; operations: any[] }) => {
-      const response = await apiRequest('PUT', `/api/daily-reports/${reportId}`, {
-        operations
-      });
-      
+    mutationFn: async ({
+      reportId,
+      operations,
+    }: {
+      reportId: string;
+      operations: any[];
+    }) => {
+      const response = await apiRequest(
+        "PUT",
+        `/api/daily-reports/${reportId}`,
+        {
+          operations,
+        },
+      );
+
       return response.json();
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/daily-reports/today'] });
+      queryClient.invalidateQueries({ queryKey: ["/api/daily-reports/today"] });
       toast({
         title: "Rapportino aggiornato",
         description: "Le lavorazioni sono state aggiunte con successo.",
       });
-      console.log("Report updated successfully:", data);
     },
     onError: (error: any) => {
       console.error("Error updating report:", error);
@@ -118,10 +146,10 @@ function AuthenticatedApp({ currentUser, onLogout }: { currentUser: User; onLogo
 
   const handleReportSubmit = (operations: any[]) => {
     if (todayReport) {
-      // Aggiorna rapportino esistente
+      // Update existing report
       updateReportMutation.mutate({ reportId: todayReport.id, operations });
     } else {
-      // Crea nuovo rapportino
+      // Create new report
       createReportMutation.mutate(operations);
     }
   };
@@ -134,13 +162,15 @@ function AuthenticatedApp({ currentUser, onLogout }: { currentUser: User; onLogo
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-xl font-semibold">
-                {currentUser.role === "admin" ? "Dashboard Amministratore" : "Rapportini Giornalieri"}
+                {currentUser.role === "admin"
+                  ? "Dashboard Amministratore"
+                  : "Rapportini Giornalieri"}
               </h1>
               <p className="text-sm text-muted-foreground">
                 Benvenuto, {currentUser.fullName}
               </p>
             </div>
-            
+
             <div className="flex items-center gap-2">
               {currentUser.role === "employee" && <PushNotificationToggle />}
               <ThemeToggle />
@@ -165,16 +195,32 @@ function AuthenticatedApp({ currentUser, onLogout }: { currentUser: User; onLogo
           <div className="py-6">
             {loadingTodayReport ? (
               <div className="flex items-center justify-center p-8">
-                <p className="text-muted-foreground">Caricamento...</p>
+                <div className="text-center">
+                  <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent motion-reduce:animate-[spin_1.5s_linear_infinite]" />
+                  <p className="text-muted-foreground mt-2">Caricamento...</p>
+                </div>
+              </div>
+            ) : reportError ? (
+              <div className="flex items-center justify-center p-8">
+                <div className="text-center">
+                  <p className="text-muted-foreground">
+                    Nessun rapportino trovato per oggi. Creane uno nuovo!
+                  </p>
+                </div>
               </div>
             ) : (
               <DailyReportForm
                 employeeName={currentUser.fullName}
-                date={formatDateToItalian(new Date().toISOString().split('T')[0])}
+                date={formatDateToItalian(
+                  new Date().toISOString().split("T")[0],
+                )}
                 onSubmit={handleReportSubmit}
                 initialOperations={todayReport?.operations}
                 isEditing={!!todayReport}
-                isSubmitting={createReportMutation.isPending || updateReportMutation.isPending}
+                isSubmitting={
+                  createReportMutation.isPending ||
+                  updateReportMutation.isPending
+                }
               />
             )}
           </div>
@@ -184,35 +230,52 @@ function AuthenticatedApp({ currentUser, onLogout }: { currentUser: User; onLogo
   );
 }
 
+// ============================================
+// MAIN APP COMPONENT
+// ============================================
+
 function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const { toast } = useToast();
 
-  const handleLogin = async (username: string, password: string): Promise<{ success: boolean; error?: string }> => {
+  const handleLogin = async (
+    username: string,
+    password: string,
+  ): Promise<{ success: boolean; error?: string }> => {
     try {
-      console.log(`Login attempt: ${username}`);
-      
-      const response = await fetch('/api/login', {
-        method: 'POST',
+      const response = await fetch("/api/login", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
-        credentials: 'include',  // Include session cookies
+        credentials: "include", // Include session cookies
         body: JSON.stringify({ username, password }),
       });
-      
+
       const data = await response.json();
-      
+
       if (response.ok && data.success) {
         setCurrentUser(data.user);
-        console.log("User logged in:", data.user);
+        toast({
+          title: "Login effettuato",
+          description: `Benvenuto, ${data.user.fullName}!`,
+        });
         return { success: true };
       } else {
-        console.log("Login failed:", data.error);
+        // Handle rate limiting
+        if (response.status === 429) {
+          return {
+            success: false,
+            error:
+              data.error || "Troppi tentativi di login. Riprova più tardi.",
+          };
+        }
+
         return { success: false, error: data.error || "Login fallito" };
       }
     } catch (error) {
       console.error("Error during login:", error);
-      return { success: false, error: "Errore di connessione" };
+      return { success: false, error: "Errore di connessione al server" };
     }
   };
 
@@ -220,6 +283,7 @@ function App() {
     setCurrentUser(null);
   };
 
+  // Show login form if not authenticated
   if (!currentUser) {
     return (
       <QueryClientProvider client={queryClient}>
@@ -233,6 +297,7 @@ function App() {
     );
   }
 
+  // Show authenticated app
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
