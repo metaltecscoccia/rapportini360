@@ -11,8 +11,9 @@ import { useToast } from "@/hooks/use-toast";
 import { Download, Plus, X } from "lucide-react";
 import { formatDateToItalian } from "@/lib/dateUtils";
 
-// Absence type labels
+// Absence type labels - AGGIUNTO "A: Assente"
 const ABSENCE_LABELS: Record<string, string> = {
+  A: "Assente",
   F: "Ferie",
   P: "Permessi",
   M: "Malattia",
@@ -41,7 +42,7 @@ function isItalianHoliday(year: string, month: string, day: number): boolean {
     { month: 12, day: 25 }, // Natale
     { month: 12, day: 26 }, // Santo Stefano
   ];
-  
+
   return fixedHolidays.some(h => h.month === monthNum && h.day === day);
 }
 
@@ -50,7 +51,7 @@ function getCellBgColor(year: string, month: string, day: number): string {
   if (isItalianHoliday(year, month, day)) {
     return 'bg-yellow-50 dark:bg-yellow-950/20';
   }
-  
+
   const dayOfWeek = getDayOfWeek(year, month, day);
   if (dayOfWeek === 0) { // Sunday
     return 'bg-red-50 dark:bg-red-950/20';
@@ -58,7 +59,7 @@ function getCellBgColor(year: string, month: string, day: number): string {
   if (dayOfWeek === 6) { // Saturday
     return 'bg-blue-50 dark:bg-blue-950/20';
   }
-  
+
   return '';
 }
 
@@ -67,7 +68,7 @@ function getHeaderBgColor(year: string, month: string, day: number): string {
   if (isItalianHoliday(year, month, day)) {
     return 'bg-yellow-200 dark:bg-yellow-900/40';
   }
-  
+
   const dayOfWeek = getDayOfWeek(year, month, day);
   if (dayOfWeek === 0) { // Sunday
     return 'bg-red-200 dark:bg-red-900/40';
@@ -75,7 +76,7 @@ function getHeaderBgColor(year: string, month: string, day: number): string {
   if (dayOfWeek === 6) { // Saturday
     return 'bg-blue-200 dark:bg-blue-900/40';
   }
-  
+
   return 'bg-muted';
 }
 
@@ -175,7 +176,7 @@ export default function AttendanceSheet() {
 
   const handleAddAbsence = () => {
     if (!selectedCell || !selectedAbsenceType) return;
-    
+
     createAbsenceMutation.mutate({
       userId: selectedCell.userId,
       date: selectedCell.date,
@@ -249,9 +250,9 @@ export default function AttendanceSheet() {
           </div>
         </CardHeader>
         <CardContent>
-          {/* Legend */}
+          {/* Legend - AGGIORNATA con "A=Assente" */}
           <div className="mb-4 p-3 bg-muted rounded-md text-sm">
-            <strong>Legenda:</strong> F=Ferie | P=Permessi | M=Malattia | CP=Congedo Parentale | L104=Legge 104
+            <strong>Legenda:</strong> A=Assente | F=Ferie | P=Permessi | M=Malattia | CP=Congedo Parentale | L104=Legge 104
           </div>
 
           {isLoading ? (

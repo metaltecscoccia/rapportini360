@@ -101,7 +101,7 @@ export const attendanceEntries = pgTable("attendance_entries", {
   organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   userId: varchar("user_id").notNull().references(() => users.id),
   date: text("date").notNull(), // YYYY-MM-DD format
-  absenceType: text("absence_type").notNull(), // F, P, M, CP, L104
+  absenceType: text("absence_type").notNull(), // A, F, P, M, CP, L104
   notes: text("notes"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
@@ -237,9 +237,7 @@ export const insertAttendanceEntrySchema = createInsertSchema(attendanceEntries)
   organizationId: true, // Will be set automatically from session
   createdAt: true,
 }).extend({
-  absenceType: z.enum(["F", "P", "M", "CP", "L104"], {
-    errorMap: () => ({ message: "Tipo assenza non valido" })
-  })
+  absenceType: z.string().min(1, "Tipo assenza richiesto")
 });
 
 export const insertHoursAdjustmentSchema = createInsertSchema(hoursAdjustments).omit({
@@ -300,7 +298,8 @@ export const updateOperationSchema = insertOperationSchema.partial().extend({
 });
 
 export const updateAttendanceEntrySchema = insertAttendanceEntrySchema.partial().extend({
-  id: z.string().optional()
+  id: z.string().optional(),
+  absenceType: z.enum(["A", "F", "P", "M", "CP", "L104"]).optional()
 });
 
 export const updateHoursAdjustmentSchema = insertHoursAdjustmentSchema.partial().extend({
@@ -375,6 +374,6 @@ export type UpdateOperation = z.infer<typeof updateOperationSchema>;
 export const StatusEnum = z.enum(["In attesa", "Approvato"]);
 export type Status = z.infer<typeof StatusEnum>;
 
-// Absence type enum
-export const AbsenceTypeEnum = z.enum(["F", "P", "M", "CP", "L104"]);
+// Absence type enum - AGGIORNATO CON "A"
+export const AbsenceTypeEnum = z.enum(["A", "F", "P", "M", "CP", "L104"]);
 export type AbsenceType = z.infer<typeof AbsenceTypeEnum>;
