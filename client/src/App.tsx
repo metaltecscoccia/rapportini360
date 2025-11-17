@@ -269,15 +269,6 @@ function App() {
         });
         return { success: true };
       } else {
-        // Handle rate limiting
-        if (response.status === 429) {
-          return {
-            success: false,
-            error:
-              data.error || "Troppi tentativi di login. Riprova più tardi.",
-          };
-        }
-
         return { success: false, error: data.error || "Login fallito" };
       }
     } catch (error) {

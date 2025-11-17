@@ -75,11 +75,68 @@ const requireAdmin = (req: any, res: any, next: any) => {
 export async function registerRoutes(app: Express): Promise<Server> {
   const wordService = new WordService();
 
-  // Applica rate limiting generale a tutte le API
+  // ============================================
+  // AUTHENTICATION (senza rate limiting)
+  // ============================================
+
+  // Login route (senza rate limiting)
+  app.post("/api/login", async (req, res) => {
+    try {
+      const { username, password } = req.body;
+
+      if (!username) {
+        return res.status(400).json({ error: "Username è richiesto" });
+      }
+
+      if (!password) {
+        return res.status(400).json({ error: "Password è richiesta" });
+      }
+
+      // Get user by username
+      const user = await storage.getUserByUsername(username);
+      if (!user) {
+        return res.status(401).json({ error: "Credenziali non valide" });
+      }
+
+      // Verify password for ALL users (including admin)
+      const isValidPassword = await verifyPassword(password, user.password);
+      if (!isValidPassword) {
+        return res.status(401).json({ error: "Credenziali non valide" });
+      }
+
+      // Create session
+      (req as any).session.userId = user.id;
+      (req as any).session.userRole = user.role;
+      (req as any).session.organizationId = user.organizationId;
+
+      // Return user data without password
+      const { password: _, plainPassword: __, ...userWithoutPassword } = user;
+      res.json({
+        success: true,
+        user: userWithoutPassword,
+      });
+    } catch (error) {
+      console.error("Error during login:", error);
+      res.status(500).json({ error: "Errore interno del server" });
+    }
+  });
+
+  // Logout route
+  app.post("/api/logout", (req: any, res: any) => {
+    req.session.destroy((err: any) => {
+      if (err) {
+        console.error("Error during logout:", err);
+        return res.status(500).json({ error: "Logout failed" });
+      }
+      res.json({ success: true, message: "Logout effettuato con successo" });
+    });
+  });
+
+  // Applica rate limiting generale a tutte le altre API
   app.use("/api", apiLimiter);
 
   // ============================================
-  // AUTHENTICATION & USER MANAGEMENT
+  // USER MANAGEMENT
   // ============================================
 
   // Get current user info
@@ -226,47 +283,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Login route
-  app.post("/api/login", async (req, res) => {
-    try {
-      const { username, password } = req.body;
-
-      if (!username) {
-        return res.status(400).json({ error: "Username è richiesto" });
-      }
-
-      if (!password) {
-        return res.status(400).json({ error: "Password è richiesta" });
-      }
-
-      // Get user by username
-      const user = await storage.getUserByUsername(username);
-      if (!user) {
-        return res.status(401).json({ error: "Credenziali non valide" });
-      }
-
-      // Verify password for ALL users (including admin)
-      const isValidPassword = await verifyPassword(password, user.password);
-      if (!isValidPassword) {
-        return res.status(401).json({ error: "Credenziali non valide" });
-      }
-
-      // Create session
-      (req as any).session.userId = user.id;
-      (req as any).session.userRole = user.role;
-      (req as any).session.organizationId = user.organizationId;
-
-      // Return user data without password
-      const { password: _, plainPassword: __, ...userWithoutPassword } = user;
-      res.json({
-        success: true,
-        user: userWithoutPassword,
-      });
-    } catch (error) {
-      console.error("Error during login:", error);
-      res.status(500).json({ error: "Errore interno del server" });
-    }
-  });
 
   // Reset user password (admin only)
   app.post("/api/users/:id/reset-password", requireAdmin, async (req, res) => {
@@ -306,17 +322,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error resetting password:", error);
       res.status(500).json({ error: "Errore interno del server" });
     }
-  });
-
-  // Logout route
-  app.post("/api/logout", (req: any, res: any) => {
-    req.session.destroy((err: any) => {
-      if (err) {
-        console.error("Error destroying session:", err);
-        return res.status(500).json({ error: "Errore durante il logout" });
-      }
-      res.json({ success: true, message: "Logout effettuato con successo" });
-    });
   });
 
   // ============================================

@@ -27,7 +27,6 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const [attemptsLeft, setAttemptsLeft] = useState<number | null>(null);
 
   // Load saved credentials on mount
   useEffect(() => {
@@ -48,7 +47,6 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
     e.preventDefault();
     setIsLoading(true);
     setErrorMessage("");
-    setAttemptsLeft(null);
 
     try {
       const result = await onLogin(username, password);
@@ -66,26 +64,7 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
           localStorage.removeItem("metaltec_login_credentials");
         }
       } else {
-        // Check if it's a rate limit error
-        if (result.error?.includes("Troppi tentativi")) {
-          setErrorMessage(result.error);
-          setAttemptsLeft(0);
-        } else {
-          setErrorMessage(result.error || "Login fallito");
-
-          // Calculate remaining attempts (max 5)
-          const currentAttempts = parseInt(
-            sessionStorage.getItem("login_attempts") || "0",
-          );
-          const newAttempts = currentAttempts + 1;
-          sessionStorage.setItem("login_attempts", newAttempts.toString());
-
-          if (newAttempts < 5) {
-            setAttemptsLeft(5 - newAttempts);
-          } else {
-            setAttemptsLeft(0);
-          }
-        }
+        setErrorMessage(result.error || "Login fallito");
       }
     } catch (error) {
       setErrorMessage("Errore di connessione al server");
@@ -99,7 +78,6 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
     // Clear error when user starts typing
     if (errorMessage) {
       setErrorMessage("");
-      setAttemptsLeft(null);
     }
   };
 
@@ -108,7 +86,6 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
     // Clear error when user starts typing
     if (errorMessage) {
       setErrorMessage("");
-      setAttemptsLeft(null);
     }
   };
 
@@ -194,19 +171,7 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
                 className="animate-in fade-in slide-in-from-top-2"
               >
                 <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  {errorMessage}
-                  {attemptsLeft !== null && attemptsLeft > 0 && (
-                    <span className="block mt-1 text-sm">
-                      Tentativi rimasti: <strong>{attemptsLeft}</strong>
-                    </span>
-                  )}
-                  {attemptsLeft === 0 && (
-                    <span className="block mt-1 text-sm">
-                      Account temporaneamente bloccato. Riprova tra 15 minuti.
-                    </span>
-                  )}
-                </AlertDescription>
+                <AlertDescription>{errorMessage}</AlertDescription>
               </Alert>
             )}
 
@@ -216,7 +181,6 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
                 <Shield className="h-4 w-4 mt-0.5 flex-shrink-0" />
                 <p>
                   Accesso sicuro con protezione contro accessi non autorizzati.
-                  Massimo 5 tentativi ogni 15 minuti.
                 </p>
               </div>
             )}
@@ -225,7 +189,7 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
             <Button
               type="submit"
               className="w-full"
-              disabled={isLoading || attemptsLeft === 0}
+              disabled={isLoading}
               data-testid="button-login"
             >
               {isLoading ? (
