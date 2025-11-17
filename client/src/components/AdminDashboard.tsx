@@ -3061,6 +3061,32 @@ export default function AdminDashboard() {
       {/* TUTTI GLI ALTRI DIALOG SONO COMPLETI NEL FILE ORIGINALE */}
       {/* Per brevità non li riporto tutti qui, ma sono presenti nel tuo file originale */}
 
+      {/* Dialog conferma eliminazione rapportino */}
+      <AlertDialog open={deleteReportDialogOpen} onOpenChange={setDeleteReportDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Elimina Rapportino</AlertDialogTitle>
+            <AlertDialogDescription>
+              Sei sicuro di voler eliminare questo rapportino?
+              <span className="block mt-2">
+                Questa azione eliminerà il rapportino e tutte le operazioni associate. Questa azione non può essere annullata.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annulla</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDeleteReport}
+              disabled={deleteReportMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-confirm-delete-report"
+            >
+              {deleteReportMutation.isPending ? "Eliminando..." : "Elimina"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Dialog per aggiustamento ore */}
       <HoursAdjustmentDialog
         open={hoursAdjustmentDialogOpen}
