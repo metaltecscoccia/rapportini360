@@ -35,17 +35,6 @@ import { validatePassword, verifyPassword, hashPassword } from "./auth";
 // RATE LIMITING - Protezione contro brute force
 // ============================================
 
-// Rate limiter per login: max 5 tentativi per 15 minuti
-const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minuti
-  max: 5, // Max 5 tentativi
-  message: { error: "Troppi tentativi di login. Riprova tra 15 minuti." },
-  standardHeaders: true,
-  legacyHeaders: false,
-  // Skip rate limiting in development
-  skip: (req) => process.env.NODE_ENV === "development",
-});
-
 // Rate limiter generale per API: max 100 richieste per 15 minuti
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -237,8 +226,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Login route - CON RATE LIMITING
-  app.post("/api/login", loginLimiter, async (req, res) => {
+  // Login route
+  app.post("/api/login", async (req, res) => {
     try {
       const { username, password } = req.body;
 
