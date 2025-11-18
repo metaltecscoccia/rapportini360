@@ -20,6 +20,7 @@ interface WorkOrderReportProps {
 interface EnrichedOperation {
   id: string;
   workTypes: string[];
+  materials: string[];
   hours: number;
   notes: string | null;
   employeeName: string;
@@ -37,6 +38,7 @@ interface EmployeeReportRow {
   employeeId: string;
   hours: number;
   workTypes: string[];
+  materials: string[];
   employeeNotes: string | null;
   adminNotes: string;
 }
@@ -67,6 +69,7 @@ function createEmployeeRows(operations: EnrichedOperation[]): EmployeeReportRow[
       Object.entries(employeeOps).forEach(([employeeId, empOps]) => {
         const totalHours = empOps.reduce((sum, op) => sum + (Number(op.hours) || 0), 0);
         const workTypes = Array.from(new Set(empOps.flatMap(op => op.workTypes)));
+        const materials = Array.from(new Set(empOps.flatMap(op => op.materials || [])));
         const notes = empOps.map(op => op.notes).filter(n => n).join("; ") || null;
         
         rows.push({
@@ -75,6 +78,7 @@ function createEmployeeRows(operations: EnrichedOperation[]): EmployeeReportRow[
           employeeId,
           hours: totalHours,
           workTypes,
+          materials,
           employeeNotes: notes,
           adminNotes: ""
         });
@@ -216,6 +220,7 @@ export default function WorkOrderReport({
                   <TableHead className="h-8 px-3 text-xs font-semibold w-[140px]">Dipendente</TableHead>
                   <TableHead className="h-8 px-3 text-xs font-semibold w-[80px]">Ore</TableHead>
                   <TableHead className="h-8 px-3 text-xs font-semibold min-w-[160px]">Lavorazioni</TableHead>
+                  <TableHead className="h-8 px-3 text-xs font-semibold min-w-[160px]">Materiali</TableHead>
                   <TableHead className="h-8 px-3 text-xs font-semibold min-w-[180px]">Note Dipendente</TableHead>
                   <TableHead className="h-8 px-3 text-xs font-semibold min-w-[180px]">Note Admin</TableHead>
                 </TableRow>
@@ -223,7 +228,7 @@ export default function WorkOrderReport({
               <TableBody>
                 {reportData.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="h-20 text-center text-sm text-muted-foreground">
+                    <TableCell colSpan={7} className="h-20 text-center text-sm text-muted-foreground">
                       Nessuna operazione approvata per questa commessa
                     </TableCell>
                   </TableRow>
@@ -251,6 +256,19 @@ export default function WorkOrderReport({
                                 {type}
                               </Badge>
                             ))}
+                          </div>
+                        </TableCell>
+                        <TableCell className="h-10 px-3 py-1">
+                          <div className="flex flex-wrap gap-1">
+                            {row.materials.length > 0 ? (
+                              row.materials.map((material: string, matIndex: number) => (
+                                <Badge key={matIndex} variant="outline" className="text-[10px] h-4 px-1.5 py-0">
+                                  {material}
+                                </Badge>
+                              ))
+                            ) : (
+                              <span className="text-xs text-muted-foreground">-</span>
+                            )}
                           </div>
                         </TableCell>
                         <TableCell className="h-10 px-3 py-1 text-xs text-muted-foreground">
