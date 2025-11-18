@@ -3043,13 +3043,101 @@ export default function AdminDashboard() {
           </DialogHeader>
           <Form {...workOrderForm}>
             <form onSubmit={workOrderForm.handleSubmit(handleAddWorkOrder)} className="space-y-4">
-              {/* I contenuti del form sono identici al file originale - omessi per brevità */}
-              {/* Include tutti i FormField per clientId, name, description, availableWorkTypes, availableMaterials, isActive */}
+              <FormField
+                control={workOrderForm.control}
+                name="clientId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Cliente</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-client">
+                          <SelectValue placeholder="Seleziona cliente" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {(clients as any[]).map((client: any) => (
+                          <SelectItem key={client.id} value={client.id}>
+                            {client.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={workOrderForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome Commessa</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="Es. Cancello Automatico" 
+                        {...field} 
+                        data-testid="input-work-order-name"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={workOrderForm.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Descrizione (opzionale)</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="Descrizione della commessa" 
+                        {...field} 
+                        data-testid="input-work-order-description"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={workOrderForm.control}
+                name="isActive"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                      <FormLabel className="text-base">
+                        Stato Commessa
+                      </FormLabel>
+                      <div className="text-sm text-muted-foreground">
+                        {field.value ? "Attiva" : "Archiviata"}
+                      </div>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        data-testid="switch-work-order-active"
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setAddWorkOrderDialogOpen(false)}>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setAddWorkOrderDialogOpen(false)}
+                  data-testid="button-cancel-add-work-order"
+                >
                   Annulla
                 </Button>
-                <Button type="submit" disabled={createWorkOrderMutation.isPending}>
+                <Button 
+                  type="submit" 
+                  disabled={createWorkOrderMutation.isPending}
+                  data-testid="button-submit-work-order"
+                >
                   {createWorkOrderMutation.isPending ? "Creazione..." : "Crea Commessa"}
                 </Button>
               </DialogFooter>
