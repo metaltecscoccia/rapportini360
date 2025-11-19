@@ -100,12 +100,21 @@ const materialSchema = z.object({
   isActive: z.boolean().default(true),
 });
 
+// Schema per registrazione assenze
+const registerAbsenceSchema = z.object({
+  date: z.string().min(1, "Data è richiesta"),
+  userIds: z.array(z.string()).min(1, "Seleziona almeno un dipendente"),
+  absenceType: z.string().min(1, "Tipo assenza è richiesto"),
+  notes: z.string().optional(),
+});
+
 type AddEmployeeForm = z.infer<typeof addEmployeeSchema>;
 type EditEmployeeForm = z.infer<typeof editEmployeeSchema>;
 type AddWorkOrderForm = z.infer<typeof addWorkOrderSchema>;
 type AddClientForm = z.infer<typeof addClientSchema>;
 type WorkTypeForm = z.infer<typeof workTypeSchema>;
 type MaterialForm = z.infer<typeof materialSchema>;
+type RegisterAbsenceForm = z.infer<typeof registerAbsenceSchema>;
 
 
 // Mock data removed - now using real data from API
@@ -188,6 +197,10 @@ export default function AdminDashboard() {
 
   // State for missing employees dialog
   const [missingEmployeesDialogOpen, setMissingEmployeesDialogOpen] = useState(false);
+
+  // State for register absence dialog
+  const [registerAbsenceDialogOpen, setRegisterAbsenceDialogOpen] = useState(false);
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [missingEmployeesDate, setMissingEmployeesDate] = useState<string>(() => {
     const today = new Date();
     return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
@@ -274,8 +287,19 @@ export default function AdminDashboard() {
     },
   });
 
+  // Form per registrazione assenze
+  const registerAbsenceForm = useForm<RegisterAbsenceForm>({
+    resolver: zodResolver(registerAbsenceSchema),
+    defaultValues: {
+      date: new Date().toISOString().split('T')[0], // YYYY-MM-DD format (today)
+      userIds: [],
+      absenceType: "",
+      notes: "",
+    },
+  });
+
   // Query per recuperare tutti i dipendenti
-  const { data: employees = [], isLoading: isLoadingEmployees } = useQuery({
+  const { data: employees = [], isLoading: isLoadingEmployees } = useQuery<any[]>({
     queryKey: ['/api/users'],
   });
 
@@ -866,6 +890,45 @@ export default function AdminDashboard() {
     },
   });
 
+  // Mutation per registrare assenze
+  const registerAbsenceMutation = useMutation({
+    mutationFn: async (data: RegisterAbsenceForm) => {
+      // Crea una assenza per ogni userId selezionato
+      const promises = data.userIds.map(userId => 
+        apiRequest('POST', '/api/attendance-entries', {
+          userId,
+          date: data.date,
+          absenceType: data.absenceType,
+          notes: data.notes || "",
+        })
+      );
+      return Promise.all(promises);
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/attendance-entries'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/attendance/monthly'] });
+      toast({
+        title: "Assenze registrate",
+        description: `${variables.userIds.length} assenza/e registrata/e con successo.`,
+      });
+      registerAbsenceForm.reset({
+        date: new Date().toISOString().split('T')[0],
+        userIds: [],
+        absenceType: "",
+        notes: "",
+      });
+      setSelectedUserIds([]);
+      setRegisterAbsenceDialogOpen(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Errore",
+        description: error.message || "Errore durante la registrazione delle assenze.",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Quick-add mutations for work order dialog
   const quickAddWorkTypeMutation = useMutation({
     mutationFn: async (data: WorkTypeForm) => {
@@ -1289,28 +1352,6 @@ export default function AdminDashboard() {
       toast({
         title: "Errore",
         description: "Impossibile caricare i dettagli del rapportino",
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Mutation per testare le notifiche push
-  const testPushNotificationMutation = useMutation({
-    mutationFn: async () => {
-      const response = await apiRequest('POST', '/api/push-subscription/test', {});
-      return response.json();
-    },
-    onSuccess: (data) => {
-      toast({
-        title: "Notifica inviata",
-        description: `Notifica di test inviata a ${data.sentCount || 0} dipendente/i con notifiche attive.`,
-      });
-    },
-    onError: (error: any) => {
-      console.error("Error sending test notification:", error);
-      toast({
-        title: "Errore",
-        description: "Impossibile inviare la notifica di test",
         variant: "destructive",
       });
     },
@@ -2765,6 +2806,16 @@ export default function AdminDashboard() {
 
         {/* Attendance Tab */}
         <TabsContent value="attendance">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-2xl font-bold">Foglio Presenze</h2>
+            <Button 
+              onClick={() => setRegisterAbsenceDialogOpen(true)}
+              data-testid="button-register-absence"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Registra Assenze
+            </Button>
+          </div>
           <AttendanceSheet />
         </TabsContent>
       </Tabs>
@@ -3894,6 +3945,129 @@ export default function AdminDashboard() {
         dailyReportId={selectedReportForAdjustment || ""}
         currentAdjustment={currentHoursAdjustment}
       />
+
+      {/* Dialog per registrazione assenze */}
+      <Dialog open={registerAbsenceDialogOpen} onOpenChange={setRegisterAbsenceDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Registra Assenze</DialogTitle>
+            <DialogDescription>
+              Seleziona i dipendenti e registra le assenze per la data indicata.
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...registerAbsenceForm}>
+            <form onSubmit={registerAbsenceForm.handleSubmit((data) => registerAbsenceMutation.mutate(data))} className="space-y-4">
+              <FormField
+                control={registerAbsenceForm.control}
+                name="date"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Data</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="date" 
+                        {...field}
+                        data-testid="input-absence-date"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={registerAbsenceForm.control}
+                name="userIds"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Dipendenti</FormLabel>
+                    <div className="border rounded-md p-4 max-h-48 overflow-y-auto space-y-2">
+                      {employees
+                        .filter((emp: any) => emp.role === 'employee' && emp.isActive)
+                        .map((employee: any) => (
+                          <label 
+                            key={employee.id} 
+                            className="flex items-center space-x-2 cursor-pointer hover-elevate p-2 rounded"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={field.value.includes(employee.id)}
+                              onChange={(e) => {
+                                const checked = e.target.checked;
+                                const newValue = checked
+                                  ? [...field.value, employee.id]
+                                  : field.value.filter((id: string) => id !== employee.id);
+                                field.onChange(newValue);
+                              }}
+                              className="h-4 w-4"
+                              data-testid={`checkbox-employee-${employee.id}`}
+                            />
+                            <span className="text-sm">{employee.fullName}</span>
+                          </label>
+                        ))}
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={registerAbsenceForm.control}
+                name="absenceType"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tipo Assenza</FormLabel>
+                    <FormControl>
+                      <Input 
+                        {...field}
+                        placeholder="es. Ferie, Malattia, Permesso..."
+                        data-testid="input-absence-type"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={registerAbsenceForm.control}
+                name="notes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Note (opzionale)</FormLabel>
+                    <FormControl>
+                      <Input 
+                        {...field}
+                        placeholder="Note aggiuntive..."
+                        data-testid="input-absence-notes"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <DialogFooter>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setRegisterAbsenceDialogOpen(false)}
+                  data-testid="button-cancel-register-absence"
+                >
+                  Annulla
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={registerAbsenceMutation.isPending}
+                  data-testid="button-submit-register-absence"
+                >
+                  {registerAbsenceMutation.isPending ? "Registrando..." : "Registra Assenze"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
 
         </TabsContent>
 
