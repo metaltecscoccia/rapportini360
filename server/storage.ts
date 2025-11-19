@@ -8,7 +8,6 @@ import {
   operations,
   attendanceEntries,
   hoursAdjustments,
-  pushSubscriptions,
   vehicles,
   fuelRefills,
   fuelTankLoads,
@@ -32,8 +31,6 @@ import {
   type HoursAdjustment,
   type InsertHoursAdjustment,
   type UpdateHoursAdjustment,
-  type PushSubscription,
-  type InsertPushSubscription,
   type Vehicle,
   type InsertVehicle,
   type UpdateVehicle,
@@ -138,12 +135,6 @@ export interface IStorage {
   updateHoursAdjustment(id: string, updates: UpdateHoursAdjustment): Promise<HoursAdjustment>;
   deleteHoursAdjustment(id: string): Promise<boolean>;
   deleteHoursAdjustmentsByReportId(reportId: string): Promise<boolean>;
-  
-  // Push Subscriptions
-  getPushSubscription(userId: string, organizationId: string): Promise<PushSubscription | undefined>;
-  getAllPushSubscriptions(organizationId: string): Promise<PushSubscription[]>;
-  createPushSubscription(subscription: InsertPushSubscription, userId: string, organizationId: string): Promise<PushSubscription>;
-  deletePushSubscription(userId: string, organizationId: string): Promise<boolean>;
   
   // Vehicles (Mezzi)
   getAllVehicles(organizationId: string): Promise<Vehicle[]>;
@@ -283,7 +274,6 @@ export class DatabaseStorage implements IStorage {
     await this.deleteDailyReportsByEmployeeId(id);
     if (user.organizationId) {
       await this.deleteAttendanceEntriesByUserId(id, user.organizationId);
-      await this.deletePushSubscription(id, user.organizationId);
     }
     const result = await db.delete(users).where(eq(users.id, id));
     return result.rowCount !== null && result.rowCount > 0;
@@ -846,59 +836,6 @@ export class DatabaseStorage implements IStorage {
     await this.ensureInitialized();
     const result = await db.delete(hoursAdjustments).where(eq(hoursAdjustments.dailyReportId, reportId));
     return result.rowCount !== null && result.rowCount > 0;
-  }
-
-  // Push Subscriptions
-  async getPushSubscription(userId: string, organizationId: string): Promise<PushSubscription | undefined> {
-    await this.ensureInitialized();
-    const [subscription] = await db.select()
-      .from(pushSubscriptions)
-      .where(
-        and(
-          eq(pushSubscriptions.userId, userId),
-          eq(pushSubscriptions.organizationId, organizationId)
-        )
-      );
-    return subscription || undefined;
-  }
-
-  async getAllPushSubscriptions(organizationId: string): Promise<PushSubscription[]> {
-    await this.ensureInitialized();
-    return await db.select()
-      .from(pushSubscriptions)
-      .where(eq(pushSubscriptions.organizationId, organizationId));
-  }
-
-  async createPushSubscription(subscription: InsertPushSubscription, userId: string, organizationId: string): Promise<PushSubscription> {
-    await this.ensureInitialized();
-    
-    // Delete existing subscription for this user if exists
-    await db.delete(pushSubscriptions)
-      .where(
-        and(
-          eq(pushSubscriptions.userId, userId),
-          eq(pushSubscriptions.organizationId, organizationId)
-        )
-      );
-    
-    const [created] = await db.insert(pushSubscriptions).values({
-      ...subscription,
-      userId,
-      organizationId,
-    }).returning();
-    return created;
-  }
-
-  async deletePushSubscription(userId: string, organizationId: string): Promise<boolean> {
-    await this.ensureInitialized();
-    const result = await db.delete(pushSubscriptions)
-      .where(
-        and(
-          eq(pushSubscriptions.userId, userId),
-          eq(pushSubscriptions.organizationId, organizationId)
-        )
-      );
-    return result.rowCount ? result.rowCount > 0 : false;
   }
 
   // Vehicles (Mezzi)

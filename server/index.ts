@@ -3,7 +3,6 @@ import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
-import { schedulerService } from "./schedulerService";
 
 const app = express();
 
@@ -30,8 +29,6 @@ if (process.env.NODE_ENV === "production") {
   const requiredEnvVars = [
     "DATABASE_URL",
     "SESSION_SECRET",
-    "VAPID_PUBLIC_KEY",
-    "VAPID_PRIVATE_KEY",
   ];
 
   const missingVars = requiredEnvVars.filter(
@@ -209,10 +206,6 @@ app.get("/health", (req, res) => {
     const server = await registerRoutes(app);
     log("✓ API routes registered");
 
-    // Start the push notification scheduler
-    schedulerService.start();
-    log("✓ Push notification scheduler started");
-
     // Global error handler (must be after routes)
     app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
       const status = err.status || err.statusCode || 500;
@@ -271,10 +264,6 @@ app.get("/health", (req, res) => {
       server.close(() => {
         log("✓ HTTP server closed");
       });
-
-      // Stop scheduler
-      schedulerService.stop();
-      log("✓ Scheduler stopped");
 
       // Give time for in-flight requests to complete
       setTimeout(() => {

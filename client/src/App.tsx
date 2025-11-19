@@ -16,7 +16,6 @@ import LoginForm from "@/components/LoginForm";
 import DailyReportForm from "@/components/DailyReportForm";
 import AdminDashboard from "@/components/AdminDashboard";
 import ThemeToggle from "@/components/ThemeToggle";
-import PushNotificationToggle from "@/components/PushNotificationToggle";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { formatDateToItalian } from "@/lib/dateUtils";
@@ -178,7 +177,6 @@ function AuthenticatedApp({
             </div>
 
             <div className="flex items-center gap-2">
-              {currentUser.role === "employee" && <PushNotificationToggle />}
               <ThemeToggle />
               <Button
                 variant="outline"
