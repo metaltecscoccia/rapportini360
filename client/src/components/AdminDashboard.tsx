@@ -1407,20 +1407,46 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleExportReportsTxt = async (selectedDate?: string) => {
+  const handleExportFilteredReportsTxt = async () => {
     try {
-      const exportDate = selectedDate || new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
-      const response = await fetch(`/api/export/daily-reports-txt/${exportDate}`);
+      // Build URL with parameters for date range
+      let url = '/api/export/daily-reports-txt-range';
+      const params = new URLSearchParams();
+
+      if (fromDate) params.append('from', fromDate);
+      if (toDate) params.append('to', toDate);
+      if (statusFilter && statusFilter !== 'all') params.append('status', statusFilter);
+      if (searchTerm) params.append('search', searchTerm);
+
+      if (params.toString()) {
+        url += '?' + params.toString();
+      }
+
+      const response = await fetch(url);
 
       if (response.ok) {
         const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
+        const url_blob = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
-        a.href = url;
-        a.download = `Rapportini_${exportDate}.txt`;
+        a.href = url_blob;
+
+        // Dynamic filename based on filters
+        let filename = 'Rapportini';
+        if (fromDate && toDate) {
+          filename += `_${fromDate}_${toDate}`;
+        } else if (fromDate) {
+          filename += `_da_${fromDate}`;
+        } else if (toDate) {
+          filename += `_fino_${toDate}`;
+        } else {
+          filename += `_${new Date().toISOString().split('T')[0]}`;
+        }
+        filename += '.txt';
+
+        a.download = filename;
         document.body.appendChild(a);
         a.click();
-        window.URL.revokeObjectURL(url);
+        window.URL.revokeObjectURL(url_blob);
         document.body.removeChild(a);
         console.log("TXT export completed");
       } else {
@@ -1704,7 +1730,7 @@ export default function AdminDashboard() {
                   <Button 
                     variant="outline"
                     size="sm"
-                    onClick={() => handleExportReportsTxt()}
+                    onClick={() => handleExportFilteredReportsTxt()}
                     data-testid="button-export-txt"
                   >
                     <FileText className="h-4 w-4 mr-2" />
