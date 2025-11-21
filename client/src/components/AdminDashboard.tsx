@@ -4063,14 +4063,22 @@ export default function AdminDashboard() {
                 name="absenceType"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Tipo Assenza</FormLabel>
-                    <FormControl>
-                      <Input 
-                        {...field}
-                        placeholder="es. Ferie, Malattia, Permesso..."
-                        data-testid="input-absence-type"
-                      />
-                    </FormControl>
+                    <FormLabel>Tipo</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-absence-type">
+                          <SelectValue placeholder="Seleziona tipo..." />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="A">A - Assenza</SelectItem>
+                        <SelectItem value="F">F - Ferie</SelectItem>
+                        <SelectItem value="P">P - Permesso</SelectItem>
+                        <SelectItem value="M">M - Malattia</SelectItem>
+                        <SelectItem value="CP">CP - Congedo Parentale</SelectItem>
+                        <SelectItem value="L104">L104 - Legge 104</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
