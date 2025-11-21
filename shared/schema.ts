@@ -266,6 +266,10 @@ export const insertFuelTankLoadSchema = createInsertSchema(fuelTankLoads).omit({
   organizationId: true, // Will be set automatically from session
   createdAt: true,
 }).extend({
+  loadDate: z.union([z.string(), z.date()]).transform(val => {
+    if (typeof val === 'string') return new Date(val);
+    return val;
+  }),
   liters: z.union([z.string(), z.number()]).transform(val => String(val)),
   totalCost: z.union([z.string(), z.number(), z.null()]).optional().transform(val => val ? String(val) : null),
 });
