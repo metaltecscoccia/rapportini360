@@ -2084,8 +2084,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/fuel-tank-loads", requireAdmin, async (req, res) => {
     try {
       const organizationId = (req as any).session.organizationId;
+      console.log("=== FUEL TANK LOAD DEBUG ===");
+      console.log("Request body:", JSON.stringify(req.body, null, 2));
+      console.log("Organization ID:", organizationId);
       const parsed = insertFuelTankLoadSchema.safeParse(req.body);
       if (!parsed.success) {
+        console.log("Validation failed:", JSON.stringify(parsed.error, null, 2));
         return res
           .status(400)
           .json({
@@ -2093,10 +2097,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             details: parsed.error,
           });
       }
+      console.log("Parsed data:", JSON.stringify(parsed.data, null, 2));
       const load = await storage.createFuelTankLoad(
         parsed.data,
         organizationId,
       );
+      console.log("Load created successfully:", load);
       res.json(load);
     } catch (error) {
       console.error("Error creating fuel tank load:", error);
