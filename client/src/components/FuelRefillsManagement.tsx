@@ -251,13 +251,19 @@ export default function FuelRefillsManagement() {
         supplier: data.supplier || null,
         notes: data.notes || null,
       };
+      console.log('Payload inviato:', payload);
       const response = await fetch("/api/fuel-tank-loads", {
         method: "POST",
         body: JSON.stringify(payload),
         headers: { "Content-Type": "application/json" },
         credentials: "include",
       });
-      if (!response.ok) throw new Error("Failed to create fuel tank load");
+      console.log('Response status:', response.status);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Errore dal server:', errorData);
+        throw new Error("Failed to create fuel tank load");
+      }
       return response.json();
     },
     onSuccess: () => {
@@ -270,7 +276,8 @@ export default function FuelRefillsManagement() {
       setAddLoadDialogOpen(false);
       loadForm.reset();
     },
-    onError: () => {
+    onError: (error) => {
+      console.error('Errore completo:', error);
       toast({
         title: "Errore",
         description: "Impossibile registrare il carico",
