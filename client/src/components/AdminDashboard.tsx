@@ -303,6 +303,11 @@ export default function AdminDashboard() {
     queryKey: ['/api/users'],
   });
 
+  // Query per recuperare solo i dipendenti attivi (per form creazione rapportini)
+  const { data: activeEmployees = [], isLoading: isLoadingActiveEmployees } = useQuery<any[]>({
+    queryKey: ['/api/users/active'],
+  });
+
   // Query per recuperare tutti i rapportini
   const { data: reports = [], isLoading: isLoadingReports } = useQuery<any[]>({
     queryKey: ['/api/daily-reports', showAllReports ? 'all' : '7'],
@@ -3086,7 +3091,7 @@ export default function AdminDashboard() {
                     <SelectValue placeholder="Seleziona dipendente" />
                   </SelectTrigger>
                   <SelectContent>
-                    {(employees as any[])
+                    {(activeEmployees as any[])
                       .filter((emp: any) => emp.role === 'employee')
                       .map((emp: any) => (
                         <SelectItem key={emp.id} value={emp.id}>
