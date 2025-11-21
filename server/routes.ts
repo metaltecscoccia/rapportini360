@@ -174,6 +174,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/users/active", requireAdmin, async (req, res) => {
+    try {
+      const organizationId = (req as any).session.organizationId;
+      const users = await storage.getActiveUsers(organizationId);
+      res.json(users);
+    } catch (error) {
+      console.error("Error fetching active users:", error);
+      res.status(500).json({ error: "Failed to fetch active users" });
+    }
+  });
+
   // Create new user (admin only)
   app.post("/api/users", requireAdmin, async (req, res) => {
     try {
