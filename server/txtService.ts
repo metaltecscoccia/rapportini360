@@ -191,6 +191,141 @@ export class TxtService {
     };
     return dateObj.toLocaleDateString('it-IT', options);
   }
+
+  async generateDailyReportTxtRange(filters: {
+    fromDate?: string;
+    toDate?: string;
+    status?: string;
+    searchTerm?: string;
+  }, organizationId: string): Promise<string> {
+    // Get all reports
+    let allReports = await storage.getAllDailyReports(organizationId);
+    
+    // Apply filters
+    let filteredReports = allReports;
+    
+    // Filter by date range
+    if (filters.fromDate || filters.toDate) {
+      filteredReports = filteredReports.filter(report => {
+        const reportDate = report.date;
+        
+        if (filters.fromDate && filters.toDate) {
+          return reportDate >= filters.fromDate && reportDate <= filters.toDate;
+        } else if (filters.fromDate) {
+          return reportDate >= filters.fromDate;
+        } else if (filters.toDate) {
+          return reportDate <= filters.toDate;
+        }
+        return true;
+      });
+    }
+    
+    // Filter by status
+    if (filters.status && filters.status !== 'all') {
+      filteredReports = filteredReports.filter(report => report.status === filters.status);
+    }
+    
+    // Filter by search term (employee name)
+    if (filters.searchTerm) {
+      const users = await storage.getAllUsers(organizationId);
+      const usersMap = new Map(users.map(u => [u.id, u]));
+      filteredReports = filteredReports.filter(report => {
+        const user = usersMap.get(report.employeeId);
+        return user?.fullName.toLowerCase().includes(filters.searchTerm!.toLowerCase());
+      });
+    }
+    
+    if (filteredReports.length === 0) {
+      throw new Error('Nessun rapportino trovato con i filtri specificati.');
+    }
+
+    // Get all related data
+    const clients = await storage.getAllClients(organizationId);
+    const clientsMap = new Map(clients.map(c => [c.id, c]));
+    
+    // Get all work orders
+    const allWorkOrders: WorkOrder[] = [];
+    for (const client of clients) {
+      const workOrders = await storage.getWorkOrdersByClient(client.id, organizationId);
+      allWorkOrders.push(...workOrders);
+    }
+    const workOrdersMap = new Map(allWorkOrders.map(wo => [wo.id, wo]));
+
+    // Get all hours adjustments for these reports
+    const adjustmentsPromises = filteredReports.map(r => storage.getHoursAdjustment(r.id, organizationId));
+    const adjustments = await Promise.all(adjustmentsPromises);
+    const adjustmentsMap = new Map(
+      adjustments
+        .filter((adj): adj is NonNullable<typeof adj> => adj !== undefined && adj !== null)
+        .map(adj => [adj.dailyReportId, adj])
+    );
+
+    // Build text content
+    let txtContent = '';
+    
+    // Document header
+    txtContent += '='.repeat(80) + '\n';
+    txtContent += ' '.repeat(20) + 'METALTEC Scoccia S.R.L.\n';
+    
+    // Dynamic title based on filters
+    let title = 'Rapportini Giornalieri';
+    if (filters.fromDate && filters.toDate) {
+      title += ` dal ${this.formatDate(filters.fromDate)} al ${this.formatDate(filters.toDate)}`;
+    } else if (filters.fromDate) {
+      title += ` da ${this.formatDate(filters.fromDate)}`;
+    } else if (filters.toDate) {
+      title += ` fino al ${this.formatDate(filters.toDate)}`;
+    }
+    
+    txtContent += ' '.repeat(Math.max(0, (80 - title.length) / 2)) + title + '\n';
+    txtContent += '='.repeat(80) + '\n\n';
+    
+    // Sort reports by date and employee name for better organization
+    const sortedReports = filteredReports.sort((a, b) => {
+      const dateCompare = a.date.localeCompare(b.date);
+      if (dateCompare !== 0) return dateCompare;
+      return a.employeeId.localeCompare(b.employeeId);
+    });
+    
+    // Build content for each employee
+    for (let i = 0; i < sortedReports.length; i++) {
+      const report = sortedReports[i];
+      const user = await storage.getUser(report.employeeId);
+      const operations = await storage.getOperationsByReportId(report.id);
+      const adjustment = adjustmentsMap.get(report.id);
+      
+      if (user && operations.length > 0) {
+        // Add date header if it changed
+        if (i === 0 || sortedReports[i - 1].date !== report.date) {
+          if (i > 0) {
+            txtContent += '\n';
+          }
+          txtContent += `DATA: ${this.formatDate(report.date)}\n`;
+          txtContent += '-'.repeat(80) + '\n\n';
+        }
+        
+        txtContent += this.createEmployeeSection(
+          user,
+          report,
+          operations,
+          clientsMap,
+          workOrdersMap,
+          adjustment
+        );
+        
+        // Add separator between employees
+        if (i < sortedReports.length - 1) {
+          txtContent += '\n' + '-'.repeat(80) + '\n\n';
+        }
+      }
+    }
+
+    txtContent += '\n' + '='.repeat(80) + '\n';
+    txtContent += ' '.repeat(30) + 'Fine Rapportini\n';
+    txtContent += '='.repeat(80) + '\n';
+
+    return txtContent;
+  }
 }
 
 export const txtService = new TxtService();

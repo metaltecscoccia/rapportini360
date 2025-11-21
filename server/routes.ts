@@ -1069,6 +1069,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/export/daily-reports-txt-range", requireAdmin, async (req, res) => {
+    try {
+      const { from, to, status, search } = req.query;
+      const organizationId = (req as any).session.organizationId;
+
+      const txtContent = await txtService.generateDailyReportTxtRange(
+        {
+          fromDate: from as string | undefined,
+          toDate: to as string | undefined,
+          status: status as string | undefined,
+          searchTerm: search as string | undefined,
+        },
+        organizationId,
+      );
+
+      let filename = "Rapportini";
+      if (from && to) {
+        filename += `_${from}_${to}`;
+      } else if (from) {
+        filename += `_da_${from}`;
+      } else if (to) {
+        filename += `_fino_${to}`;
+      } else {
+        filename += `_${new Date().toISOString().split("T")[0]}`;
+      }
+      filename += ".txt";
+
+      res.setHeader("Content-Type", "text/plain; charset=utf-8");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${filename}"`,
+      );
+      res.setHeader("Content-Length", Buffer.byteLength(txtContent, 'utf8'));
+
+      res.send(txtContent);
+    } catch (error) {
+      console.error("Error generating filtered TXT document:", error);
+      if (error instanceof Error) {
+        res.status(500).json({ error: error.message });
+      } else {
+        res
+          .status(500)
+          .json({ error: "Failed to generate filtered TXT report" });
+      }
+    }
+  });
+
   app.get(
     "/api/export/work-order/:workOrderId",
     requireAdmin,
