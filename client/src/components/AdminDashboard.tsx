@@ -4379,23 +4379,23 @@ export default function AdminDashboard() {
         </TabsContent>
 
         <TabsContent value="rifornimenti" className="space-y-6 mt-6">
-          <Tabs defaultValue="vehicles">
+          <Tabs defaultValue="refills">
             <TabsList>
-              <TabsTrigger value="vehicles" data-testid="tab-vehicles">
-                Mezzi
-              </TabsTrigger>
               <TabsTrigger value="refills" data-testid="tab-refills">
                 Rifornimenti
+              </TabsTrigger>
+              <TabsTrigger value="vehicles" data-testid="tab-vehicles">
+                Mezzi
               </TabsTrigger>
               <TabsTrigger value="statistics" data-testid="tab-statistics">
                 Statistiche
               </TabsTrigger>
             </TabsList>
-            <TabsContent value="vehicles" className="mt-6">
-              <VehiclesManagement />
-            </TabsContent>
             <TabsContent value="refills" className="mt-6">
               <FuelRefillsManagement />
+            </TabsContent>
+            <TabsContent value="vehicles" className="mt-6">
+              <VehiclesManagement />
             </TabsContent>
             <TabsContent value="statistics" className="mt-6">
               <FuelStatistics />
