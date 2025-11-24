@@ -232,7 +232,7 @@ export default function AdminDashboard() {
       name: "",
       description: "",
       isActive: true,
-      availableWorkTypes: ["Taglio", "Saldatura", "Piegatura", "Montaggio"],
+      availableWorkTypes: [],
       availableMaterials: [],
     },
   });
@@ -982,17 +982,29 @@ export default function AdminDashboard() {
         return old ? [...old, optimisticWorkType] : [optimisticWorkType];
       });
 
-      // Auto-select the newly created work type in both forms immediately
+      // Auto-select the newly created work type in both forms immediately using the temp ID
       const currentWorkTypes = workOrderForm.getValues('availableWorkTypes') || [];
-      workOrderForm.setValue('availableWorkTypes', [...currentWorkTypes, newWorkType.name]);
+      workOrderForm.setValue('availableWorkTypes', [...currentWorkTypes, optimisticWorkType.id]);
 
       const currentEditWorkTypes = editWorkOrderForm.getValues('availableWorkTypes') || [];
-      editWorkOrderForm.setValue('availableWorkTypes', [...currentEditWorkTypes, newWorkType.name]);
+      editWorkOrderForm.setValue('availableWorkTypes', [...currentEditWorkTypes, optimisticWorkType.id]);
 
       // Return context for rollback
-      return { previousWorkTypes, workTypeName: newWorkType.name };
+      return { previousWorkTypes, tempId: optimisticWorkType.id };
     },
-    onSuccess: (response: any) => {
+    onSuccess: async (response: any, newWorkType: WorkTypeForm, context: any) => {
+      // Get the real ID from the response
+      const realId = response.id;
+      
+      // Replace temp ID with real ID in both forms
+      if (context?.tempId && realId) {
+        const currentWorkTypes = workOrderForm.getValues('availableWorkTypes') || [];
+        workOrderForm.setValue('availableWorkTypes', currentWorkTypes.map((id: string) => id === context.tempId ? realId : id));
+
+        const currentEditWorkTypes = editWorkOrderForm.getValues('availableWorkTypes') || [];
+        editWorkOrderForm.setValue('availableWorkTypes', currentEditWorkTypes.map((id: string) => id === context.tempId ? realId : id));
+      }
+      
       // Refetch to get the real data from server
       queryClient.invalidateQueries({ queryKey: ['/api/work-types'] });
       toast({
@@ -1010,13 +1022,13 @@ export default function AdminDashboard() {
         queryClient.setQueryData(['/api/work-types'], context.previousWorkTypes);
       }
 
-      // Remove from form selections
-      if (context?.workTypeName) {
+      // Remove temp ID from form selections
+      if (context?.tempId) {
         const currentWorkTypes = workOrderForm.getValues('availableWorkTypes') || [];
-        workOrderForm.setValue('availableWorkTypes', currentWorkTypes.filter((wt: string) => wt !== context.workTypeName));
+        workOrderForm.setValue('availableWorkTypes', currentWorkTypes.filter((id: string) => id !== context.tempId));
 
         const currentEditWorkTypes = editWorkOrderForm.getValues('availableWorkTypes') || [];
-        editWorkOrderForm.setValue('availableWorkTypes', currentEditWorkTypes.filter((wt: string) => wt !== context.workTypeName));
+        editWorkOrderForm.setValue('availableWorkTypes', currentEditWorkTypes.filter((id: string) => id !== context.tempId));
       }
 
       toast({
@@ -1050,17 +1062,29 @@ export default function AdminDashboard() {
         return old ? [...old, optimisticMaterial] : [optimisticMaterial];
       });
 
-      // Auto-select the newly created material in both forms immediately
+      // Auto-select the newly created material in both forms immediately using the temp ID
       const currentMaterials = workOrderForm.getValues('availableMaterials') || [];
-      workOrderForm.setValue('availableMaterials', [...currentMaterials, newMaterial.name]);
+      workOrderForm.setValue('availableMaterials', [...currentMaterials, optimisticMaterial.id]);
 
       const currentEditMaterials = editWorkOrderForm.getValues('availableMaterials') || [];
-      editWorkOrderForm.setValue('availableMaterials', [...currentEditMaterials, newMaterial.name]);
+      editWorkOrderForm.setValue('availableMaterials', [...currentEditMaterials, optimisticMaterial.id]);
 
       // Return context for rollback
-      return { previousMaterials, materialName: newMaterial.name };
+      return { previousMaterials, tempId: optimisticMaterial.id };
     },
-    onSuccess: (response: any) => {
+    onSuccess: async (response: any, newMaterial: MaterialForm, context: any) => {
+      // Get the real ID from the response
+      const realId = response.id;
+      
+      // Replace temp ID with real ID in both forms
+      if (context?.tempId && realId) {
+        const currentMaterials = workOrderForm.getValues('availableMaterials') || [];
+        workOrderForm.setValue('availableMaterials', currentMaterials.map((id: string) => id === context.tempId ? realId : id));
+
+        const currentEditMaterials = editWorkOrderForm.getValues('availableMaterials') || [];
+        editWorkOrderForm.setValue('availableMaterials', currentEditMaterials.map((id: string) => id === context.tempId ? realId : id));
+      }
+      
       // Refetch to get the real data from server
       queryClient.invalidateQueries({ queryKey: ['/api/materials'] });
       toast({
@@ -1078,13 +1102,13 @@ export default function AdminDashboard() {
         queryClient.setQueryData(['/api/materials'], context.previousMaterials);
       }
 
-      // Remove from form selections
-      if (context?.materialName) {
+      // Remove temp ID from form selections
+      if (context?.tempId) {
         const currentMaterials = workOrderForm.getValues('availableMaterials') || [];
-        workOrderForm.setValue('availableMaterials', currentMaterials.filter((m: string) => m !== context.materialName));
+        workOrderForm.setValue('availableMaterials', currentMaterials.filter((id: string) => id !== context.tempId));
 
         const currentEditMaterials = editWorkOrderForm.getValues('availableMaterials') || [];
-        editWorkOrderForm.setValue('availableMaterials', currentEditMaterials.filter((m: string) => m !== context.materialName));
+        editWorkOrderForm.setValue('availableMaterials', currentEditMaterials.filter((id: string) => id !== context.tempId));
       }
 
       toast({
@@ -3269,6 +3293,86 @@ export default function AdminDashboard() {
               />
               <FormField
                 control={workOrderForm.control}
+                name="availableWorkTypes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Lavorazioni Disponibili</FormLabel>
+                    <div className="border rounded-md p-4 max-h-48 overflow-y-auto space-y-2">
+                      {(workTypes as any[])
+                        .filter((wt: any) => wt.isActive)
+                        .map((workType: any) => (
+                          <label 
+                            key={workType.id} 
+                            className="flex items-center space-x-2 cursor-pointer hover-elevate p-2 rounded"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={field.value?.includes(workType.id) || false}
+                              onChange={(e) => {
+                                const checked = e.target.checked;
+                                const newValue = checked
+                                  ? [...(field.value || []), workType.id]
+                                  : (field.value || []).filter((id: string) => id !== workType.id);
+                                field.onChange(newValue);
+                              }}
+                              className="h-4 w-4"
+                              data-testid={`checkbox-worktype-${workType.id}`}
+                            />
+                            <span className="text-sm">{workType.name}</span>
+                          </label>
+                        ))}
+                      {(workTypes as any[]).filter((wt: any) => wt.isActive).length === 0 && (
+                        <p className="text-sm text-muted-foreground text-center py-2">
+                          Nessuna lavorazione disponibile. Aggiungile nella tab Configurazione.
+                        </p>
+                      )}
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={workOrderForm.control}
+                name="availableMaterials"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Materiali Disponibili</FormLabel>
+                    <div className="border rounded-md p-4 max-h-48 overflow-y-auto space-y-2">
+                      {(materials as any[])
+                        .filter((m: any) => m.isActive)
+                        .map((material: any) => (
+                          <label 
+                            key={material.id} 
+                            className="flex items-center space-x-2 cursor-pointer hover-elevate p-2 rounded"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={field.value?.includes(material.id) || false}
+                              onChange={(e) => {
+                                const checked = e.target.checked;
+                                const newValue = checked
+                                  ? [...(field.value || []), material.id]
+                                  : (field.value || []).filter((id: string) => id !== material.id);
+                                field.onChange(newValue);
+                              }}
+                              className="h-4 w-4"
+                              data-testid={`checkbox-material-${material.id}`}
+                            />
+                            <span className="text-sm">{material.name}</span>
+                          </label>
+                        ))}
+                      {(materials as any[]).filter((m: any) => m.isActive).length === 0 && (
+                        <p className="text-sm text-muted-foreground text-center py-2">
+                          Nessun materiale disponibile. Aggiungili nella tab Configurazione.
+                        </p>
+                      )}
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={workOrderForm.control}
                 name="isActive"
                 render={({ field }) => (
                   <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
@@ -3566,6 +3670,86 @@ export default function AdminDashboard() {
                         data-testid="input-edit-work-order-description"
                       />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={editWorkOrderForm.control}
+                name="availableWorkTypes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Lavorazioni Disponibili</FormLabel>
+                    <div className="border rounded-md p-4 max-h-48 overflow-y-auto space-y-2">
+                      {(workTypes as any[])
+                        .filter((wt: any) => wt.isActive)
+                        .map((workType: any) => (
+                          <label 
+                            key={workType.id} 
+                            className="flex items-center space-x-2 cursor-pointer hover-elevate p-2 rounded"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={field.value?.includes(workType.id) || false}
+                              onChange={(e) => {
+                                const checked = e.target.checked;
+                                const newValue = checked
+                                  ? [...(field.value || []), workType.id]
+                                  : (field.value || []).filter((id: string) => id !== workType.id);
+                                field.onChange(newValue);
+                              }}
+                              className="h-4 w-4"
+                              data-testid={`checkbox-edit-worktype-${workType.id}`}
+                            />
+                            <span className="text-sm">{workType.name}</span>
+                          </label>
+                        ))}
+                      {(workTypes as any[]).filter((wt: any) => wt.isActive).length === 0 && (
+                        <p className="text-sm text-muted-foreground text-center py-2">
+                          Nessuna lavorazione disponibile. Aggiungile nella tab Configurazione.
+                        </p>
+                      )}
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={editWorkOrderForm.control}
+                name="availableMaterials"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Materiali Disponibili</FormLabel>
+                    <div className="border rounded-md p-4 max-h-48 overflow-y-auto space-y-2">
+                      {(materials as any[])
+                        .filter((m: any) => m.isActive)
+                        .map((material: any) => (
+                          <label 
+                            key={material.id} 
+                            className="flex items-center space-x-2 cursor-pointer hover-elevate p-2 rounded"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={field.value?.includes(material.id) || false}
+                              onChange={(e) => {
+                                const checked = e.target.checked;
+                                const newValue = checked
+                                  ? [...(field.value || []), material.id]
+                                  : (field.value || []).filter((id: string) => id !== material.id);
+                                field.onChange(newValue);
+                              }}
+                              className="h-4 w-4"
+                              data-testid={`checkbox-edit-material-${material.id}`}
+                            />
+                            <span className="text-sm">{material.name}</span>
+                          </label>
+                        ))}
+                      {(materials as any[]).filter((m: any) => m.isActive).length === 0 && (
+                        <p className="text-sm text-muted-foreground text-center py-2">
+                          Nessun materiale disponibile. Aggiungili nella tab Configurazione.
+                        </p>
+                      )}
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}
