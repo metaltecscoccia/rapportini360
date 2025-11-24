@@ -132,15 +132,19 @@ export default function FuelRefillsManagement() {
   const createRefillMutation = useMutation({
     mutationFn: async (data: FuelRefillForm) => {
       const refillDateTime = `${data.refillDate}T${data.refillTime}:00`;
+      const litersBefore = parseFloat(data.litersBefore);
+      const litersAfter = parseFloat(data.litersAfter);
+      const litersRefilled = litersAfter - litersBefore;
+      
       const payload = {
         vehicleId: data.vehicleId,
         refillDate: refillDateTime,
         operatorId: (currentUser as any)?.id,
-        litersBefore: parseFloat(data.litersBefore),
-        litersAfter: parseFloat(data.litersAfter),
-        litersRefilled: parseFloat(data.litersAfter) - parseFloat(data.litersBefore),
-        kmReading: data.km ? parseFloat(data.km) : null,
-        engineHoursReading: data.hours ? parseFloat(data.hours) : null,
+        litersBefore: litersBefore.toString(),
+        litersAfter: litersAfter.toString(),
+        litersRefilled: litersRefilled.toString(),
+        kmReading: data.km ? parseFloat(data.km).toString() : null,
+        engineHoursReading: data.hours ? parseFloat(data.hours).toString() : null,
         notes: data.notes || null,
       };
       const response = await fetch("/api/fuel-refills", {
@@ -174,14 +178,18 @@ export default function FuelRefillsManagement() {
   const updateRefillMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: FuelRefillForm }) => {
       const refillDateTime = `${data.refillDate}T${data.refillTime}:00`;
+      const litersBefore = parseFloat(data.litersBefore);
+      const litersAfter = parseFloat(data.litersAfter);
+      const litersRefilled = litersAfter - litersBefore;
+      
       const payload = {
         vehicleId: data.vehicleId,
         refillDate: refillDateTime,
-        litersBefore: parseFloat(data.litersBefore),
-        litersAfter: parseFloat(data.litersAfter),
-        litersRefilled: parseFloat(data.litersAfter) - parseFloat(data.litersBefore),
-        kmReading: data.km ? parseFloat(data.km) : null,
-        engineHoursReading: data.hours ? parseFloat(data.hours) : null,
+        litersBefore: litersBefore.toString(),
+        litersAfter: litersAfter.toString(),
+        litersRefilled: litersRefilled.toString(),
+        kmReading: data.km ? parseFloat(data.km).toString() : null,
+        engineHoursReading: data.hours ? parseFloat(data.hours).toString() : null,
         notes: data.notes || null,
       };
       const response = await fetch(`/api/fuel-refills/${id}`, {
