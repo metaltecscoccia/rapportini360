@@ -253,6 +253,10 @@ export const insertFuelRefillSchema = createInsertSchema(fuelRefills).omit({
   organizationId: true, // Will be set automatically from session
   createdAt: true,
 }).extend({
+  refillDate: z.union([z.string(), z.date()]).transform(val => {
+    if (typeof val === 'string') return new Date(val);
+    return val;
+  }),
   litersBefore: z.union([z.string(), z.number()]).transform(val => String(val)),
   litersAfter: z.union([z.string(), z.number()]).transform(val => String(val)),
   litersRefilled: z.union([z.string(), z.number()]).transform(val => String(val)),
