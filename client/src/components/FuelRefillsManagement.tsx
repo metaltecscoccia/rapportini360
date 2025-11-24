@@ -46,6 +46,7 @@ export default function FuelRefillsManagement() {
   const [vehicleFilter, setVehicleFilter] = useState("all");
   const [monthFilter, setMonthFilter] = useState("all");
   const [yearFilter, setYearFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -336,6 +337,39 @@ export default function FuelRefillsManagement() {
     setDeleteDialogOpen(true);
   };
 
+  // Unisce refills e tankLoads in un unico array con campo "type"
+  const unifiedMovements = [
+    ...(refills as any[]).map((refill: any) => ({
+      ...refill,
+      type: 'scarico',
+      date: new Date(refill.refillDate),
+    })),
+    ...(tankLoads as any[]).map((load: any) => ({
+      ...load,
+      type: 'carico',
+      date: new Date(load.loadDate),
+    }))
+  ].sort((a, b) => b.date.getTime() - a.date.getTime());
+
+  const filteredMovements = unifiedMovements.filter((movement: any) => {
+    const movementDate = movement.date;
+    const movementMonth = (movementDate.getMonth() + 1).toString();
+    const movementYear = movementDate.getFullYear().toString();
+    
+    // Filtro per tipo
+    if (typeFilter !== "all" && movement.type !== typeFilter) return false;
+    
+    // Filtro per veicolo (solo per scarichi)
+    if (vehicleFilter !== "all" && movement.type === 'scarico' && movement.vehicleId !== vehicleFilter) return false;
+    
+    // Filtri per data
+    if (monthFilter !== "all" && movementMonth !== monthFilter) return false;
+    if (yearFilter !== "all" && movementYear !== yearFilter) return false;
+    
+    return true;
+  });
+
+  // Manteniamo anche filteredRefills per compatibilità con codice esistente
   const filteredRefills = (refills as any[]).filter((refill: any) => {
     const refillDate = new Date(refill.refillDate);
     const refillMonth = (refillDate.getMonth() + 1).toString();
@@ -719,6 +753,19 @@ export default function FuelRefillsManagement() {
             <div className="flex flex-col md:flex-row items-start md:items-center gap-3">
               <div className="flex items-center gap-2 w-full md:w-auto">
                 <Filter className="h-4 w-4 text-muted-foreground" />
+                <Select value={typeFilter} onValueChange={setTypeFilter}>
+                  <SelectTrigger className="w-full md:w-40" data-testid="select-filter-type">
+                    <SelectValue placeholder="Tipo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tutti</SelectItem>
+                    <SelectItem value="carico">Carico</SelectItem>
+                    <SelectItem value="scarico">Scarico</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-center gap-2 w-full md:w-auto">
                 <Select value={vehicleFilter} onValueChange={setVehicleFilter}>
                   <SelectTrigger className="w-full md:w-64" data-testid="select-filter-vehicle">
                     <SelectValue placeholder="Tutti i mezzi" />
@@ -771,17 +818,17 @@ export default function FuelRefillsManagement() {
             </div>
           </div>
 
-          {isLoadingRefills || isLoadingVehicles ? (
+          {isLoadingRefills || isLoadingVehicles || isLoadingTankLoads ? (
             <div className="flex items-center justify-center py-8">
               <div className="text-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
-                <p className="text-muted-foreground">Caricamento rifornimenti...</p>
+                <p className="text-muted-foreground">Caricamento movimenti...</p>
               </div>
             </div>
-          ) : filteredRefills.length === 0 ? (
+          ) : filteredMovements.length === 0 ? (
             <div className="text-center py-8">
               <p className="text-muted-foreground">
-                {vehicleFilter !== "all" ? "Nessun rifornimento per questo mezzo" : "Nessun rifornimento registrato"}
+                Nessun movimento registrato
               </p>
             </div>
           ) : (
@@ -789,44 +836,91 @@ export default function FuelRefillsManagement() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Tipo</TableHead>
                     <TableHead>Data/Ora</TableHead>
-                    <TableHead>Mezzo</TableHead>
-                    <TableHead className="text-right">Prima (L)</TableHead>
-                    <TableHead className="text-right">Dopo (L)</TableHead>
-                    <TableHead className="text-right">Erogati (L)</TableHead>
-                    <TableHead className="text-right">Km</TableHead>
+                    <TableHead>Dettagli</TableHead>
+                    <TableHead className="text-right">Litri</TableHead>
+                    <TableHead className="text-right">Info</TableHead>
                     <TableHead className="text-right">Azioni</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredRefills.map((refill: any) => (
-                    <TableRow key={refill.id} data-testid={`row-refill-${refill.id}`}>
+                  {filteredMovements.map((movement: any) => (
+                    <TableRow key={`${movement.type}-${movement.id}`} data-testid={`row-movement-${movement.id}`}>
                       <TableCell>
-                        {formatDateToItalian(refill.refillDate)} {new Date(refill.refillDate).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}
+                        <span className={`inline-flex px-2 py-1 rounded text-xs font-medium ${
+                          movement.type === 'carico' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                        }`}>
+                          {movement.type === 'carico' ? 'Carico' : 'Scarico'}
+                        </span>
                       </TableCell>
-                      <TableCell>{getVehicleName(refill.vehicleId)}</TableCell>
-                      <TableCell className="text-right">{refill.litersBefore ? parseFloat(refill.litersBefore).toFixed(2) : "-"}</TableCell>
-                      <TableCell className="text-right">{refill.litersAfter ? parseFloat(refill.litersAfter).toFixed(2) : "-"}</TableCell>
-                      <TableCell className="text-right font-medium">{refill.litersRefilled ? parseFloat(refill.litersRefilled).toFixed(2) : "-"}</TableCell>
-                      <TableCell className="text-right">{refill.kmReading ? parseFloat(refill.kmReading).toFixed(0) : "-"}</TableCell>
+                      <TableCell>
+                        {formatDateToItalian(movement.type === 'carico' ? movement.loadDate : movement.refillDate)}{' '}
+                        {movement.date.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}
+                      </TableCell>
+                      <TableCell>
+                        {movement.type === 'scarico' ? (
+                          <div>
+                            <div className="font-medium">{getVehicleName(movement.vehicleId)}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {movement.litersBefore && movement.litersAfter && `${parseFloat(movement.litersBefore).toFixed(1)}L → ${parseFloat(movement.litersAfter).toFixed(1)}L`}
+                            </div>
+                          </div>
+                        ) : (
+                          <div>
+                            <div className="font-medium">Cisterna</div>
+                            {movement.supplier && <div className="text-xs text-muted-foreground">{movement.supplier}</div>}
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right font-medium">
+                        {movement.type === 'scarico' 
+                          ? `${movement.litersRefilled ? parseFloat(movement.litersRefilled).toFixed(2) : '-'} L`
+                          : `${movement.liters ? parseFloat(movement.liters).toFixed(2) : '-'} L`
+                        }
+                      </TableCell>
+                      <TableCell className="text-right text-sm text-muted-foreground">
+                        {movement.type === 'scarico' ? (
+                          movement.kmReading ? `${parseFloat(movement.kmReading).toFixed(0)} km` : '-'
+                        ) : (
+                          movement.totalCost ? `€ ${parseFloat(movement.totalCost).toFixed(2)}` : '-'
+                        )}
+                      </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEdit(refill)}
-                            data-testid={`button-edit-refill-${refill.id}`}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDelete(refill)}
-                            data-testid={`button-delete-refill-${refill.id}`}
-                          >
-                            <Trash className="h-4 w-4" />
-                          </Button>
+                          {movement.type === 'scarico' ? (
+                            <>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleEdit(movement)}
+                                data-testid={`button-edit-refill-${movement.id}`}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDelete(movement)}
+                                data-testid={`button-delete-refill-${movement.id}`}
+                              >
+                                <Trash className="h-4 w-4" />
+                              </Button>
+                            </>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                if (window.confirm("Sei sicuro di voler eliminare questo carico?")) {
+                                  deleteTankLoadMutation.mutate(movement.id);
+                                }
+                              }}
+                              data-testid={`button-delete-tank-load-${movement.id}`}
+                            >
+                              <Trash className="h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -1025,66 +1119,6 @@ export default function FuelRefillsManagement() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Storico Carichi Cisterna */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Fuel className="h-5 w-5" />
-            Storico Carichi Cisterna
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoadingTankLoads ? (
-            <div className="text-center py-8 text-muted-foreground">Caricamento...</div>
-          ) : (tankLoads as any[]).length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              Nessun carico registrato
-            </div>
-          ) : (
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Data e Ora</TableHead>
-                    <TableHead>Litri Caricati</TableHead>
-                    <TableHead>Costo Totale</TableHead>
-                    <TableHead>Fornitore</TableHead>
-                    <TableHead>Note</TableHead>
-                    <TableHead className="text-right">Azioni</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(tankLoads as any[]).map((load: any) => {
-                    return (
-                      <TableRow key={load.id} data-testid={`row-tank-load-${load.id}`}>
-                        <TableCell>{formatDateToItalian(load.loadDate)}</TableCell>
-                        <TableCell className="font-medium">{parseFloat(load.liters).toFixed(2)} L</TableCell>
-                        <TableCell>{load.totalCost ? `€ ${parseFloat(load.totalCost).toFixed(2)}` : "-"}</TableCell>
-                        <TableCell>{load.supplier || "-"}</TableCell>
-                        <TableCell>{load.notes || "-"}</TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => {
-                              if (window.confirm("Sei sicuro di voler eliminare questo carico?")) {
-                                deleteTankLoadMutation.mutate(load.id);
-                              }
-                            }}
-                            data-testid={`button-delete-tank-load-${load.id}`}
-                          >
-                            <Trash className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
     </div>
   );
 }
