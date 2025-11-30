@@ -50,6 +50,22 @@ const useAllActiveWorkOrders = () => {
   });
 };
 
+// Query per recuperare le lavorazioni globali
+const useWorkTypes = () => {
+  return useQuery<any[]>({
+    queryKey: ['/api/work-types'],
+    select: (data) => data || []
+  });
+};
+
+// Query per recuperare i materiali globali
+const useMaterials = () => {
+  return useQuery<any[]>({
+    queryKey: ['/api/materials'],
+    select: (data) => data || []
+  });
+};
+
 // OperationCard component to handle each operation independently
 interface OperationCardProps {
   operation: Operation;
@@ -59,6 +75,8 @@ interface OperationCardProps {
   clientsLoading: boolean;
   allWorkOrders: WorkOrder[];
   workOrdersLoading: boolean;
+  allWorkTypes: any[];
+  allMaterials: any[];
   onRemove: (id: string) => void;
   setOperations: React.Dispatch<React.SetStateAction<Operation[]>>;
   onToggleWorkType: (operationId: string, workType: string) => void;
@@ -73,6 +91,8 @@ function OperationCard({
   clientsLoading,
   allWorkOrders,
   workOrdersLoading,
+  allWorkTypes,
+  allMaterials,
   onRemove,
   setOperations,
   onToggleWorkType,
@@ -86,6 +106,18 @@ function OperationCard({
   const selectedWorkOrder = workOrders.find(wo => wo.id === operation.workOrderId);
   const availableWorkTypes = selectedWorkOrder?.availableWorkTypes || [];
   const availableMaterials = selectedWorkOrder?.availableMaterials || [];
+
+  // Helper function to get work type name by ID
+  const getWorkTypeName = (id: string) => {
+    const workType = allWorkTypes.find(wt => wt.id === id);
+    return workType?.name || id;
+  };
+
+  // Helper function to get material name by ID
+  const getMaterialName = (id: string) => {
+    const material = allMaterials.find(m => m.id === id);
+    return material?.name || id;
+  };
   
   return (
     <Card className={`p-4 ${index % 2 === 0 ? 'bg-blue-50 dark:bg-blue-950/20' : 'bg-amber-50 dark:bg-amber-950/20'}`}>
@@ -188,7 +220,7 @@ function OperationCard({
                     htmlFor={`worktype-${operation.id}-${type}`}
                     className="text-sm font-normal cursor-pointer"
                   >
-                    {type}
+                    {getWorkTypeName(type)}
                   </Label>
                 </div>
               ))}
@@ -222,7 +254,7 @@ function OperationCard({
                     htmlFor={`material-${operation.id}-${material}`}
                     className="text-sm font-normal cursor-pointer"
                   >
-                    {material}
+                    {getMaterialName(material)}
                   </Label>
                 </div>
               ))}
@@ -435,6 +467,8 @@ export default function DailyReportForm({
   // Load clients and all active work orders from backend
   const { data: clients = [], isLoading: clientsLoading } = useClients();
   const { data: allWorkOrders = [], isLoading: workOrdersLoading } = useAllActiveWorkOrders();
+  const { data: allWorkTypes = [] } = useWorkTypes();
+  const { data: allMaterials = [] } = useMaterials();
 
   // Filter clients to show only those with active work orders
   const clientsWithWorkOrders = clients.filter(client => 
@@ -582,6 +616,8 @@ export default function DailyReportForm({
                   clientsLoading={clientsLoading}
                   allWorkOrders={allWorkOrders}
                   workOrdersLoading={workOrdersLoading}
+                  allWorkTypes={allWorkTypes}
+                  allMaterials={allMaterials}
                   onRemove={removeOperation}
                   setOperations={setOperations}
                   onToggleWorkType={toggleWorkType}
