@@ -1725,7 +1725,7 @@ export default function AdminDashboard() {
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Dipendenti Attivi</p>
                 <p className="text-2xl font-bold">
-                  {employees ? (employees as any[]).filter((emp: any) => emp.role === 'employee').length : 0}
+                  {employees ? (employees as any[]).filter((emp: any) => emp.role === 'employee' && emp.isActive === true).length : 0}
                 </p>
               </div>
               <Users className="h-8 w-8 text-primary" />
