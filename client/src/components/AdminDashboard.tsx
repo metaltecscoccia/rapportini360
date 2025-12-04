@@ -348,6 +348,18 @@ export default function AdminDashboard() {
     queryKey: ['/api/materials'],
   });
 
+  // Helper function to get work type name by ID
+  const getWorkTypeName = (id: string) => {
+    const workType = (workTypes as any[]).find((wt: any) => wt.id === id);
+    return workType?.name || id;
+  };
+
+  // Helper function to get material name by ID
+  const getMaterialName = (id: string) => {
+    const material = (materials as any[]).find((m: any) => m.id === id);
+    return material?.name || id;
+  };
+
   // Query per dipendenti mancanti (solo quando il dialog è aperto)
   const { data: missingEmployeesData, isLoading: isLoadingMissingEmployees, isError: isMissingEmployeesError } = useQuery<any>({
     queryKey: ['/api/daily-reports/missing-employees', missingEmployeesDate],
@@ -2103,7 +2115,7 @@ export default function AdminDashboard() {
                                                     </span>
                                                     {operation.workTypes.map((type: string, idx: number) => (
                                                       <Badge key={idx} variant="secondary" className="text-xs">
-                                                        {type}
+                                                        {getWorkTypeName(type)}
                                                       </Badge>
                                                     ))}
                                                   </div>
@@ -2117,7 +2129,7 @@ export default function AdminDashboard() {
                                                     </span>
                                                     {operation.materials.map((material: string, idx: number) => (
                                                       <Badge key={idx} variant="outline" className="text-xs">
-                                                        {material}
+                                                        {getMaterialName(material)}
                                                       </Badge>
                                                     ))}
                                                   </div>
