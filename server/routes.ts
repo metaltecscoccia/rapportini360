@@ -848,7 +848,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const date = (req.query.date as string) || getTodayISO();
 
         const allUsers = await storage.getAllUsers(organizationId);
-        const employees = allUsers.filter((user) => user.role === "employee");
+        const employees = allUsers.filter((user) => user.role === "employee" && user.isActive !== false);
 
         const reportsForDate = await storage.getDailyReportsByDate(
           date,
