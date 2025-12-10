@@ -1188,14 +1188,13 @@ export class DatabaseStorage implements IStorage {
   async getMonthlyAttendance(organizationId: string, year: string, month: string): Promise<any> {
     await this.ensureInitialized();
     
-    // Get all employees
+    // Get all employees (including disabled ones for historical data)
     const allUsers = await db.select()
       .from(users)
       .where(
         and(
           eq(users.organizationId, organizationId),
-          eq(users.role, 'employee'),
-          eq(users.isActive, true)
+          eq(users.role, 'employee')
         )
       );
     
