@@ -1188,8 +1188,8 @@ export class DatabaseStorage implements IStorage {
   async getMonthlyAttendance(organizationId: string, year: string, month: string): Promise<any> {
     await this.ensureInitialized();
     
-    // Get all employees (including disabled ones for historical data)
-    const allUsers = await db.select()
+    // Get all employees
+    const allEmployees = await db.select()
       .from(users)
       .where(
         and(
@@ -1225,8 +1225,19 @@ export class DatabaseStorage implements IStorage {
     const allAdjustments = await db.select().from(hoursAdjustments);
     const monthAdjustments = allAdjustments.filter(adj => reportIds.includes(adj.dailyReportId));
     
+    // Get employee IDs who have reports or absences in this month
+    const employeeIdsWithReports = new Set(monthReports.map(r => r.employeeId));
+    const employeeIdsWithAbsences = new Set(absences.map(a => a.userId));
+    
+    // Filter employees: show active ones OR disabled ones with activity in this month
+    const relevantUsers = allEmployees.filter(user => 
+      user.isActive !== false || 
+      employeeIdsWithReports.has(user.id) || 
+      employeeIdsWithAbsences.has(user.id)
+    );
+    
     // Build attendance data
-    const attendanceData = allUsers.map(user => {
+    const attendanceData = relevantUsers.map(user => {
       const userReports = monthReports.filter(r => r.employeeId === user.id);
       const userAbsences = absences.filter(a => a.userId === user.id);
       
