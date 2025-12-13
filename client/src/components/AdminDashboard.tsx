@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Switch } from "@/components/ui/switch";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -138,6 +139,8 @@ export default function AdminDashboard() {
   const [addEmployeeDialogOpen, setAddEmployeeDialogOpen] = useState(false);
   const [editEmployeeDialogOpen, setEditEmployeeDialogOpen] = useState(false);
   const [deleteEmployeeDialogOpen, setDeleteEmployeeDialogOpen] = useState(false);
+  const [toggleStatusDialogOpen, setToggleStatusDialogOpen] = useState(false);
+  const [employeeToToggle, setEmployeeToToggle] = useState<any>(null);
   const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
   const [resetPasswordDialogOpen, setResetPasswordDialogOpen] = useState(false);
   const [newPassword, setNewPassword] = useState<string>("");
@@ -407,6 +410,7 @@ export default function AdminDashboard() {
       const updateData: any = {
         fullName: data.fullName,
         username: data.username,
+        isActive: data.isActive,
       };
 
       // Include password only if provided
@@ -2675,6 +2679,49 @@ export default function AdminDashboard() {
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
+
+              {/* AlertDialog conferma cambio stato dipendente */}
+              <AlertDialog open={toggleStatusDialogOpen} onOpenChange={setToggleStatusDialogOpen}>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>
+                      {employeeToToggle?.isActive ? "Disattiva Dipendente" : "Riattiva Dipendente"}
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {employeeToToggle?.isActive 
+                        ? `Sei sicuro di voler impostare "${employeeToToggle?.fullName}" come licenziato? Il dipendente non potrà più accedere al sistema.`
+                        : `Sei sicuro di voler riattivare "${employeeToToggle?.fullName}"? Il dipendente potrà nuovamente accedere al sistema.`
+                      }
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel data-testid="button-cancel-toggle-status">Annulla</AlertDialogCancel>
+                    <AlertDialogAction 
+                      onClick={() => {
+                        if (employeeToToggle) {
+                          toggleEmployeeStatusMutation.mutate({ 
+                            employeeId: employeeToToggle.id, 
+                            isActive: !employeeToToggle.isActive 
+                          });
+                          setToggleStatusDialogOpen(false);
+                          setEmployeeToToggle(null);
+                        }
+                      }}
+                      disabled={toggleEmployeeStatusMutation.isPending}
+                      className={employeeToToggle?.isActive 
+                        ? "bg-orange-600 text-white hover:bg-orange-700" 
+                        : "bg-green-600 text-white hover:bg-green-700"
+                      }
+                      data-testid="button-confirm-toggle-status"
+                    >
+                      {toggleEmployeeStatusMutation.isPending 
+                        ? "Aggiornando..." 
+                        : employeeToToggle?.isActive ? "Disattiva" : "Riattiva"
+                      }
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </CardHeader>
             <CardContent>
               <div className="mb-4">
@@ -2752,19 +2799,26 @@ export default function AdminDashboard() {
                             >
                               <Key className="h-4 w-4" />
                             </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              onClick={() => toggleEmployeeStatusMutation.mutate({ 
-                                employeeId: employee.id, 
-                                isActive: !employee.isActive 
-                              })}
-                              data-testid={`button-toggle-status-${employee.id}`}
-                              className={employee.isActive ? "text-orange-600 hover:text-orange-700" : "text-green-600 hover:text-green-700"}
-                              disabled={toggleEmployeeStatusMutation.isPending}
-                            >
-                              {employee.isActive ? <UserX className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
-                            </Button>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  onClick={() => {
+                                    setEmployeeToToggle(employee);
+                                    setToggleStatusDialogOpen(true);
+                                  }}
+                                  data-testid={`button-toggle-status-${employee.id}`}
+                                  className={employee.isActive ? "text-orange-600 hover:text-orange-700" : "text-green-600 hover:text-green-700"}
+                                  disabled={toggleEmployeeStatusMutation.isPending}
+                                >
+                                  {employee.isActive ? <UserX className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                {employee.isActive ? "Imposta come licenziato" : "Riattiva dipendente"}
+                              </TooltipContent>
+                            </Tooltip>
                             <Button 
                               variant="ghost" 
                               size="sm" 
